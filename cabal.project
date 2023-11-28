@@ -1,5 +1,6 @@
 packages:
-  wasm-calc/wasm-calc.cabal
+  wasm-calc/wasm-calc.cabal,
+  wasm-calc2/wasm-calc2.cabal
 
 with-compiler: ghc-9.6.2
 

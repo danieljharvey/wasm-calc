@@ -9,6 +9,8 @@ update:
 build:
 	cabal build all -j4
 
+# calculator 1
+
 .PHONY: test-wasm-calc
 test-wasm-calc:
 	cabal run wasm-calc:tests
@@ -17,13 +19,19 @@ test-wasm-calc:
 run-wasm-calc:
 	cabal run wasm-calc
 
+# calculator 2
+
 .PHONY: test-wasm-calc2
 test-wasm-calc2:
 	cabal run wasm-calc2:tests
 
+# calculator 3
+
 .PHONY: test-wasm-calc3
 test-wasm-calc3:
 	cabal run wasm-calc3:tests
+
+# calculator 4
 
 .PHONY: test-wasm-calc4
 test-wasm-calc4:
