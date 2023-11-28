@@ -19,9 +19,7 @@ maintainer:         danieljamesharvey@gmail.com
 -- A copyright notice.
 -- copyright:
 -- category:
-extra-source-files:
-  CHANGELOG.md
-  static/runtime.c
+extra-source-files: CHANGELOG.md
 
 common shared
   ghc-options:
@@ -34,24 +32,16 @@ common shared
     , base
     , containers
     , diagnose
-    , directory
-    , file-embed
     , haskeline
-    , llvm-hs-pretty
-    , llvm-hs-pure
     , megaparsec
     , mtl
     , parser-combinators
     , prettyprinter
-    , process
-    , string-conversions
     , text
-    , unix
+    , wasm
 
   other-modules:
     Calc
-    Calc.Compile.RunLLVM
-    Calc.Compile.ToLLVM
     Calc.ExprUtils
     Calc.Interpreter
     Calc.Parser
@@ -70,6 +60,9 @@ common shared
     Calc.Types.Prim
     Calc.Types.Type
     Calc.TypeUtils
+    Calc.Wasm.FromExpr
+    Calc.Wasm.Run
+    Calc.Wasm.Types
 
 library
   import:           shared
@@ -93,9 +86,9 @@ test-suite wasm-calc2-tests
 
   other-modules:
     Test.Interpreter.InterpreterSpec
-    Test.LLVM.LLVMSpec
     Test.Parser.ParserSpec
     Test.Typecheck.TypecheckSpec
+    Test.Wasm.WasmSpec
 
   main-is:          Main.hs
   default-language: Haskell2010
@@ -108,19 +101,13 @@ executable wasm-calc2
   build-depends:
     , base
     , diagnose
-    , directory
-    , file-embed
     , haskeline
-    , wasm-calc2
-    , llvm-hs-pretty
-    , llvm-hs-pure
     , megaparsec
     , mtl
     , parser-combinators
     , prettyprinter
-    , process
-    , string-conversions
     , text
-    , unix
+    , wasm
+    , wasm-calc2
 
   default-language: Haskell2010
