@@ -11,19 +11,19 @@ module Calc.Repl
   )
 where
 
-import qualified Language.Wasm.Interpreter as Wasm
-import Calc.Wasm.Run (runWasm)
-import Calc.Wasm.FromExpr (createModule)
-import Calc.Types.Expr
-import Calc.Wasm.Types
 import Calc.Parser
 import Calc.Parser.Types
+import Calc.Types.Expr
+import Calc.Wasm.FromExpr (createModule)
+import Calc.Wasm.Run (runWasm)
+import Calc.Wasm.Types
 import Control.Monad.IO.Class
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Void
 import qualified Error.Diagnose as Diag
 import Error.Diagnose.Compat.Megaparsec
+import qualified Language.Wasm.Interpreter as Wasm
 import System.Console.Haskeline
 
 instance HasHints Void msg where
@@ -53,25 +53,25 @@ repl = do
                 (fromErrorBundle bundle input)
               loop
             Right expr -> do
-              resp <- liftIO $ runWasmExpr expr 
+              resp <- liftIO $ runWasmExpr expr
               liftIO $ putStrLn resp
               loop
 
 runWasmExpr :: Expr ann -> IO String
-runWasmExpr expr
-  = do
+runWasmExpr expr =
+  do
     let mod' =
-            Module
-              { modFunctions =
-                  [ Function
-                      { fnName = "main",
-                        fnExpr = expr,
-                        fnPublic = True,
-                        fnArgs = mempty,
-                        fnReturnType = I32
-                      }
-                  ]
-              }
+          Module
+            { modFunctions =
+                [ Function
+                    { fnName = "main",
+                      fnExpr = expr,
+                      fnPublic = True,
+                      fnArgs = mempty,
+                      fnReturnType = I32
+                    }
+                ]
+            }
     maybeValues <- runWasm (createModule mod')
     case maybeValues of
       Just [Wasm.VI32 i] -> pure $ show i
@@ -79,8 +79,6 @@ runWasmExpr expr
       Just [Wasm.VF32 f] -> pure $ show f
       Just [Wasm.VF64 f] -> pure $ show f
       other -> error $ "Expected a single return value but got " <> show other
-
-
 
 -- | turn Megaparsec error + input into a Diagnostic
 fromErrorBundle :: ParseErrorType -> String -> Diag.Diagnostic Text
