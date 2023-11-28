@@ -4,18 +4,10 @@ on:
   push:
     branches:
       - trunk
-    paths:
-      - "wasm-calc/**"
-      - "cabal.project"
-      - "cabal.project.freeze"
 
   pull_request:
     branches:
       - trunk
-    paths:
-      - "wasm-calc/**"
-      - "cabal.project"
-      - "cabal.project.freeze"
 
 jobs:
   build:
