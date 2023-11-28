@@ -1,4 +1,4 @@
-name: LLVM calculator - build
+name: WASM calculator - build
 
 on:
   push:
