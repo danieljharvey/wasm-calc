@@ -4,7 +4,7 @@ module Calc.Wasm.Types (Type (..), Module (..), Function (..)) where
 
 import Calc.Types.Expr
 
-newtype Type ann = I32
+data Type ann = I32
   deriving stock (Eq, Ord, Show)
 
 newtype Module ann = Module

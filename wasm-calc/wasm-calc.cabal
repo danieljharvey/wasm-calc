@@ -34,16 +34,11 @@ common shared
     , base
     , containers
     , diagnose
-    , directory
-    , file-embed
     , haskeline
     , megaparsec
     , mtl
     , parser-combinators
-    , process
-    , string-conversions
     , text
-    , unix
     , wasm
 
   other-modules:
@@ -101,15 +96,10 @@ executable wasm-calc
   build-depends:
     , base
     , diagnose
-    , directory
-    , file-embed
     , haskeline
     , megaparsec
     , parser-combinators
-    , process
-    , string-conversions
     , text
-    , unix
     , wasm
     , wasm-calc
 
