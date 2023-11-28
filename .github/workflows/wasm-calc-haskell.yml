@@ -41,3 +41,6 @@ jobs:
       - name: Test wasm-calc
         run: make test-wasm-calc
 
+      - name: Test wasm-calc2
+        run: make test-wasm-calc2
+

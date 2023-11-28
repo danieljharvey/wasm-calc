@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               wasm-calc
+name:               wasm-calc2
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
@@ -36,6 +36,7 @@ common shared
     , megaparsec
     , mtl
     , parser-combinators
+    , prettyprinter
     , text
     , wasm
 
@@ -47,12 +48,18 @@ common shared
     Calc.Parser.Expr
     Calc.Parser.Primitives
     Calc.Parser.Shared
+    Calc.Parser.Type
     Calc.Parser.Types
     Calc.Repl
+    Calc.SourceSpan
+    Calc.Typecheck.Elaborate
+    Calc.Typecheck.Error
     Calc.Types
     Calc.Types.Annotation
     Calc.Types.Expr
     Calc.Types.Prim
+    Calc.Types.Type
+    Calc.TypeUtils
     Calc.Wasm.FromExpr
     Calc.Wasm.Run
     Calc.Wasm.Types
@@ -68,7 +75,7 @@ library
   hs-source-dirs:   src
   default-language: Haskell2010
 
-test-suite wasm-calc-tests
+test-suite wasm-calc2-tests
   import:           shared
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
@@ -80,14 +87,14 @@ test-suite wasm-calc-tests
   other-modules:
     Test.Interpreter.InterpreterSpec
     Test.Parser.ParserSpec
+    Test.Typecheck.TypecheckSpec
     Test.Wasm.WasmSpec
 
   main-is:          Main.hs
   default-language: Haskell2010
 
-executable wasm-calc
+executable wasm-calc2
   main-is:          Main.hs
-  other-modules:    Calc.Repl
   hs-source-dirs:   app
   hs-source-dirs:   src
   ghc-options:      -threaded -rtsopts -with-rtsopts=-N
@@ -96,9 +103,11 @@ executable wasm-calc
     , diagnose
     , haskeline
     , megaparsec
+    , mtl
     , parser-combinators
+    , prettyprinter
     , text
     , wasm
-    , wasm-calc
+    , wasm-calc2
 
   default-language: Haskell2010
