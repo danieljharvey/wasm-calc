@@ -1,14 +1,13 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Wasm.Types (Type (..), Module (..), Function (..)) where
 
 import Calc.Types.Expr
 
-data Type ann = I32
+newtype Type ann = I32
   deriving stock (Eq, Ord, Show)
 
-data Module ann = Module
+newtype Module ann = Module
   { -- | the functions themselves, their index comes from the list placement
     modFunctions :: [Function ann]
   }
