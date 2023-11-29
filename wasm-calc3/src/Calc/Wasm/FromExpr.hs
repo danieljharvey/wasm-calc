@@ -1,69 +1,57 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NamedFieldPuns #-}
+  {-# LANGUAGE OverloadedStrings #-}
+module Calc.Wasm.FromExpr (fromModule) where
 
-module Calc.Wasm.FromExpr (createModule) where
-
-import Calc.Types.Expr
-import Calc.Types.Prim
+import Calc.Types.Function
+import Calc.Types.Module
 import Calc.Wasm.Types
-import Data.Maybe (catMaybes)
-import Data.String
-import GHC.Natural
-import qualified Language.Wasm.Structure as Wasm
+import Calc.Types.Expr
+import Calc.Types.Type
 
-mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
-mapWithIndex f = fmap f . zip [0 ..]
+-- | take our regular module and do the book keeping to get it ready for Wasm
+-- town
+data FromWasmError = FunctionTypeNotScalar
+  deriving stock (Eq, Ord, Show)
 
-fromType :: Type ann -> Wasm.ValueType
-fromType I32 = Wasm.I32
+fromType :: Type ann -> Either FromWasmError WasmType
+fromType (TPrim _ TInt) = pure I32
+fromType (TPrim _ TBool) = pure I32
+fromType (TFunction {}) = Left FunctionTypeNotScalar
 
-fromFunction :: Int -> Function ann -> Wasm.Function
-fromFunction fnIndex (Function {fnExpr, fnArgs}) =
-  Wasm.Function (fromIntegral fnIndex) (fromType <$> fnArgs) (fromExpr fnExpr)
+fromExpr :: Expr ann -> WasmExpr
+fromExpr (EPrim _ prim) = WPrim prim
+fromExpr (EInfix _ op a b) = WInfix op (fromExpr a) (fromExpr b)
+fromExpr (EIf _ predE thenE elseE)
+  = WIf (fromExpr predE) (fromExpr thenE) (fromExpr elseE)
+fromExpr (EVar _ _ ) = WVar 1 -- need to make this Stateful fresh blah
+fromExpr (EApply _ _funcName args)
+  = WApply 1 (fromExpr <$> args) -- need to look up the function name in some sort of state
 
-typeFromFunction :: Function ann -> Wasm.FuncType
-typeFromFunction (Function {fnArgs, fnReturnType}) =
-  Wasm.FuncType (fromType <$> fnArgs) [fromType fnReturnType]
+fromFunction :: Function ann -> Either FromWasmError WasmFunction 
+fromFunction (Function {fnBody,fnArgs,fnFunctionName}) = do
+  args <- traverse (fromType . snd) fnArgs
+  pure $
+    WasmFunction
+      { wfName = fnFunctionName, 
+        wfExpr = fromExpr fnBody,
+        wfPublic = False,
+        wfArgs = args, 
+        wfReturnType = I32 -- a pure guess, we should use the typed module here and grab the type from `ann`
+      }
 
-exportFromFunction :: Int -> Function ann -> Maybe Wasm.Export
-exportFromFunction fnIndex (Function {fnName, fnPublic = True}) =
-  Just $ Wasm.Export (fromString fnName) (Wasm.ExportFunc (fromIntegral fnIndex))
-exportFromFunction _ _ = Nothing
-
-bitsizeFromType :: Type ann -> Wasm.BitSize
-bitsizeFromType I32 = Wasm.BS32
-
-instructionFromOp :: Type ann -> Op -> Wasm.Instruction Natural
-instructionFromOp ty OpAdd = Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
-instructionFromOp ty OpMultiply = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
-instructionFromOp ty OpSubtract = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
-instructionFromOp ty OpEquals = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
-
-fromExpr :: Expr ann -> [Wasm.Instruction Natural]
-fromExpr (EPrim _ (PInt i)) =
-  [Wasm.I32Const $ fromIntegral i]
-fromExpr (EPrim _ (PBool True)) =
-  [Wasm.I32Const 1]
-fromExpr (EPrim _ (PBool False)) =
-  [Wasm.I32Const 0]
-fromExpr (EInfix _ op a b) =
-  fromExpr a <> fromExpr b <> [instructionFromOp I32 op]
-fromExpr (EIf _ predExpr thenExpr elseExpr) =
-  fromExpr thenExpr <> fromExpr elseExpr <> fromExpr predExpr <> [Wasm.Select]
-
-createModule :: Module ann -> Wasm.Module
-createModule (Module {modFunctions}) =
-  let functions = mapWithIndex (uncurry fromFunction) modFunctions
-      types = typeFromFunction <$> modFunctions
-      exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) modFunctions
-   in Wasm.Module
-        { Wasm.types = types,
-          Wasm.functions = functions,
-          Wasm.tables = mempty,
-          Wasm.mems = mempty,
-          Wasm.globals = mempty,
-          Wasm.elems = mempty,
-          Wasm.datas = mempty,
-          Wasm.start = Nothing,
-          Wasm.imports = mempty,
-          Wasm.exports = exports
-        }
+fromModule :: Module ann -> Either FromWasmError WasmModule 
+fromModule (Module {mdExpr, mdFunctions}) = do
+  let mainFunction =
+        WasmFunction
+          { wfName = "main",
+            wfExpr = fromExpr mdExpr,
+            wfPublic = True,
+            wfArgs = mempty,
+            wfReturnType = I32
+          }
+  wasmFunctions <- traverse fromFunction mdFunctions
+  pure $
+    WasmModule
+      { wmFunctions = mainFunction : wasmFunctions
+      }

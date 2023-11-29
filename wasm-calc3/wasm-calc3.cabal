@@ -77,6 +77,10 @@ common shared
     Calc.Types.Prim
     Calc.Types.Type
     Calc.TypeUtils
+    Calc.Wasm.FromExpr
+    Calc.Wasm.Run
+    Calc.Wasm.ToWasm
+    Calc.Wasm.Types
 
 library
   import:           shared

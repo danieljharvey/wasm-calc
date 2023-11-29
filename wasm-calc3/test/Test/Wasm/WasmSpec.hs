@@ -5,7 +5,7 @@ module Test.Wasm.WasmSpec (spec) where
 import Calc.Parser
 import Calc.Wasm.FromExpr
 import Calc.Wasm.Run
-import Calc.Wasm.Types
+import Calc.Wasm.ToWasm
 import Data.Foldable (traverse_)
 import Data.Text (Text)
 import qualified Language.Wasm.Interpreter as Wasm
@@ -13,23 +13,14 @@ import Test.Hspec
 
 testCompileExpr :: (Text, Wasm.Value) -> Spec
 testCompileExpr (input, result) = it (show input) $ do
-  case parseExprAndFormatError input of
+  case parseModuleAndFormatError input of
     Left e -> error (show e)
-    Right expr -> do
-      let mod' =
-            Module
-              { modFunctions =
-                  [ Function
-                      { fnName = "main",
-                        fnExpr = expr,
-                        fnPublic = True,
-                        fnArgs = mempty,
-                        fnReturnType = I32
-                      }
-                  ]
-              }
-      resp <- runWasm (createModule mod')
-      resp `shouldBe` Just [result]
+    Right mod' ->
+      case fromModule mod' of
+        Left e -> error (show e)
+        Right wasmMod -> do
+          resp <- runWasm (moduleToWasm wasmMod)
+          resp `shouldBe` Just [result]
 
 spec :: Spec
 spec = do

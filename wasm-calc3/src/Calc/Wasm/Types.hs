@@ -1,23 +1,37 @@
 {-# LANGUAGE DerivingStrategies #-}
 
-module Calc.Wasm.Types (Type (..), Module (..), Function (..)) where
+module Calc.Wasm.Types (WasmType (..), WasmModule (..), WasmFunction (..),
+    WasmExpr(..)) where
 
 import Calc.Types.Expr
+import Calc.Types.Prim
+import GHC.Natural
+import Calc.Types.Function
 
-data Type ann = I32
+data WasmType = I32
   deriving stock (Eq, Ord, Show)
 
-newtype Module ann = Module
+newtype WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
-    modFunctions :: [Function ann]
+    wmFunctions :: [WasmFunction ]
   }
   deriving stock (Eq, Ord, Show)
 
-data Function ann = Function
-  { fnName :: String,
-    fnExpr :: Expr ann,
-    fnPublic :: Bool,
-    fnArgs :: [Type ann],
-    fnReturnType :: Type ann
+data WasmFunction = WasmFunction
+  { wfName :: FunctionName,
+    wfExpr :: WasmExpr, 
+    wfPublic :: Bool,
+    wfArgs :: [WasmType],
+    wfReturnType :: WasmType
   }
   deriving stock (Eq, Ord, Show)
+
+data WasmExpr 
+  = WPrim Prim
+  | WInfix Op WasmExpr WasmExpr 
+  | WIf WasmExpr WasmExpr WasmExpr 
+  | WVar Natural
+  | WApply Natural [WasmExpr]
+  deriving stock (Eq,Ord,Show)
+
+
