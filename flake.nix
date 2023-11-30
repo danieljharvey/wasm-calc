@@ -30,6 +30,11 @@
                   cabal-fmt = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.cabal-fmt (drv: {
                     enableSeparateBinOutput = false;
                   }));
+                  # try and remove cycle
+                  ormolu = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.ormolu (drv: {
+                    enableSeparateBinOutput = false;
+                  }));
+
                 };
 
               };
