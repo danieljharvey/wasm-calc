@@ -14,7 +14,7 @@
         # current compiler version, ideally, we'll put everything here
         # eventually
 
-        compilerVersion = "ghc962";
+        compilerVersion = "ghc963";
 
         # fix things
         haskell = pkgs.haskell // {
@@ -30,6 +30,11 @@
                   cabal-fmt = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.cabal-fmt (drv: {
                     enableSeparateBinOutput = false;
                   }));
+                  # try and remove cycle
+                  ormolu = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.ormolu (drv: {
+                    enableSeparateBinOutput = false;
+                  }));
+
                 };
 
               };

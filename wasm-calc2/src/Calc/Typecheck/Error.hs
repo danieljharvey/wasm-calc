@@ -44,7 +44,7 @@ typeErrorDiagnostic ::
   Diag.Diagnostic Text
 typeErrorDiagnostic input e =
   let filename = "<repl>"
-      diag = Diag.addFile Diag.def filename (T.unpack input)
+      diag = Diag.addFile mempty filename (T.unpack input)
       report = case e of
         (PredicateIsNotBoolean _ foundType) ->
           Diag.Err
