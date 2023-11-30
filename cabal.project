@@ -3,7 +3,7 @@ packages:
   wasm-calc2/wasm-calc2.cabal,
   wasm-calc3/wasm-calc3.cabal
 
-with-compiler: ghc-9.6.2
+with-compiler: ghc-9.6.3
 
 package diagnose
   flags: +megaparsec-compat
