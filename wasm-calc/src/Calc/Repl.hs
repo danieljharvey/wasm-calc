@@ -46,9 +46,8 @@ repl = do
             Left bundle -> do
               Diag.printDiagnostic
                 Diag.stderr
-                True
-                True
-                4
+                Diag.WithUnicode
+                (Diag.TabSize 4)
                 Diag.defaultStyle
                 (fromErrorBundle bundle input)
               loop
