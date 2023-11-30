@@ -35,6 +35,10 @@ run-wasm-calc2:
 test-wasm-calc3:
 	cabal run wasm-calc3:tests
 
+.PHONY: run-wasm-calc3
+run-wasm-calc3:
+	cabal run wasm-calc3
+
 # calculator 4
 
 .PHONY: test-wasm-calc4

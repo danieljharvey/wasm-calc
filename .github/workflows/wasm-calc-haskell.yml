@@ -38,9 +38,15 @@ jobs:
           ghc-version: '9.6.2'
           cabal-version: '3.10.1.0'
 
+      - name: Build the universe
+        run: make build
+
       - name: Test wasm-calc
         run: make test-wasm-calc
 
       - name: Test wasm-calc2
         run: make test-wasm-calc2
+
+      - name: Test wasm-calc3
+        run: make test-wasm-calc3
 
