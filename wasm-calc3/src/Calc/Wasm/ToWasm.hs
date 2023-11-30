@@ -2,14 +2,14 @@
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import Calc.Types.FunctionName
 import Calc.Types.Expr
+import Calc.Types.FunctionName
 import Calc.Types.Prim
 import Calc.Wasm.Types
 import Data.Maybe (catMaybes)
+import qualified Data.Text.Lazy as TL
 import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
-import qualified Data.Text.Lazy as TL
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
 mapWithIndex f = fmap f . zip [0 ..]
@@ -40,15 +40,15 @@ instructionFromOp ty OpSubtract = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
 instructionFromOp ty OpEquals = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
 
 fromExpr :: WasmExpr -> [Wasm.Instruction Natural]
-fromExpr (WPrim  (PInt i)) =
+fromExpr (WPrim (PInt i)) =
   [Wasm.I32Const $ fromIntegral i]
-fromExpr (WPrim  (PBool True)) =
+fromExpr (WPrim (PBool True)) =
   [Wasm.I32Const 1]
-fromExpr (WPrim  (PBool False)) =
+fromExpr (WPrim (PBool False)) =
   [Wasm.I32Const 0]
 fromExpr (WInfix op a b) =
   fromExpr a <> fromExpr b <> [instructionFromOp I32 op]
-fromExpr (WIf  predExpr thenExpr elseExpr) =
+fromExpr (WIf predExpr thenExpr elseExpr) =
   fromExpr thenExpr <> fromExpr elseExpr <> fromExpr predExpr <> [Wasm.Select]
 fromExpr (WVar i) = [Wasm.GetLocal i]
 fromExpr (WApply fnIndex args) =

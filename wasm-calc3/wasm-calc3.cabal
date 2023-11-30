@@ -133,6 +133,7 @@ executable wasm-calc3
     , text
     , unix
     , unordered-containers
+    , wasm
     , wasm-calc3
 
   default-language: Haskell2010

@@ -1,42 +1,48 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
-  {-# LANGUAGE OverloadedStrings #-}
-    {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Debug.Trace
-import Control.Monad.Except
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Wasm.Types
 import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.Module
 import Calc.Types.Type
+import Calc.Wasm.Types
+import Control.Monad.Except
 import Control.Monad.Reader
 import qualified Data.Map.Strict as M
-import Calc.Types.Identifier
 import GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
-data FromWasmError = FunctionTypeNotScalar
-  | IdentifierNotFound Identifier | FunctionNotFound FunctionName
+data FromWasmError
+  = FunctionTypeNotScalar
+  | IdentifierNotFound Identifier
+  | FunctionNotFound FunctionName
   deriving stock (Eq, Ord, Show)
 
-data FromExprEnv = FromExprEnv {
-  feeIdentifiers :: M.Map Identifier Natural,
-  feeFunctions :: M.Map FunctionName Natural
-                                  }
+data FromExprEnv = FromExprEnv
+  { feeIdentifiers :: M.Map Identifier Natural,
+    feeFunctions :: M.Map FunctionName Natural
+  }
 
-lookupIdent :: (MonadReader FromExprEnv m, MonadError FromWasmError m) => 
-  Identifier -> m Natural
+lookupIdent ::
+  (MonadReader FromExprEnv m, MonadError FromWasmError m) =>
+  Identifier ->
+  m Natural
 lookupIdent ident = do
   maybeNat <- asks (M.lookup ident . feeIdentifiers)
   case maybeNat of
     Just nat -> pure nat
     Nothing -> throwError $ IdentifierNotFound ident
 
-lookupFunction :: (MonadReader FromExprEnv m, MonadError FromWasmError m) => 
-  FunctionName -> m Natural
+lookupFunction ::
+  (MonadReader FromExprEnv m, MonadError FromWasmError m) =>
+  FunctionName ->
+  m Natural
 lookupFunction functionName = do
   maybeNat <- asks (M.lookup functionName . feeFunctions)
   case maybeNat of
@@ -48,34 +54,38 @@ fromType (TPrim _ TInt) = pure I32
 fromType (TPrim _ TBool) = pure I32
 fromType (TFunction {}) = Left FunctionTypeNotScalar
 
-fromExpr :: (MonadError FromWasmError m,
-  MonadReader FromExprEnv m) => Expr ann -> m WasmExpr
+fromExpr ::
+  ( MonadError FromWasmError m,
+    MonadReader FromExprEnv m
+  ) =>
+  Expr ann ->
+  m WasmExpr
 fromExpr (EPrim _ prim) = pure $ WPrim prim
 fromExpr (EInfix _ op a b) = WInfix op <$> fromExpr a <*> fromExpr b
-fromExpr (EIf _ predE thenE elseE)
-  = WIf <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
-fromExpr (EVar _ ident ) = WVar <$> lookupIdent ident
-fromExpr (EApply _ funcName args)
-  = WApply <$> lookupFunction funcName <*> (traverse fromExpr args) -- need to look up the function name in some sort of state
+fromExpr (EIf _ predE thenE elseE) =
+  WIf <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
+fromExpr (EVar _ ident) = WVar <$> lookupIdent ident
+fromExpr (EApply _ funcName args) =
+  WApply <$> lookupFunction funcName <*> (traverse fromExpr args) -- need to look up the function name in some sort of state
 
-fromFunction :: M.Map FunctionName Natural -> Function ann -> Either FromWasmError WasmFunction 
-fromFunction funcMap (Function {fnBody,fnArgs,fnFunctionName}) = do
+fromFunction :: M.Map FunctionName Natural -> Function ann -> Either FromWasmError WasmFunction
+fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
   args <- traverse (fromType . snd) fnArgs
-  let argMap = M.fromList $ (\(i,(ArgumentName ident,_)) -> (Identifier ident,i + 1)) <$> zip [0..] fnArgs
+  let argMap = M.fromList $ (\(i, (ArgumentName ident, _)) -> (Identifier ident, i)) <$> zip [0 ..] fnArgs
   expr <- runReaderT (fromExpr fnBody) (FromExprEnv argMap funcMap)
   pure $
     WasmFunction
-      { wfName = fnFunctionName, 
-        wfExpr = expr, 
+      { wfName = fnFunctionName,
+        wfExpr = expr,
         wfPublic = False,
-        wfArgs = args, 
+        wfArgs = args,
         wfReturnType = I32 -- a pure guess, we should use the typed module here and grab the type from `ann`
       }
 
-fromModule :: Module ann -> Either FromWasmError WasmModule 
+fromModule :: Module ann -> Either FromWasmError WasmModule
 fromModule (Module {mdExpr, mdFunctions}) = do
-  let funcMap = M.fromList $ (\(i,Function {fnFunctionName}) -> (fnFunctionName,i + 1)) <$> zip [0..] mdFunctions
- 
+  let funcMap = M.fromList $ (\(i, Function {fnFunctionName}) -> (fnFunctionName, i + 1)) <$> zip [0 ..] mdFunctions
+
   expr <- runReaderT (fromExpr mdExpr) (FromExprEnv mempty funcMap)
 
   let mainFunction =
@@ -88,7 +98,7 @@ fromModule (Module {mdExpr, mdFunctions}) = do
           }
 
   wasmFunctions <- traverse (fromFunction funcMap) mdFunctions
-  pure $ traceShowId $ 
+  pure $
     WasmModule
       { wmFunctions = mainFunction : wasmFunctions
       }
