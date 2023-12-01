@@ -88,7 +88,7 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
 
 fromModule :: (Show ann) => Module ann -> Either FromWasmError WasmModule
 fromModule (Module {mdExpr, mdFunctions}) = do
-  let funcMap = M.fromList $ (\(i, Function {fnFunctionName}) -> (fnFunctionName, i + 1)) <$> zip [0 ..] mdFunctions
+  let funcMap = M.fromList $ (\(i, Function {fnFunctionName}) -> (fnFunctionName, i + 1)) <$> zip [1 ..] mdFunctions
 
   expr <- runReaderT (fromExpr mdExpr) (FromExprEnv mempty funcMap)
 

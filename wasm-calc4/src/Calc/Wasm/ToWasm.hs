@@ -2,6 +2,7 @@
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
+import Calc.Wasm.Allocator
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Prim
@@ -12,7 +13,7 @@ import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
-mapWithIndex f = fmap f . zip [0 ..]
+mapWithIndex f = fmap f . zip [0..]
 
 fromType :: WasmType -> Wasm.ValueType
 fromType I32 = Wasm.I32
@@ -20,7 +21,7 @@ fromType Pointer = Wasm.I64
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfExpr, wfArgs}) =
-  Wasm.Function (fromIntegral wfIndex) (fromType <$> wfArgs) (fromExpr wfExpr)
+  Wasm.Function (fromIntegral $ wfIndex + 1) (fromType <$> wfArgs) (fromExpr wfExpr)
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
 typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
@@ -28,7 +29,7 @@ typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
 
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
 exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic = True}) =
-  Just $ Wasm.Export (TL.fromStrict fnName) (Wasm.ExportFunc (fromIntegral wfIndex))
+  Just $ Wasm.Export (TL.fromStrict fnName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
@@ -56,17 +57,16 @@ fromExpr (WVar i) = [Wasm.GetLocal i]
 fromExpr (WApply fnIndex args) =
   foldMap fromExpr args <> [Wasm.Call fnIndex]
 
+-- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
 moduleToWasm (WasmModule {wmFunctions}) =
   let functions = mapWithIndex (uncurry fromFunction) wmFunctions
       types = typeFromFunction <$> wmFunctions
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
-   in Wasm.Module
-        { Wasm.types = types,
-          Wasm.functions = functions,
+   in moduleWithAllocator
+        { Wasm.types = (Wasm.types moduleWithAllocator !! 0) : types,
+          Wasm.functions = (head (Wasm.functions moduleWithAllocator)) : functions,
           Wasm.tables = mempty,
-          Wasm.mems = mempty,
-          Wasm.globals = mempty,
           Wasm.elems = mempty,
           Wasm.datas = mempty,
           Wasm.start = Nothing,

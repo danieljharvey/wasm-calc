@@ -32,9 +32,9 @@ common shared
 
   build-depends:
     , base
+    , bytestring
     , containers
     , diagnose
-    , wasm
     , directory
     , file-embed
     , hashable
@@ -48,6 +48,7 @@ common shared
     , text
     , unix
     , unordered-containers
+    , wasm
 
   other-modules:
     Calc
@@ -107,9 +108,9 @@ test-suite wasm-calc4-tests
   default-language: Haskell2010
   other-modules:
     Test.Interpreter.InterpreterSpec
-    Test.Wasm.WasmSpec
     Test.Parser.ParserSpec
     Test.Typecheck.TypecheckSpec
+    Test.Wasm.WasmSpec
 
 executable wasm-calc4
   import:           shared
@@ -125,7 +126,6 @@ executable wasm-calc4
     , file-embed
     , hashable
     , haskeline
-    , wasm-calc4
     , megaparsec
     , mtl
     , parser-combinators
@@ -135,5 +135,6 @@ executable wasm-calc4
     , text
     , unix
     , unordered-containers
+    , wasm-calc4
 
   default-language: Haskell2010
