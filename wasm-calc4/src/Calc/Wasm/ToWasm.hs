@@ -55,7 +55,7 @@ fromExpr (WIf predExpr thenExpr elseExpr) =
   fromExpr thenExpr <> fromExpr elseExpr <> fromExpr predExpr <> [Wasm.Select]
 fromExpr (WVar i) = [Wasm.GetLocal i]
 fromExpr (WApply fnIndex args) =
-  foldMap fromExpr args <> [Wasm.Call fnIndex]
+  foldMap fromExpr args <> [Wasm.Call $ fnIndex + 1]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
