@@ -39,4 +39,6 @@ data WasmExpr
   | WIf WasmExpr WasmExpr WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]
+  | WAllocate Natural
+  | WSet WasmExpr [(Natural,WasmExpr)] -- `(1,2)` is WSet (WAllocate 2) [(0, 1),(1, 2)]
   deriving stock (Eq, Ord, Show)

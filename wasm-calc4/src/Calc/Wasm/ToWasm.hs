@@ -17,7 +17,7 @@ mapWithIndex f = fmap f . zip [0..]
 
 fromType :: WasmType -> Wasm.ValueType
 fromType I32 = Wasm.I32
-fromType Pointer = Wasm.I64
+fromType Pointer = Wasm.I32
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfExpr, wfArgs}) =
@@ -56,6 +56,13 @@ fromExpr (WIf predExpr thenExpr elseExpr) =
 fromExpr (WVar i) = [Wasm.GetLocal i]
 fromExpr (WApply fnIndex args) =
   foldMap fromExpr args <> [Wasm.Call $ fnIndex + 1]
+-- we need to store the return value so we can refer to it in multiple places
+fromExpr (WAllocate i) =
+  [Wasm.I32Const (fromIntegral i), Wasm.Call 0]
+fromExpr (WSet container items ) =
+  let fromItem (offset, value) =
+        fromExpr container <> fromExpr value <> [Wasm.I32Store $ Wasm.MemArg offset 0]
+  in foldMap fromItem items
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module

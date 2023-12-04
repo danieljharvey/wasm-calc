@@ -5,6 +5,9 @@
 
 module Calc.Wasm.FromExpr (fromModule) where
 
+import qualified Data.List.NonEmpty as NE
+import Data.Monoid
+import Calc.Wasm.Helpers
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Identifier
@@ -60,7 +63,7 @@ fromExpr ::
     MonadReader FromExprEnv m,
     Show ann
   ) =>
-  Expr ann ->
+  Expr (Type ann) ->
   m WasmExpr
 fromExpr (EPrim _ prim) = pure $ WPrim prim
 fromExpr (EInfix _ op a b) = WInfix op <$> fromExpr a <*> fromExpr b
@@ -69,10 +72,26 @@ fromExpr (EIf _ predE thenE elseE) =
 fromExpr (EVar _ ident) = WVar <$> lookupIdent ident
 fromExpr (EApply _ funcName args) =
   WApply <$> lookupFunction funcName <*> (traverse fromExpr args) -- need to look up the function name in some sort of state
+fromExpr (ETuple ty a as) = do
+  let allItems = zip [0..] (a : NE.toList as)
+      tupleLength = memorySizeForType ty
+      allocate = WAllocate (fromIntegral tupleLength)
+  WSet allocate <$> traverse (\(i,item) ->
+    (,) i <$> fromExpr item) allItems
 fromExpr other = error $ "fromExpr error: " <> show other
 
+memorySizeForType :: Type ann -> Natural
+memorySizeForType (TPrim _ TInt) =
+  memorySize I32
+memorySizeForType (TPrim _ TBool) =
+  memorySize I32
+memorySizeForType (TTuple _ a as) =
+  memorySizeForType a + getSum (foldMap (Sum . memorySizeForType) as)
+memorySizeForType (TFunction {}) =
+  memorySize Pointer
+
 fromFunction :: (Show ann) =>
-  M.Map FunctionName Natural -> Function ann -> Either FromWasmError WasmFunction
+  M.Map FunctionName Natural -> Function (Type ann) -> Either FromWasmError WasmFunction
 fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
   args <- traverse (scalarFromType . snd) fnArgs
   let argMap = M.fromList $ (\(i, (ArgumentName ident, _)) -> (Identifier ident, i)) <$> zip [0 ..] fnArgs
@@ -86,7 +105,7 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
         wfReturnType = I32 -- a pure guess, we should use the typed module here and grab the type from `ann`
       }
 
-fromModule :: (Show ann) => Module ann -> Either FromWasmError WasmModule
+fromModule :: (Show ann) => Module (Type ann) -> Either FromWasmError WasmModule
 fromModule (Module {mdExpr, mdFunctions}) = do
   let funcMap = M.fromList $ (\(i, Function {fnFunctionName}) -> (fnFunctionName, i + 1)) <$> zip [0 ..] mdFunctions
 
