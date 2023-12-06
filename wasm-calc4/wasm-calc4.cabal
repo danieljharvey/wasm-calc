@@ -42,6 +42,7 @@ common shared
     , megaparsec
     , mtl
     , parser-combinators
+    , pretty-simple
     , prettyprinter
     , process
     , string-conversions

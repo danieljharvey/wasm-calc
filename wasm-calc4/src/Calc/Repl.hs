@@ -11,21 +11,21 @@ module Calc.Repl
   )
 where
 
-import Calc.Wasm.ToWasm
-import Calc.Wasm.Run
-import Calc.Wasm.FromExpr
-import qualified Language.Wasm.Interpreter  as Wasm
-import Calc.Wasm.Types
 import Calc.Parser
 import Calc.Parser.Types
 import Calc.Typecheck.Elaborate
 import Calc.Typecheck.Error
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Calc.Wasm.Types
 import Control.Monad.IO.Class
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Void
 import qualified Error.Diagnose as Diag
 import Error.Diagnose.Compat.Megaparsec
+import qualified Language.Wasm.Interpreter as Wasm
 import System.Console.Haskeline
 
 instance HasHints Void msg where

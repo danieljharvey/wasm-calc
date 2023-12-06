@@ -1,10 +1,13 @@
-module Calc.Utils (neZipWithM, neUnzip) where
+module Calc.Utils (ltrace, neZipWithM, neUnzip) where
 
 -- useful junk goes here
 
 import Control.Monad (zipWithM)
 import Data.Bifunctor
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text.Lazy as TL
+import qualified Debug.Trace as Debug
+import qualified Text.Pretty.Simple as PS
 
 neZipWithM ::
   (Applicative m) =>
@@ -17,3 +20,6 @@ neZipWithM f as bs =
 
 neUnzip :: NE.NonEmpty (a, b) -> (NE.NonEmpty a, NE.NonEmpty b)
 neUnzip = bimap NE.fromList NE.fromList . unzip . NE.toList
+
+ltrace :: (Show a) => String -> a -> a
+ltrace lbl x = Debug.trace (lbl <> ": " <> TL.unpack (PS.pShow x)) x

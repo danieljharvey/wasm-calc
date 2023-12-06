@@ -2,10 +2,11 @@
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import Calc.Wasm.Allocator
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Prim
+import Calc.Utils
+import Calc.Wasm.Allocator
 import Calc.Wasm.Types
 import Data.Maybe (catMaybes)
 import qualified Data.Text.Lazy as TL
@@ -13,15 +14,20 @@ import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
-mapWithIndex f = fmap f . zip [0..]
+mapWithIndex f = fmap f . zip [0 ..]
 
 fromType :: WasmType -> Wasm.ValueType
 fromType I32 = Wasm.I32
 fromType Pointer = Wasm.I32
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
-fromFunction wfIndex (WasmFunction {wfExpr, wfArgs}) =
-  Wasm.Function (fromIntegral $ wfIndex + 1) (fromType <$> wfArgs) (fromExpr wfExpr)
+fromFunction wfIndex (WasmFunction {wfExpr, wfArgs, wfLocals}) =
+  let args = fromType <$> wfArgs
+      locals = fromType <$> wfLocals
+   in Wasm.Function
+        (fromIntegral $ wfIndex + 1)
+        (locals <> args)
+        (fromExpr wfExpr)
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
 typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
@@ -59,24 +65,28 @@ fromExpr (WApply fnIndex args) =
 -- we need to store the return value so we can refer to it in multiple places
 fromExpr (WAllocate i) =
   [Wasm.I32Const (fromIntegral i), Wasm.Call 0]
-fromExpr (WSet container items ) =
+fromExpr (WSet index container items) =
   let fromItem (offset, value) =
-        fromExpr container <> fromExpr value <> [Wasm.I32Store $ Wasm.MemArg offset 0]
-  in foldMap fromItem items
+        [Wasm.GetLocal index] <> fromExpr value <> [Wasm.I32Store $ Wasm.MemArg offset 0]
+   in fromExpr container
+        <> [Wasm.SetLocal index]
+        <> foldMap fromItem items
+        <> [Wasm.GetLocal index]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
 moduleToWasm (WasmModule {wmFunctions}) =
-  let functions = mapWithIndex (uncurry fromFunction) wmFunctions
+  let functions = mapWithIndex (uncurry fromFunction) (ltrace "wmFunctions" wmFunctions)
       types = typeFromFunction <$> wmFunctions
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
-   in moduleWithAllocator
-        { Wasm.types = (Wasm.types moduleWithAllocator !! 0) : types,
-          Wasm.functions = (head (Wasm.functions moduleWithAllocator)) : functions,
-          Wasm.tables = mempty,
-          Wasm.elems = mempty,
-          Wasm.datas = mempty,
-          Wasm.start = Nothing,
-          Wasm.imports = mempty,
-          Wasm.exports = exports
-        }
+   in ltrace "generated module" $
+        moduleWithAllocator
+          { Wasm.types = (Wasm.types moduleWithAllocator !! 0) : types,
+            Wasm.functions = (head (Wasm.functions moduleWithAllocator)) : functions,
+            Wasm.tables = mempty,
+            Wasm.elems = mempty,
+            Wasm.datas = mempty,
+            Wasm.start = Nothing,
+            Wasm.imports = mempty,
+            Wasm.exports = exports
+          }

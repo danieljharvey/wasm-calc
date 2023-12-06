@@ -7,4 +7,3 @@ import GHC.Natural
 memorySize :: WasmType -> Natural
 memorySize I32 = 1
 memorySize Pointer = 1
-

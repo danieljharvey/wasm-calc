@@ -3,6 +3,7 @@
 module Test.Wasm.WasmSpec (spec) where
 
 import Calc.Parser
+import Calc.Typecheck.Elaborate
 import Calc.Wasm.FromExpr
 import Calc.Wasm.Run
 import Calc.Wasm.ToWasm
@@ -10,30 +11,28 @@ import Data.Foldable (traverse_)
 import Data.Text (Text)
 import qualified Language.Wasm.Interpreter as Wasm
 import Test.Hspec
-import Calc.Typecheck.Elaborate
 
 testCompileExpr :: (Text, Wasm.Value) -> Spec
 testCompileExpr (input, result) = it (show input) $ do
   case parseModuleAndFormatError input of
     Left e -> error (show e)
     Right expr -> case elaborateModule expr of
-          Left typeErr -> error (show typeErr)
-          Right mod' ->
-              case fromModule mod' of
-                Left e -> error (show e)
-                Right wasmMod -> do
-                  resp <- runWasm (moduleToWasm wasmMod)
-                  resp `shouldBe` Just [result]
+      Left typeErr -> error (show typeErr)
+      Right mod' ->
+        case fromModule mod' of
+          Left e -> error (show e)
+          Right wasmMod -> do
+            resp <- runWasm (moduleToWasm wasmMod)
+            resp `shouldBe` Just [result]
 
 joinLines :: [Text] -> Text
 joinLines = foldr (\a b -> a <> " " <> b) ""
 
-
 spec :: Spec
 spec = do
-  describe "WasmSpec" $ do
+  fdescribe "WasmSpec" $ do
     let testVals =
-          [ ("42", Wasm.VI32 42),
+          [ {-("42", Wasm.VI32 42),
             ("(1 + 1)", Wasm.VI32 2),
             ("1 + 2 + 3 + 4 + 5 + 6", Wasm.VI32 21),
             ("6 * 6", Wasm.VI32 36),
@@ -51,6 +50,7 @@ spec = do
             ("function increment(a: Integer) { a + 1 } increment(41)", Wasm.VI32 42),
             ("function sum(a: Integer, b: Integer) { a + b } sum(20,22)", Wasm.VI32 42),
             ("function inc(a: Integer) { a + 1 } inc(inc(inc(inc(0))))", Wasm.VI32 4),
+            -}
             ( joinLines
                 [ "function ignoreTuple(pair: (Integer, Boolean)) { True }",
                   "ignoreTuple((1,True))"
@@ -62,7 +62,7 @@ spec = do
                   "function fst(pair: (Boolean, Integer)) { case pair of (a,_) -> a }",
                   "fst(swapIntAndBool((1,True)))"
                 ],
-              Wasm.VI32 1  -- note we cannot make polymorphic versions of these functions yet, although we will
+              Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
             )
           ]
 

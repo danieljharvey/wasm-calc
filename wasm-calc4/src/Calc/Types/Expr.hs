@@ -56,22 +56,22 @@ prettyPatternMatch sumExpr matches =
     <+> printSubExpr sumExpr
     <+> "with"
     <+> PP.line
-      <> PP.indent
-        2
-        ( PP.align $
-            PP.vsep
-              ( zipWith
-                  (<+>)
-                  (" " : repeat "|")
-                  (printMatch <$> NE.toList matches)
-              )
-        )
+    <> PP.indent
+      2
+      ( PP.align $
+          PP.vsep
+            ( zipWith
+                (<+>)
+                (" " : repeat "|")
+                (printMatch <$> NE.toList matches)
+            )
+      )
   where
     printMatch (construct, expr') =
       PP.pretty construct
         <+> "->"
         <+> PP.line
-          <> indentMulti 4 (printSubExpr expr')
+        <> indentMulti 4 (printSubExpr expr')
 
 -- print simple things with no brackets, and complex things inside brackets
 printSubExpr :: Expr ann -> PP.Doc style

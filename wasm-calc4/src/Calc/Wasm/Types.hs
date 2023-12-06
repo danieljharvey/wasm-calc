@@ -12,10 +12,13 @@ import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Prim
 import GHC.Natural
+import Calc.Types.Pattern
+import qualified Data.List.NonEmpty as NE
 
-data WasmType = I32 |
-  -- | this is probably an I64, but we want to differentiate it for clarity
-  Pointer
+data WasmType
+  = I32
+  | -- | this is probably an I64, but we want to differentiate it for clarity
+    Pointer
   deriving stock (Eq, Ord, Show)
 
 newtype WasmModule = WasmModule
@@ -29,7 +32,8 @@ data WasmFunction = WasmFunction
     wfExpr :: WasmExpr,
     wfPublic :: Bool,
     wfArgs :: [WasmType],
-    wfReturnType :: WasmType
+    wfReturnType :: WasmType,
+    wfLocals :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 
@@ -40,5 +44,7 @@ data WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]
   | WAllocate Natural
-  | WSet WasmExpr [(Natural,WasmExpr)] -- `(1,2)` is WSet (WAllocate 2) [(0, 1),(1, 2)]
+  | WSet Natural WasmExpr [(Natural, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 2) [(0, 1),(1, 2)]
+  | WPatternMatch WasmExpr (NE.NonEmpty (Pattern (),WasmExpr))
+
   deriving stock (Eq, Ord, Show)
