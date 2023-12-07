@@ -5,7 +5,6 @@ module Calc.Wasm.ToWasm (moduleToWasm) where
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Prim
-import Calc.Utils
 import Calc.Wasm.Allocator
 import Calc.Wasm.Types
 import Data.Maybe (catMaybes)
@@ -72,14 +71,17 @@ fromExpr (WSet index container items) =
         <> [Wasm.SetLocal index]
         <> foldMap fromItem items
         <> [Wasm.GetLocal index]
+fromExpr (WTupleAccess tup _index) =
+  let offset = 0 in
+  fromExpr tup <> [Wasm.I32Load $ Wasm.MemArg offset 0]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
 moduleToWasm (WasmModule {wmFunctions}) =
-  let functions = mapWithIndex (uncurry fromFunction) (ltrace "wmFunctions" wmFunctions)
+  let functions = mapWithIndex (uncurry fromFunction) wmFunctions
       types = typeFromFunction <$> wmFunctions
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
-   in ltrace "generated module" $
+   in
         moduleWithAllocator
           { Wasm.types = (Wasm.types moduleWithAllocator !! 0) : types,
             Wasm.functions = (head (Wasm.functions moduleWithAllocator)) : functions,

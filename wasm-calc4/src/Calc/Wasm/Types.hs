@@ -12,8 +12,6 @@ import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Prim
 import GHC.Natural
-import Calc.Types.Pattern
-import qualified Data.List.NonEmpty as NE
 
 data WasmType
   = I32
@@ -45,6 +43,5 @@ data WasmExpr
   | WApply Natural [WasmExpr]
   | WAllocate Natural
   | WSet Natural WasmExpr [(Natural, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 2) [(0, 1),(1, 2)]
-  | WPatternMatch WasmExpr (NE.NonEmpty (Pattern (),WasmExpr))
-
+  | WTupleAccess WasmExpr Natural
   deriving stock (Eq, Ord, Show)

@@ -5,7 +5,6 @@
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Control.Monad (void)
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Identifier
@@ -89,25 +88,23 @@ fromExpr (EIf _ predE thenE elseE) =
 fromExpr (EVar _ ident) =
   WVar <$> lookupIdent ident
 fromExpr (EApply _ funcName args) =
-  WApply <$> lookupFunction funcName <*> traverse fromExpr args -- need to look up the function name in some sort of state
+  WApply <$> lookupFunction funcName
+    <*> traverse fromExpr args -- need to look up the function name in some sort of state
 fromExpr (ETuple ty a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
   let allItems = zip [0 ..] (a : NE.toList as)
       tupleLength = memorySizeForType ty
       allocate = WAllocate (fromIntegral tupleLength)
+      size = memorySize I32 -- we are assuming all things are the same size, which is wrong
   WSet index allocate
     <$> traverse
       ( \(i, item) ->
-          (,) i <$> fromExpr item
+          (,) (i * size) <$> fromExpr item
       )
       allItems
-fromExpr (EPatternMatch _ matchExpr pats) = do
-  wasmMatch <- fromExpr matchExpr
-  -- need to get items from `pat` and put them in scope
-  let fromPat (pat,expr) =
-          (,) (void pat) <$> fromExpr expr 
-  WPatternMatch wasmMatch <$> traverse fromPat pats
+fromExpr (ETupleAccess _ tup nat)
+  = WTupleAccess <$> fromExpr tup <*> pure nat
 
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =

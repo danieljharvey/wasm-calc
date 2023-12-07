@@ -2,30 +2,24 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Calc.Typecheck.Elaborate (elaborate, elaborateFunction, elaborateModule) where
+module Calc.Typecheck.Elaborate (elaborate,
+      elaborateFunction, elaborateModule) where
 
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
 import Calc.ExprUtils
-import Calc.PatternUtils
-import Calc.Patterns.Flatten
 import Calc.TypeUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Types
 import Calc.Types.Expr
 import Calc.Types.Function
-import Calc.Types.Identifier
 import Calc.Types.Module
-import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type
-import Calc.Utils
 import Control.Monad (when, zipWithM)
 import Control.Monad.Except
 import Data.Bifunctor (second)
-import Data.Foldable (foldrM)
 import Data.Functor
-import qualified Data.List.NonEmpty as NE
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as M
 
 elaborateModule ::
   forall ann.
@@ -67,36 +61,6 @@ checkTypeIsEqual tyA tyB =
   if void tyA == void tyB
     then pure tyA
     else throwError (TypeMismatch tyA tyB)
-
-checkTypesAreEqual :: NE.NonEmpty (Type ann) -> TypecheckM ann (Type ann)
-checkTypesAreEqual tys =
-  foldrM checkTypeIsEqual (NE.head tys) (NE.tail tys)
-
--- given the type of the expression in a pattern match,
--- check that the pattern makes sense with it
-checkPattern ::
-  Type ann ->
-  Pattern ann ->
-  TypecheckM
-    ann
-    ( Pattern (Type ann),
-      Map Identifier (Type ann)
-    )
-checkPattern checkTy checkPat = do
-  case (checkTy, checkPat) of
-    (TTuple _ tA tRest, PTuple ann pA pRest) | length tRest == length pRest -> do
-      (patA, envA) <- checkPattern tA pA
-      (patRest, envRest) <- neUnzip <$> neZipWithM checkPattern tRest pRest
-      let ty = TTuple ann (getPatternAnnotation patA) (getPatternAnnotation <$> patRest)
-          env = envA <> mconcat (NE.toList envRest)
-      pure (PTuple ty patA patRest, env)
-    (ty, PVar _ ident) ->
-      pure (PVar ty ident, M.singleton ident ty)
-    (ty, PWildcard _) -> pure (PWildcard ty, mempty)
-    (ty@(TPrim _ tPrim), PLiteral _ pPrim)
-      | tPrim == typePrimFromPrim pPrim ->
-          pure (PLiteral ty pPrim, mempty)
-    (otherTy, otherPat) -> throwError (PatternMismatch otherPat otherTy)
 
 inferIf ::
   ann ->
@@ -182,19 +146,16 @@ infer (ETuple ann fstExpr restExpr) = do
           (getOuterAnnotation typedFst)
           (getOuterAnnotation <$> typedRest)
   pure $ ETuple typ typedFst typedRest
-infer (EPatternMatch ann matchExpr pats) = do
-  elabExpr <- infer matchExpr
-  let withPair (pat, patExpr) = do
-        (elabPat, newVars) <- checkPattern (getOuterAnnotation elabExpr) pat
-        elabPatExpr <- withVars (M.toList newVars) (infer patExpr)
-        pure (elabPat, elabPatExpr)
-  elabPats <- traverse withPair pats
-  let allTypes = getOuterAnnotation . snd <$> elabPats
-  typ <- checkTypesAreEqual allTypes
-  case generateMissing (fst <$> elabPats) of
-    [] -> pure ()
-    missingPatterns -> throwError (IncompletePatterns ann missingPatterns)
-  pure (EPatternMatch typ elabExpr elabPats)
+infer (ETupleAccess ann tup index) = do
+  tyTup <- infer tup
+  case getOuterAnnotation tyTup of
+    TTuple _ tyFst tyRest ->
+      let tyAll = zip ([0 ..] :: [Int]) (tyFst : NE.toList tyRest)
+       in case List.lookup (fromIntegral $ index - 1) tyAll of
+        Just ty ->
+          pure (ETupleAccess ty tyTup index)
+        Nothing -> throwError $ AccessingOutsideTupleBounds ann (getOuterAnnotation tyTup) index
+    otherTy -> throwError $ AccessingNonTuple ann otherTy
 infer (EApply ann fnName args) = do
   fn <- lookupFunction ann fnName
   (ty, elabArgs) <- case fn of

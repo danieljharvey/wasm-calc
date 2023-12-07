@@ -60,13 +60,10 @@ common shared
     Calc.Parser.Function
     Calc.Parser.Identifier
     Calc.Parser.Module
-    Calc.Parser.Pattern
     Calc.Parser.Primitives
     Calc.Parser.Shared
     Calc.Parser.Type
     Calc.Parser.Types
-    Calc.Patterns.Flatten
-    Calc.PatternUtils
     Calc.Repl
     Calc.SourceSpan
     Calc.Typecheck.Elaborate
@@ -79,11 +76,16 @@ common shared
     Calc.Types.FunctionName
     Calc.Types.Identifier
     Calc.Types.Module
-    Calc.Types.Pattern
     Calc.Types.Prim
     Calc.Types.Type
     Calc.TypeUtils
     Calc.Utils
+    Calc.Wasm.Allocator
+    Calc.Wasm.FromExpr
+    Calc.Wasm.Helpers
+    Calc.Wasm.Run
+    Calc.Wasm.ToWasm
+    Calc.Wasm.Types
 
 library
   import:           shared

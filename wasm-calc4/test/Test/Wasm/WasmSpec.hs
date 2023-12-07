@@ -26,13 +26,13 @@ testCompileExpr (input, result) = it (show input) $ do
             resp `shouldBe` Just [result]
 
 joinLines :: [Text] -> Text
-joinLines = foldr (\a b -> a <> " " <> b) ""
+joinLines = foldr (\a b -> a <> "\n" <> b) ""
 
 spec :: Spec
 spec = do
-  fdescribe "WasmSpec" $ do
+  describe "WasmSpec" $ do
     let testVals =
-          [ {-("42", Wasm.VI32 42),
+          [ ("42", Wasm.VI32 42),
             ("(1 + 1)", Wasm.VI32 2),
             ("1 + 2 + 3 + 4 + 5 + 6", Wasm.VI32 21),
             ("6 * 6", Wasm.VI32 36),
@@ -50,7 +50,6 @@ spec = do
             ("function increment(a: Integer) { a + 1 } increment(41)", Wasm.VI32 42),
             ("function sum(a: Integer, b: Integer) { a + b } sum(20,22)", Wasm.VI32 42),
             ("function inc(a: Integer) { a + 1 } inc(inc(inc(inc(0))))", Wasm.VI32 4),
-            -}
             ( joinLines
                 [ "function ignoreTuple(pair: (Integer, Boolean)) { True }",
                   "ignoreTuple((1,True))"
@@ -58,8 +57,14 @@ spec = do
               Wasm.VI32 1
             ),
             ( joinLines
-                [ "function swapIntAndBool(pair: (Integer, Boolean)) { case pair of (a, b) -> (b, a) }",
-                  "function fst(pair: (Boolean, Integer)) { case pair of (a,_) -> a }",
+                [
+                  "(1,True).1"
+                ],
+              Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
+            ),
+            ( joinLines
+                [ "function swapIntAndBool(pair: (Integer, Boolean)) { (pair.2, pair.1) }",
+                  "function fst(pair: (Boolean, Integer)) { pair.1 }",
                   "fst(swapIntAndBool((1,True)))"
                 ],
               Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will

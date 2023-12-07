@@ -94,20 +94,7 @@ spec = do
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2)", EApply () "add" [int 1, int 2]),
               ("go()", EApply () "go" []),
-              ( "case (1,2,3) of (5,6,7) -> True | (1,2,3) -> False",
-                patternMatch
-                  (tuple [int 1, int 2, int 3])
-                  [ (patTuple [patInt 5, patInt 6, patInt 7], bool True),
-                    (patTuple [patInt 1, patInt 2, patInt 3], bool False)
-                  ]
-              ),
-              ( "case a of 100 -> True | _ -> False",
-                patternMatch
-                  (var "a")
-                  [ (patInt 100, bool True),
-                    (PWildcard (), bool False)
-                  ]
-              )
+              ("tuple.1",ETupleAccess () (var "tuple") 1)
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

@@ -5,5 +5,5 @@ import GHC.Natural
 
 -- our memory is bits of i32s
 memorySize :: WasmType -> Natural
-memorySize I32 = 1
-memorySize Pointer = 1
+memorySize I32 = 8
+memorySize Pointer = 8

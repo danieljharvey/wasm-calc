@@ -13,15 +13,15 @@ module Calc.Interpreter
   )
 where
 
+import GHC.Natural
+import qualified Data.List.NonEmpty as NE
 import Calc.Types
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Coerce
-import qualified Data.List.NonEmpty as NE
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import Data.Monoid (First (..))
 
 -- | type for interpreter state
 newtype InterpreterState ann = InterpreterState
@@ -33,7 +33,8 @@ data InterpreterError ann
   = NonBooleanPredicate ann (Expr ann)
   | FunctionNotFound FunctionName [FunctionName]
   | VarNotFound Identifier [Identifier]
-  | NoPatternsMatched (Expr ann) (NE.NonEmpty (Pattern ann))
+  | AccessNonTuple (Expr ann)
+  | AccessOutsideTupleBounds (Expr ann) Natural
   deriving stock (Eq, Ord, Show)
 
 -- | type of Reader env for interpreter state
@@ -133,9 +134,9 @@ interpret (ETuple ann a as) = do
   aA <- interpret a
   asA <- traverse interpret as
   pure (ETuple ann aA asA)
-interpret (EPatternMatch _ expr pats) = do
-  exprA <- interpret expr
-  interpretPatternMatch exprA pats
+interpret (ETupleAccess _ tup index) = do
+  aTup <- interpret tup
+  interpretTupleAccess aTup index
 interpret (EIf ann predExpr thenExpr elseExpr) = do
   predA <- interpret predExpr
   case predA of
@@ -143,42 +144,13 @@ interpret (EIf ann predExpr thenExpr elseExpr) = do
     (EPrim _ (PBool False)) -> interpret elseExpr
     other -> throwError (NonBooleanPredicate ann other)
 
-interpretPatternMatch ::
-  Expr ann ->
-  NE.NonEmpty (Pattern ann, Expr ann) ->
-  InterpretM ann (Expr ann)
-interpretPatternMatch expr' patterns = do
-  -- interpret match expression
-  intExpr <- interpret expr'
-  let foldF (pat, patExpr) = case patternMatches pat intExpr of
-        Just bindings -> First (Just (patExpr, bindings))
-        _ -> First Nothing
-
-  -- get first matching pattern
-  case getFirst (foldMap foldF patterns) of
-    Just (patExpr, bindings) ->
-      let vars = fmap (coerce . fst) bindings
-          exprs = fmap snd bindings
-       in withVars vars exprs (interpret patExpr)
-    _ -> throwError (NoPatternsMatched expr' (fst <$> patterns))
-
--- pull vars out of expr to match patterns
-patternMatches ::
-  Pattern ann ->
-  Expr ann ->
-  Maybe [(Identifier, Expr ann)]
-patternMatches (PWildcard _) _ = pure []
-patternMatches (PVar _ name) expr = pure [(name, expr)]
-patternMatches (PTuple _ pA pAs) (ETuple _ a as) = do
-  matchA <- patternMatches pA a
-  matchAs <-
-    traverse
-      (uncurry patternMatches)
-      (zip (NE.toList pAs) (NE.toList as))
-  pure $ matchA <> mconcat matchAs
-patternMatches (PLiteral _ pB) (EPrim _ b)
-  | pB == b = pure mempty
-patternMatches _ _ = Nothing
+interpretTupleAccess :: Expr ann -> Natural -> InterpretM ann (Expr ann)
+interpretTupleAccess wholeExpr@(ETuple _ fstExpr restExpr) index = do
+  let items = zip ([0..] :: [Natural]) (fstExpr : NE.toList restExpr)
+  case lookup (index - 1) items of
+    Just expr -> pure expr
+    Nothing -> throwError (AccessOutsideTupleBounds wholeExpr index)
+interpretTupleAccess expr _ = throwError (AccessNonTuple expr)
 
 interpretModule ::
   Module ann ->

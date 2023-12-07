@@ -3,7 +3,6 @@
 module Calc.Parser.Expr (exprParser) where
 
 import Calc.Parser.Identifier
-import Calc.Parser.Pattern
 import Calc.Parser.Primitives
 import Calc.Parser.Shared
 import Calc.Parser.Types
@@ -12,6 +11,7 @@ import Calc.Types.Expr
 import Control.Monad.Combinators.Expr
 import qualified Data.List.NonEmpty as NE
 import Data.Text
+import GHC.Natural
 import Text.Megaparsec
 
 exprParser :: Parser (Expr Annotation)
@@ -19,9 +19,9 @@ exprParser = addLocation (makeExprParser exprPart table) <?> "expression"
 
 exprPart :: Parser (Expr Annotation)
 exprPart =
-  try tupleParser
+  try tupleAccessParser
+    <|> try tupleParser
     <|> inBrackets (addLocation exprParser)
-    <|> patternMatchParser
     <|> primExprParser
     <|> ifParser
     <|> try applyParser
@@ -71,35 +71,15 @@ tupleParser = label "tuple" $
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 
------
+tupleAccessParser :: Parser (Expr Annotation)
+tupleAccessParser =
+  let natParser :: Parser Natural
+      natParser = myLexeme (fromIntegral <$> intParser)
 
-patternMatchParser :: Parser ParserExpr
-patternMatchParser = addLocation $ do
-  matchExpr <- matchExprWithParser
-  patterns <-
-    try patternMatchesParser
-      <|> pure
-      <$> patternCaseParser
-  case NE.nonEmpty patterns of
-    (Just nePatterns) -> pure $ EPatternMatch mempty matchExpr nePatterns
-    _ -> error "need at least one pattern"
-
-matchExprWithParser :: Parser ParserExpr
-matchExprWithParser = do
-  stringLiteral "case"
-  sumExpr <- exprParser
-  stringLiteral "of"
-  pure sumExpr
-
-patternMatchesParser :: Parser [(ParserPattern, ParserExpr)]
-patternMatchesParser =
-  sepBy
-    patternCaseParser
-    (stringLiteral "|")
-
-patternCaseParser :: Parser (ParserPattern, ParserExpr)
-patternCaseParser = do
-  pat <- orInBrackets patternParser
-  stringLiteral "->"
-  patExpr <- exprParser
-  pure (pat, patExpr)
+      tupParser :: Parser (Expr Annotation)
+      tupParser = try tupleParser <|> try varParser <|> applyParser
+   in label "tuple access" $
+        addLocation $ do
+          tup <- tupParser
+          stringLiteral "."
+          ETupleAccess mempty tup <$> natParser

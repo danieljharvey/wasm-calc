@@ -104,8 +104,7 @@ spec = do
               ("if True then 1 else 2", "Integer"),
               ("if False then True else False", "Boolean"),
               ("(1,2,True)", "(Integer,Integer,Boolean)"),
-              ("case (1,2,3) of (a,b,_) -> a + b", "Integer"),
-              ("case (1,True) of (2,b) -> b | _ -> False", "Boolean")
+              ("(1,2,3).2", "Integer")
             ]
 
       describe "Successfully typechecking expressions" $ do
@@ -117,8 +116,7 @@ spec = do
               ("1 + True", InfixTypeMismatch OpAdd [(tyInt, tyBool)]),
               ("True + False", InfixTypeMismatch OpAdd [(tyInt, tyBool), (tyInt, tyBool)]),
               ("1 * False", InfixTypeMismatch OpMultiply [(TPrim () TInt, TPrim () TBool)]),
-              ("True - 1", InfixTypeMismatch OpSubtract [(TPrim () TInt, TPrim () TBool)]),
-              ("case (1,True) of (a, False) -> a | (_,c) -> c", TypeMismatch tyBool tyInt)
+              ("True - 1", InfixTypeMismatch OpSubtract [(TPrim () TInt, TPrim () TBool)])
             ]
 
       describe "Failing typechecking expressions" $ do
