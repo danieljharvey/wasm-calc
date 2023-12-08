@@ -8,9 +8,9 @@ import Calc.Types.FunctionName
 import Calc.Types.Identifier
 import Calc.Types.Prim
 import qualified Data.List.NonEmpty as NE
+import GHC.Natural
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
-import GHC.Natural
 
 data Expr ann
   = EPrim ann Prim
@@ -44,8 +44,8 @@ instance PP.Pretty (Expr ann) where
     where
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs
-  pretty (ETupleAccess _ tup nat)
-    = PP.pretty tup <> "." <> PP.pretty nat
+  pretty (ETupleAccess _ tup nat) =
+    PP.pretty tup <> "." <> PP.pretty nat
 
 data Op
   = OpAdd

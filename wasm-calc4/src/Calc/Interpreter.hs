@@ -13,15 +13,15 @@ module Calc.Interpreter
   )
 where
 
-import GHC.Natural
-import qualified Data.List.NonEmpty as NE
 import Calc.Types
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Coerce
+import qualified Data.List.NonEmpty as NE
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import GHC.Natural
 
 -- | type for interpreter state
 newtype InterpreterState ann = InterpreterState
@@ -146,7 +146,7 @@ interpret (EIf ann predExpr thenExpr elseExpr) = do
 
 interpretTupleAccess :: Expr ann -> Natural -> InterpretM ann (Expr ann)
 interpretTupleAccess wholeExpr@(ETuple _ fstExpr restExpr) index = do
-  let items = zip ([0..] :: [Natural]) (fstExpr : NE.toList restExpr)
+  let items = zip ([0 ..] :: [Natural]) (fstExpr : NE.toList restExpr)
   case lookup (index - 1) items of
     Just expr -> pure expr
     Nothing -> throwError (AccessOutsideTupleBounds wholeExpr index)

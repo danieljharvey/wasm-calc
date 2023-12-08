@@ -39,10 +39,10 @@ addLocal ::
   WasmType ->
   m Natural
 addLocal maybeIdent ty = do
-  len <- fromIntegral <$> gets (\fes -> length (fesIdentifiers fes) + length (fesItems fes))
+  len <- gets (fromIntegral . (\fes -> length (fesIdentifiers fes) + length (fesItems fes)))
   modify (\fes -> fes {fesItems = fesItems fes <> [ty]})
   case maybeIdent of
-    Just ident -> modify (\fes -> fes { fesIdentifiers = fesIdentifiers fes <> M.singleton ident len })
+    Just ident -> modify (\fes -> fes {fesIdentifiers = fesIdentifiers fes <> M.singleton ident len})
     Nothing -> pure ()
   pure len
 
@@ -88,7 +88,8 @@ fromExpr (EIf _ predE thenE elseE) =
 fromExpr (EVar _ ident) =
   WVar <$> lookupIdent ident
 fromExpr (EApply _ funcName args) =
-  WApply <$> lookupFunction funcName
+  WApply
+    <$> lookupFunction funcName
     <*> traverse fromExpr args -- need to look up the function name in some sort of state
 fromExpr (ETuple ty a as) = do
   wasmType <- liftEither $ scalarFromType ty
@@ -103,8 +104,8 @@ fromExpr (ETuple ty a as) = do
           (,) (i * size) <$> fromExpr item
       )
       allItems
-fromExpr (ETupleAccess _ tup nat)
-  = WTupleAccess <$> fromExpr tup <*> pure nat
+fromExpr (ETupleAccess _ tup nat) =
+  WTupleAccess <$> fromExpr tup <*> pure nat
 
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =

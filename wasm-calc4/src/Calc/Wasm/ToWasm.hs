@@ -72,8 +72,8 @@ fromExpr (WSet index container items) =
         <> foldMap fromItem items
         <> [Wasm.GetLocal index]
 fromExpr (WTupleAccess tup _index) =
-  let offset = 0 in
-  fromExpr tup <> [Wasm.I32Load $ Wasm.MemArg offset 0]
+  let offset = 0
+   in fromExpr tup <> [Wasm.I32Load $ Wasm.MemArg offset 0]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
@@ -81,14 +81,13 @@ moduleToWasm (WasmModule {wmFunctions}) =
   let functions = mapWithIndex (uncurry fromFunction) wmFunctions
       types = typeFromFunction <$> wmFunctions
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
-   in
-        moduleWithAllocator
-          { Wasm.types = (Wasm.types moduleWithAllocator !! 0) : types,
-            Wasm.functions = (head (Wasm.functions moduleWithAllocator)) : functions,
-            Wasm.tables = mempty,
-            Wasm.elems = mempty,
-            Wasm.datas = mempty,
-            Wasm.start = Nothing,
-            Wasm.imports = mempty,
-            Wasm.exports = exports
-          }
+   in moduleWithAllocator
+        { Wasm.types = head (Wasm.types moduleWithAllocator) : types,
+          Wasm.functions = head (Wasm.functions moduleWithAllocator) : functions,
+          Wasm.tables = mempty,
+          Wasm.elems = mempty,
+          Wasm.datas = mempty,
+          Wasm.start = Nothing,
+          Wasm.imports = mempty,
+          Wasm.exports = exports
+        }

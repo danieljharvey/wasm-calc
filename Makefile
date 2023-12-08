@@ -45,6 +45,10 @@ run-wasm-calc3:
 test-wasm-calc4:
 	cabal run wasm-calc4:tests
 
+.PHONY: run-wasm-calc4
+run-wasm-calc4:
+	cabal run wasm-calc4
+
 .PHONY: freeze
 freeze:
 	cabal freeze --enable-tests --enable-benchmarks

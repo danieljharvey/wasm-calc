@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Parser.ParserSpec (spec) where
@@ -94,7 +93,7 @@ spec = do
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2)", EApply () "add" [int 1, int 2]),
               ("go()", EApply () "go" []),
-              ("tuple.1",ETupleAccess () (var "tuple") 1)
+              ("tuple.1", ETupleAccess () (var "tuple") 1)
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

@@ -57,8 +57,7 @@ spec = do
               Wasm.VI32 1
             ),
             ( joinLines
-                [
-                  "(1,True).1"
+                [ "(1,True).1"
                 ],
               Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
             ),
@@ -68,6 +67,12 @@ spec = do
                   "fst(swapIntAndBool((1,True)))"
                 ],
               Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
+            ),
+            ( joinLines
+                [ "function fst(pair: (Integer,Integer)) { pair.1 }",
+                  "fst(((10,2),(3,4)).1)"
+                ],
+              Wasm.VI32 10
             )
           ]
 

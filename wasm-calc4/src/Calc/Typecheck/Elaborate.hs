@@ -2,11 +2,13 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Calc.Typecheck.Elaborate (elaborate,
-      elaborateFunction, elaborateModule) where
+module Calc.Typecheck.Elaborate
+  ( elaborate,
+    elaborateFunction,
+    elaborateModule,
+  )
+where
 
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -20,6 +22,8 @@ import Control.Monad (when, zipWithM)
 import Control.Monad.Except
 import Data.Bifunctor (second)
 import Data.Functor
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
 
 elaborateModule ::
   forall ann.
@@ -152,9 +156,9 @@ infer (ETupleAccess ann tup index) = do
     TTuple _ tyFst tyRest ->
       let tyAll = zip ([0 ..] :: [Int]) (tyFst : NE.toList tyRest)
        in case List.lookup (fromIntegral $ index - 1) tyAll of
-        Just ty ->
-          pure (ETupleAccess ty tyTup index)
-        Nothing -> throwError $ AccessingOutsideTupleBounds ann (getOuterAnnotation tyTup) index
+            Just ty ->
+              pure (ETupleAccess ty tyTup index)
+            Nothing -> throwError $ AccessingOutsideTupleBounds ann (getOuterAnnotation tyTup) index
     otherTy -> throwError $ AccessingNonTuple ann otherTy
 infer (EApply ann fnName args) = do
   fn <- lookupFunction ann fnName

@@ -4,7 +4,6 @@
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
-import GHC.Natural
 import Calc.SourceSpan
 import Calc.TypeUtils
 import Calc.Types.Annotation
@@ -18,6 +17,7 @@ import Data.Maybe (catMaybes, mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Error.Diagnose as Diag
+import GHC.Natural
 import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
 
@@ -167,7 +167,7 @@ typeErrorDiagnostic input e =
                 ( mapMaybe makeThis pairs
                 )
                 []
-        (AccessingNonTuple ann ty ) ->
+        (AccessingNonTuple ann ty) ->
           Diag.Err
             Nothing
             "Accessing non-tuple"
