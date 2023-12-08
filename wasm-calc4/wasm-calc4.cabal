@@ -110,6 +110,7 @@ test-suite wasm-calc4-tests
   main-is:          Main.hs
   default-language: Haskell2010
   other-modules:
+    Test.Helpers
     Test.Interpreter.InterpreterSpec
     Test.Parser.ParserSpec
     Test.Typecheck.TypecheckSpec
