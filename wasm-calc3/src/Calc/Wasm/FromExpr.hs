@@ -66,7 +66,7 @@ fromExpr (EIf _ predE thenE elseE) =
   WIf <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
 fromExpr (EVar _ ident) = WVar <$> lookupIdent ident
 fromExpr (EApply _ funcName args) =
-  WApply <$> lookupFunction funcName <*> (traverse fromExpr args) -- need to look up the function name in some sort of state
+  WApply <$> lookupFunction funcName <*> traverse fromExpr args -- need to look up the function name in some sort of state
 
 fromFunction :: M.Map FunctionName Natural -> Function ann -> Either FromWasmError WasmFunction
 fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
