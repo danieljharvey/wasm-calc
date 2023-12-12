@@ -18,6 +18,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import Data.Monoid
 import GHC.Natural
+import Calc.ExprUtils
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
@@ -69,6 +70,7 @@ lookupFunction functionName = do
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I32
 scalarFromType (TPrim _ TBool) = pure I32
+scalarFromType (TPrim _ TFloat) = pure F64
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
 scalarFromType (TTuple {}) = pure Pointer
 
@@ -81,8 +83,9 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim _ prim) =
   pure $ WPrim prim
-fromExpr (EInfix _ op a b) =
-  WInfix op <$> fromExpr a <*> fromExpr b
+fromExpr (EInfix ty op a b) = do
+  scalar <- liftEither $ scalarFromType ty
+  WInfix scalar op <$> fromExpr a <*> fromExpr b
 fromExpr (EIf _ predE thenE elseE) =
   WIf <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
 fromExpr (EVar _ ident) =
@@ -110,6 +113,8 @@ fromExpr (ETupleAccess _ tup nat) =
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =
   memorySize I32
+memorySizeForType (TPrim _ TFloat) =
+  memorySize F64
 memorySizeForType (TPrim _ TBool) =
   memorySize I32
 memorySizeForType (TTuple _ a as) =
@@ -133,13 +138,15 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
 
   (expr, fes) <- runStateT (fromExpr fnBody) (FromExprState argMap funcMap mempty)
 
+  retType <- scalarFromType (getOuterAnnotation fnBody)
+
   pure $
     WasmFunction
       { wfName = fnFunctionName,
         wfExpr = expr,
         wfPublic = False,
         wfArgs = args,
-        wfReturnType = I32, -- a pure guess, we should use the typed module here and grab the type from `ann`
+        wfReturnType = retType,
         wfLocals = fesItems fes
       }
 
@@ -154,13 +161,15 @@ fromModule (Module {mdExpr, mdFunctions}) = do
 
   (expr, fes) <- runStateT (fromExpr mdExpr) (FromExprState mempty funcMap mempty)
 
+  retType <- scalarFromType (getOuterAnnotation mdExpr)
+
   let mainFunction =
         WasmFunction
           { wfName = "main",
             wfExpr = expr,
             wfPublic = True,
             wfArgs = mempty,
-            wfReturnType = I32,
+            wfReturnType = retType,
             wfLocals = fesItems fes
           }
 

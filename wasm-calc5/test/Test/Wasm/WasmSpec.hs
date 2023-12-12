@@ -37,6 +37,7 @@ spec = do
             ("1 + 2 + 3 + 4 + 5 + 6", Wasm.VI32 21),
             ("6 * 6", Wasm.VI32 36),
             ("100 - 1", Wasm.VI32 99),
+            ("100.0 + 1.0", Wasm.VF64 101.0),
             ("if False then 1 else 2", Wasm.VI32 2),
             ("if 1 == 1 then 7 else 10", Wasm.VI32 7),
             ("if 2 == 1 then True else False", Wasm.VI32 0),

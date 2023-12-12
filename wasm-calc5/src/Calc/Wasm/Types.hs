@@ -8,15 +8,15 @@ module Calc.Wasm.Types
   )
 where
 
-import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Prim
 import GHC.Natural
+import Calc.Types.Expr
 
 data WasmType
-  = I32
-  | -- | this is probably an I64, but we want to differentiate it for clarity
-    Pointer
+  = I32 | F64
+  |
+    Pointer -- an I32 really
   deriving stock (Eq, Ord, Show)
 
 newtype WasmModule = WasmModule
@@ -37,7 +37,7 @@ data WasmFunction = WasmFunction
 
 data WasmExpr
   = WPrim Prim
-  | WInfix Op WasmExpr WasmExpr
+  | WInfix WasmType Op WasmExpr WasmExpr
   | WIf WasmExpr WasmExpr WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]
