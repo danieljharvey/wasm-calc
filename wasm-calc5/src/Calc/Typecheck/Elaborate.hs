@@ -111,16 +111,17 @@ inferInfix ann op a b = do
       -- if the types are the same, then great! it's a float!
       pure (TPrim ann TFloat)
     (otherA, otherB) ->
-      let filterSame (tA,tB) = void tA /= void tB
-
-      -- otherwise, error!
-       in throwError
-        ( InfixTypeMismatch
-            op
-            $ filter filterSame [ (TPrim (getOuterTypeAnnotation otherA) TInt, otherA),
-              (TPrim (getOuterTypeAnnotation otherB) TInt, otherB)
-            ]
-        )
+      let filterSame (tA, tB) = void tA /= void tB
+       in -- otherwise, error!
+          throwError
+            ( InfixTypeMismatch
+                op
+                $ filter
+                  filterSame
+                  [ (TPrim (getOuterTypeAnnotation otherA) TInt, otherA),
+                    (TPrim (getOuterTypeAnnotation otherB) TInt, otherB)
+                  ]
+            )
   pure (EInfix ty op elabA elabB)
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))

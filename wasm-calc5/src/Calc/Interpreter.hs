@@ -107,7 +107,6 @@ interpretInfix ann OpSubtract (EPrim _ (PFloat a)) (EPrim _ (PFloat b)) =
   pure $ EPrim ann (PFloat $ a - b)
 interpretInfix ann OpMultiply (EPrim _ (PFloat a)) (EPrim _ (PFloat b)) =
   pure $ EPrim ann (PFloat $ a * b)
-
 interpretInfix ann OpEquals (EPrim _ a) (EPrim _ b) =
   pure $ EPrim ann (PBool $ a == b)
 interpretInfix ann op a b = do

@@ -2,7 +2,8 @@
 
 module Test.Helpers
   ( int,
-    bool,float,
+    bool,
+    float,
     var,
     tuple,
     tyInt,

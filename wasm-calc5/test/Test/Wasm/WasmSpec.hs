@@ -69,7 +69,7 @@ spec = do
                 ],
               Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
             ),
-            ("(100.0,200.0).2",Wasm.VF64 200.0),
+            ("(100.0,200.0).2", Wasm.VF64 200.0),
             ( joinLines
                 [ "function fst(pair: (Integer,Integer)) { pair.1 }",
                   "fst(((10,2),(3,4)).1)"

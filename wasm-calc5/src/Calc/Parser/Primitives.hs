@@ -13,8 +13,8 @@ import Calc.Types.Expr
 import Calc.Types.Prim
 import Control.Applicative
 import Data.Functor (($>))
-import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Megaparsec (try)
+import qualified Text.Megaparsec.Char.Lexer as L
 
 ----
 
@@ -25,8 +25,8 @@ intParser =
 ---
 
 floatParser :: Parser Float
-floatParser
-  = L.signed (pure ()) L.float
+floatParser =
+  L.signed (pure ()) L.float
 
 ---
 
@@ -48,9 +48,8 @@ primExprParser :: Parser ParserExpr
 primExprParser =
   myLexeme $
     addLocation $
-  try (EPrim mempty . PFloat <$> floatParser)
-  <|>    EPrim mempty . PInt <$> intParser
-
+      try (EPrim mempty . PFloat <$> floatParser)
+        <|> EPrim mempty . PInt <$> intParser
         <|> EPrim mempty <$> truePrimParser
         <|> EPrim mempty <$> falsePrimParser
 
@@ -58,7 +57,7 @@ primExprParser =
 
 primParser :: Parser Prim
 primParser =
-    try (PFloat <$> floatParser)
-  <|> PInt <$> intParser
+  try (PFloat <$> floatParser)
+    <|> PInt <$> intParser
     <|> truePrimParser
     <|> falsePrimParser

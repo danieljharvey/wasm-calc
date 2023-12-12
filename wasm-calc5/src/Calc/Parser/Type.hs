@@ -29,7 +29,8 @@ tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
     tyPrimParser =
       try (stringLiteral "Boolean" $> TBool)
         <|> try (stringLiteral "Integer" $> TInt)
-        <|> stringLiteral "Float" $> TFloat
+        <|> stringLiteral "Float"
+        $> TFloat
 
 tyTupleParser :: Parser ParserType
 tyTupleParser = label "tuple" $

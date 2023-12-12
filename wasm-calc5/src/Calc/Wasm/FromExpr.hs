@@ -5,6 +5,7 @@
 
 module Calc.Wasm.FromExpr (fromModule) where
 
+import Calc.ExprUtils
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Identifier
@@ -18,7 +19,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import Data.Monoid
 import GHC.Natural
-import Calc.ExprUtils
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town

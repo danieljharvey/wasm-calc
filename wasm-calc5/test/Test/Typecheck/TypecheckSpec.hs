@@ -115,7 +115,7 @@ spec = do
       let failing =
             [ ("if 1 then 1 else 2", PredicateIsNotBoolean () tyInt),
               ("if True then 1 else True", TypeMismatch tyInt tyBool),
-              ("1 + 1.0", InfixTypeMismatch OpAdd [(tyInt,tyFloat)]),
+              ("1 + 1.0", InfixTypeMismatch OpAdd [(tyInt, tyFloat)]),
               ("1 + True", InfixTypeMismatch OpAdd [(tyInt, tyBool)]),
               ("True + False", InfixTypeMismatch OpAdd [(tyInt, tyBool), (tyInt, tyBool)]),
               ("1 * False", InfixTypeMismatch OpMultiply [(TPrim () TInt, TPrim () TBool)]),
