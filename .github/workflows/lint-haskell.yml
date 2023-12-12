@@ -21,6 +21,7 @@ jobs:
             wasm-calc2/**/*.hs
             wasm-calc3/**/*.hs
             wasm-calc4/**/*.hs
+            wasm-calc5/**/*.hs
 
   hlint:
     runs-on: ubuntu-latest
@@ -35,6 +36,6 @@ jobs:
       - name: "Run HLint"
         uses: rwe/actions-hlint-run@v2
         with:
-          path: '["wasm-calc/", "wasm-calc2/", "wasm-calc3/", "wasm-calc4/"]'
+          path: '["wasm-calc/", "wasm-calc2/", "wasm-calc3/", "wasm-calc4/", "wasm-calc5/"]'
           fail-on: warning
 
