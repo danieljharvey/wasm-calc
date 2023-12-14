@@ -15,7 +15,7 @@ import GHC.Natural
 
 data WasmType
   = I32
-  | F64
+  | F32
   | Pointer -- an I32 really
   deriving stock (Eq, Ord, Show)
 
@@ -42,6 +42,6 @@ data WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]
   | WAllocate Natural
-  | WSet Natural WasmExpr [(Natural, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 2) [(0, 1),(1, 2)]
-  | WTupleAccess WasmExpr Natural
+  | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 2) [(0, 1),(1, 2)]
+  | WTupleAccess WasmType WasmExpr Natural
   deriving stock (Eq, Ord, Show)

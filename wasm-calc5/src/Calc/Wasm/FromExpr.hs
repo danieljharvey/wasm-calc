@@ -70,7 +70,7 @@ lookupFunction functionName = do
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I32
 scalarFromType (TPrim _ TBool) = pure I32
-scalarFromType (TPrim _ TFloat) = pure F64
+scalarFromType (TPrim _ TFloat) = pure F32
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
 scalarFromType (TTuple {}) = pure Pointer
 
@@ -104,17 +104,21 @@ fromExpr (ETuple ty a as) = do
   WSet index allocate
     <$> traverse
       ( \(i, item) ->
-          (,) (i * size) <$> fromExpr item
+          (,,) (i * size) <$>
+              liftEither (scalarFromType (getOuterAnnotation item)) <*> fromExpr item
       )
       allItems
-fromExpr (ETupleAccess _ tup nat) =
-  WTupleAccess <$> fromExpr tup <*> pure nat
+fromExpr (ETupleAccess ty tup nat) =
+  let size = memorySize I32 -- we are assuming everything is the same size
+   in WTupleAccess <$> liftEither (scalarFromType ty) <*>
+            fromExpr tup <*>
+              pure ((nat - 1) * size)
 
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =
   memorySize I32
 memorySizeForType (TPrim _ TFloat) =
-  memorySize F64
+  memorySize F32
 memorySizeForType (TPrim _ TBool) =
   memorySize I32
 memorySizeForType (TTuple _ a as) =
