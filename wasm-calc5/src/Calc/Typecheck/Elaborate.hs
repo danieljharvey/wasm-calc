@@ -27,6 +27,7 @@ import qualified Data.List.NonEmpty as NE
 
 elaborateModule ::
   forall ann.
+  (Show ann) =>
   Module ann ->
   Either (TypeError ann) (Module (Type ann))
 elaborateModule (Module {mdFunctions, mdExpr}) = runTypecheckM (TypecheckEnv mempty) $ do
@@ -42,6 +43,7 @@ elaborateModule (Module {mdFunctions, mdExpr}) = runTypecheckM (TypecheckEnv mem
   Module fns <$> infer mdExpr
 
 elaborateFunction ::
+  (Show ann) =>
   Function ann ->
   TypecheckM ann (Function (Type ann))
 elaborateFunction (Function ann args name expr) = do
@@ -50,14 +52,14 @@ elaborateFunction (Function ann args name expr) = do
   let tyFn = TFunction ann (snd <$> args) (getOuterAnnotation exprA)
   pure (Function tyFn argsA name exprA)
 
-elaborate :: Expr ann -> Either (TypeError ann) (Expr (Type ann))
+elaborate :: (Show ann) => Expr ann -> Either (TypeError ann) (Expr (Type ann))
 elaborate = runTypecheckM (TypecheckEnv mempty) . infer
 
-check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
+check :: (Show ann) => Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty expr = do
   exprA <- infer expr
   _ <- checkTypeIsEqual ty (getOuterAnnotation exprA)
-  pure (expr $> ty)
+  pure (mapOuterExprAnnotation (const ty) exprA)
 
 -- simple check for now
 checkTypeIsEqual :: Type ann -> Type ann -> TypecheckM ann (Type ann)
@@ -67,6 +69,7 @@ checkTypeIsEqual tyA tyB =
     else throwError (TypeMismatch tyA tyB)
 
 inferIf ::
+  (Show ann) =>
   ann ->
   Expr ann ->
   Expr ann ->
@@ -82,6 +85,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
 
 inferInfix ::
+  (Show ann) =>
   ann ->
   Op ->
   Expr ann ->
@@ -124,7 +128,7 @@ inferInfix ann op a b = do
             )
   pure (EInfix ty op elabA elabB)
 
-infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
+infer :: (Show ann) => Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EPrim ann prim) =
   pure (EPrim (typeFromPrim ann prim) prim)
 infer (EIf ann predExpr thenExpr elseExpr) =

@@ -70,7 +70,7 @@ lookupFunction functionName = do
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I32
 scalarFromType (TPrim _ TBool) = pure I32
-scalarFromType (TPrim _ TFloat) = pure F32
+scalarFromType (TPrim _ TFloat) = pure F64
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
 scalarFromType (TTuple {}) = pure Pointer
 
@@ -100,25 +100,33 @@ fromExpr (ETuple ty a as) = do
   let allItems = zip [0 ..] (a : NE.toList as)
       tupleLength = memorySizeForType ty
       allocate = WAllocate (fromIntegral tupleLength)
-      size = memorySize I32 -- we are assuming all things are the same size, which is wrong
+      offsetList = getOffsetList ty
   WSet index allocate
     <$> traverse
       ( \(i, item) ->
-          (,,) (i * size) <$>
-              liftEither (scalarFromType (getOuterAnnotation item)) <*> fromExpr item
+          (,,) (offsetList !! i) <$>
+              (liftEither (scalarFromType (getOuterAnnotation item)))
+                <*> fromExpr item
       )
       allItems
 fromExpr (ETupleAccess ty tup nat) =
-  let size = memorySize I32 -- we are assuming everything is the same size
-   in WTupleAccess <$> liftEither (scalarFromType ty) <*>
-            fromExpr tup <*>
-              pure ((nat - 1) * size)
+  let offset = getOffsetList (getOuterAnnotation tup) !! (fromIntegral (nat - 1))
+   in WTupleAccess
+        <$> liftEither (scalarFromType ty)
+        <*> fromExpr tup
+        <*> pure offset
+
+getOffsetList :: Type ann -> [Natural]
+getOffsetList (TTuple _ a as)
+  = let items = a : NE.toList as
+     in drop 1 (scanl (\offset item -> offset + memorySizeForType item) 0 items)
+getOffsetList _  = []
 
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =
   memorySize I32
 memorySizeForType (TPrim _ TFloat) =
-  memorySize F32
+  memorySize F64
 memorySizeForType (TPrim _ TBool) =
   memorySize I32
 memorySizeForType (TTuple _ a as) =

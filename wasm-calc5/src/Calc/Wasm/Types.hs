@@ -15,7 +15,7 @@ import GHC.Natural
 
 data WasmType
   = I32
-  | F32
+  | F64
   | Pointer -- an I32 really
   deriving stock (Eq, Ord, Show)
 

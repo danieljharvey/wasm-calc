@@ -37,7 +37,7 @@ spec = do
             ("1 + 2 + 3 + 4 + 5 + 6", Wasm.VI32 21),
             ("6 * 6", Wasm.VI32 36),
             ("100 - 1", Wasm.VI32 99),
-            ("100.0 + 1.0", Wasm.VF32 101.0),
+            ("100.0 + 1.0", Wasm.VF64 101.0),
             ("if False then 1 else 2", Wasm.VI32 2),
             ("if 1 == 1 then 7 else 10", Wasm.VI32 7),
             ("if 2 == 1 then True else False", Wasm.VI32 0),
@@ -69,7 +69,10 @@ spec = do
                 ],
               Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
             ),
-            ("(100.0,200.0).2", Wasm.VF32 200.0),
+            (joinLines ["function sumTuple(pair: (Float, Float)) { pair.1 + pair.2 }",
+                "sumTuple((100.0,200.0))"
+                       ]
+                         , Wasm.VF64 300.0),
             ( joinLines
                 [ "function fst(pair: (Integer,Integer)) { pair.1 }",
                   "fst(((10,2),(3,4)).1)"
