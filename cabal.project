@@ -2,7 +2,8 @@ packages:
   wasm-calc/wasm-calc.cabal,
   wasm-calc2/wasm-calc2.cabal,
   wasm-calc3/wasm-calc3.cabal,
-  wasm-calc4/wasm-calc4.cabal
+  wasm-calc4/wasm-calc4.cabal,
+  wasm-calc5/wasm-calc5.cabal
 
 with-compiler: ghc-9.6.3
 
