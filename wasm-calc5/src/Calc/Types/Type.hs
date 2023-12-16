@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Types.Type (Type (..), TypePrim (..)) where
+module Calc.Types.Type (Type (..), TypePrim (..), TypeVar (..)) where
 
+import Calc.Types.TypeVar
 import qualified Data.List.NonEmpty as NE
 import qualified Prettyprinter as PP
 
@@ -19,10 +21,12 @@ data Type ann
   = TPrim ann TypePrim
   | TFunction ann [Type ann] (Type ann)
   | TTuple ann (Type ann) (NE.NonEmpty (Type ann))
+  | TVar ann TypeVar
   deriving stock (Eq, Ord, Show, Functor)
 
 instance PP.Pretty (Type ann) where
   pretty (TPrim _ prim) = PP.pretty prim
+  pretty (TVar _ var) = PP.pretty var
   pretty (TFunction _ args ret) =
     "(" <> prettyArgs <> ") -> " <> PP.pretty ret
     where

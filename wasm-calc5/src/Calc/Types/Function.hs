@@ -24,6 +24,7 @@ instance IsString ArgumentName where
 
 data Function ann = Function
   { fnAnn :: ann,
+    fnGenerics :: [TypeVar],
     fnArgs :: [(ArgumentName, Type ann)],
     fnFunctionName :: FunctionName,
     fnBody :: Expr ann

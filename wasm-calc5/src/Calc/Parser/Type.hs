@@ -2,6 +2,7 @@
 
 module Calc.Parser.Type (typeParser) where
 
+import Calc.Parser.Identifier
 import Calc.Parser.Shared
   ( addTypeLocation,
     myLexeme,
@@ -21,7 +22,7 @@ import Text.Megaparsec
 -- | top-level parser for type signatures
 typeParser :: Parser ParserType
 typeParser =
-  tyPrimitiveParser <|> tyTupleParser
+  tyPrimitiveParser <|> tyTupleParser <|> tyVarParser
 
 tyPrimitiveParser :: Parser ParserType
 tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
@@ -42,3 +43,8 @@ tyTupleParser = label "tuple" $
       _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (TTuple mempty (NE.head neArgs) neTail)
+
+tyVarParser :: Parser ParserType
+tyVarParser = label "type variable" $
+  addTypeLocation $ do
+    TVar mempty <$> typeVarParser

@@ -10,6 +10,7 @@ module Test.Helpers
     tyFloat,
     tyBool,
     tyTuple,
+    tyVar,
   )
 where
 
@@ -47,3 +48,6 @@ tyTuple :: (Monoid ann) => [Type ann] -> Type ann
 tyTuple = \case
   (a : b : rest) -> TTuple mempty a (b NE.:| rest)
   _ -> error "not enough items for tyTuple"
+
+tyVar :: (Monoid ann) => String -> Type ann
+tyVar = TVar mempty . TypeVar . fromString

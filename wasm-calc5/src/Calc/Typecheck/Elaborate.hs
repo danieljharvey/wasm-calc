@@ -44,11 +44,19 @@ elaborateModule (Module {mdFunctions, mdExpr}) = runTypecheckM (TypecheckEnv mem
 elaborateFunction ::
   Function ann ->
   TypecheckM ann (Function (Type ann))
-elaborateFunction (Function ann args name expr) = do
-  exprA <- withFunctionArgs args (infer expr)
-  let argsA = fmap (second (\ty -> fmap (const ty) ty)) args
-  let tyFn = TFunction ann (snd <$> args) (getOuterAnnotation exprA)
-  pure (Function tyFn argsA name exprA)
+elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody}) = do
+  exprA <- withFunctionArgs fnArgs (infer fnBody)
+  let argsA = fmap (second (\ty -> fmap (const ty) ty)) fnArgs
+  let tyFn = TFunction fnAnn (snd <$> fnArgs) (getOuterAnnotation exprA)
+  pure
+    ( Function
+        { fnAnn = tyFn,
+          fnGenerics,
+          fnArgs = argsA,
+          fnFunctionName = fnFunctionName,
+          fnBody = exprA
+        }
+    )
 
 elaborate :: Expr ann -> Either (TypeError ann) (Expr (Type ann))
 elaborate = runTypecheckM (TypecheckEnv mempty) . infer

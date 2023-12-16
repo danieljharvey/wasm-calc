@@ -82,7 +82,8 @@ spec = do
       let succeeding =
             [ ("function ignore() { 1 } 42", tyInt),
               ("function increment(a: Integer) { a + 1 } increment(41)", tyInt),
-              ("function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)", TPrim () TInt)
+              ("function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)", tyInt),
+              ("function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))", tyTuple [tyInt, tyBool])
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding

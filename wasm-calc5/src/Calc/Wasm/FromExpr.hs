@@ -71,6 +71,7 @@ scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I64
 scalarFromType (TPrim _ TBool) = pure I32
 scalarFromType (TPrim _ TFloat) = pure F64
+scalarFromType (TVar _ _) = error "scalarFromType TVar"
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
 scalarFromType (TTuple {}) = pure Pointer
 
@@ -131,6 +132,7 @@ memorySizeForType (TPrim _ TFloat) =
   memorySize F64
 memorySizeForType (TPrim _ TBool) =
   memorySize I32
+memorySizeForType (TVar _ _) = error "memorySizeForType TVar"
 memorySizeForType (TTuple _ a as) =
   memorySizeForType a + getSum (foldMap (Sum . memorySizeForType) as)
 memorySizeForType (TFunction {}) =

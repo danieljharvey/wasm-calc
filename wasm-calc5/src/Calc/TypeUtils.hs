@@ -6,8 +6,10 @@ getOuterTypeAnnotation :: Type ann -> ann
 getOuterTypeAnnotation (TPrim ann _) = ann
 getOuterTypeAnnotation (TFunction ann _ _) = ann
 getOuterTypeAnnotation (TTuple ann _ _) = ann
+getOuterTypeAnnotation (TVar ann _) = ann
 
 mapOuterTypeAnnotation :: (ann -> ann) -> Type ann -> Type ann
 mapOuterTypeAnnotation f (TPrim ann p) = TPrim (f ann) p
 mapOuterTypeAnnotation f (TFunction ann a b) = TFunction (f ann) a b
 mapOuterTypeAnnotation f (TTuple ann a b) = TTuple (f ann) a b
+mapOuterTypeAnnotation f (TVar ann v) = TVar (f ann) v
