@@ -58,7 +58,7 @@
           buildInputs = with haskellPackages; [
             hlint
             ormolu
-            # haskell-language-server # this simply does nothing atm
+            haskell-language-server
             ghcid
             cabal-fmt
             cabal-install
