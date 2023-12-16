@@ -53,7 +53,7 @@ run-wasm-calc4:
 
 .PHONY: test-wasm-calc5
 test-wasm-calc5:
-	ghcid -c "cabal repl wasm-calc5:tests" --test=main
+	cabal run wasm-calc5:tests
 
 .PHONY: run-wasm-calc5
 run-wasm-calc5:
