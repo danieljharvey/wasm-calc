@@ -17,6 +17,7 @@ mapWithIndex f = fmap f . zip [0 ..]
 
 fromType :: WasmType -> Wasm.ValueType
 fromType I32 = Wasm.I32
+fromType I64 = Wasm.I64
 fromType F64 = Wasm.F64
 fromType Pointer = Wasm.I32
 
@@ -40,6 +41,7 @@ exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
 bitsizeFromType I32 = Wasm.BS32
+bitsizeFromType I64 = Wasm.BS64
 bitsizeFromType F64 = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
@@ -55,7 +57,7 @@ instructionFromOp ty OpEquals = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
 
 fromExpr :: WasmExpr -> [Wasm.Instruction Natural]
 fromExpr (WPrim (PInt i)) =
-  [Wasm.I32Const $ fromIntegral i]
+  [Wasm.I64Const $ fromIntegral i]
 fromExpr (WPrim (PFloat f)) =
   [Wasm.F64Const $ realToFrac f]
 fromExpr (WPrim (PBool True)) =
@@ -75,18 +77,21 @@ fromExpr (WAllocate i) =
 fromExpr (WSet index container items) =
   let fromItem (offset, ty, value) =
         let storeInstruction = case ty of
-                F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
-                _ -> Wasm.I32Store (Wasm.MemArg offset 0)
+              F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
+              I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
+              I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
+              Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
          in [Wasm.GetLocal index] <> fromExpr value <> [storeInstruction]
    in fromExpr container
         <> [Wasm.SetLocal index]
         <> foldMap fromItem items
         <> [Wasm.GetLocal index]
 fromExpr (WTupleAccess ty tup offset) =
-  let
-      loadInstruction = case ty of
-                          F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
-                          _ -> Wasm.I32Load (Wasm.MemArg offset 0)
+  let loadInstruction = case ty of
+        F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
+        I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
+        I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
+        Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
    in fromExpr tup <> [loadInstruction]
 
 -- | we load the bump allocator module and build on top of it

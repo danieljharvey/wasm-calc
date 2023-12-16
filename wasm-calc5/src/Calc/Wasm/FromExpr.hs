@@ -68,7 +68,7 @@ lookupFunction functionName = do
     Nothing -> throwError $ FunctionNotFound functionName
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
-scalarFromType (TPrim _ TInt) = pure I32
+scalarFromType (TPrim _ TInt) = pure I64
 scalarFromType (TPrim _ TBool) = pure I32
 scalarFromType (TPrim _ TFloat) = pure F64
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
@@ -83,8 +83,10 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim _ prim) =
   pure $ WPrim prim
-fromExpr (EInfix ty op a b) = do
-  scalar <- liftEither $ scalarFromType ty
+fromExpr (EInfix _ op a b) = do
+  -- we're assuming that the types of `a` and `b` are the same
+  -- we want the type of the args, not the result
+  scalar <- liftEither $ scalarFromType (getOuterAnnotation a)
   WInfix scalar op <$> fromExpr a <*> fromExpr b
 fromExpr (EIf _ predE thenE elseE) =
   WIf <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
@@ -104,9 +106,9 @@ fromExpr (ETuple ty a as) = do
   WSet index allocate
     <$> traverse
       ( \(i, item) ->
-          (,,) (offsetList !! i) <$>
-              (liftEither (scalarFromType (getOuterAnnotation item)))
-                <*> fromExpr item
+          (,,) (offsetList !! i)
+            <$> (liftEither (scalarFromType (getOuterAnnotation item)))
+            <*> fromExpr item
       )
       allItems
 fromExpr (ETupleAccess ty tup nat) =
@@ -117,14 +119,14 @@ fromExpr (ETupleAccess ty tup nat) =
         <*> pure offset
 
 getOffsetList :: Type ann -> [Natural]
-getOffsetList (TTuple _ a as)
-  = let items = a : NE.toList as
-     in drop 1 (scanl (\offset item -> offset + memorySizeForType item) 0 items)
-getOffsetList _  = []
+getOffsetList (TTuple _ a as) =
+  let items = a : NE.toList as
+   in drop 1 (scanl (\offset item -> offset + memorySizeForType item) 0 items)
+getOffsetList _ = []
 
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =
-  memorySize I32
+  memorySize I64
 memorySizeForType (TPrim _ TFloat) =
   memorySize F64
 memorySizeForType (TPrim _ TBool) =

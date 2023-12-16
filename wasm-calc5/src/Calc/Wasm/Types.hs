@@ -15,8 +15,9 @@ import GHC.Natural
 
 data WasmType
   = I32
+  | I64
   | F64
-  | Pointer -- an I32 really
+  | Pointer -- an I64 really
   deriving stock (Eq, Ord, Show)
 
 newtype WasmModule = WasmModule
