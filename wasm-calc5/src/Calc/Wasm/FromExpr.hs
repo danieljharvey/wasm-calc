@@ -107,12 +107,12 @@ fromExpr (ETuple ty a as) = do
     <$> traverse
       ( \(i, item) ->
           (,,) (offsetList !! i)
-            <$> (liftEither (scalarFromType (getOuterAnnotation item)))
+            <$> liftEither (scalarFromType (getOuterAnnotation item))
             <*> fromExpr item
       )
       allItems
 fromExpr (ETupleAccess ty tup nat) =
-  let offset = getOffsetList (getOuterAnnotation tup) !! (fromIntegral (nat - 1))
+  let offset = getOffsetList (getOuterAnnotation tup) !! fromIntegral (nat - 1)
    in WTupleAccess
         <$> liftEither (scalarFromType ty)
         <*> fromExpr tup
