@@ -1,22 +1,29 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
-module Calc.Types.Type (Type (..), TypePrim (..), TypeVar (..)) where
+module Calc.Types.Type (UniType(..), Type (..), TypePrim (..), TypeVar (..)) where
 
-import Calc.Types.TypeVar
+import           Calc.Types.TypeVar
 import qualified Data.List.NonEmpty as NE
-import qualified Prettyprinter as PP
+import           GHC.Natural
+import qualified Prettyprinter      as PP
 
 data TypePrim = TBool | TInt | TFloat
   deriving stock (Eq, Ord, Show)
 
 instance PP.Pretty TypePrim where
-  pretty TBool = "Boolean"
-  pretty TInt = "Integer"
+  pretty TBool  = "Boolean"
+  pretty TInt   = "Integer"
   pretty TFloat = "Float"
 
+-- | we differentiate types like these because we don't want unification
+-- variables to 'escape' to the rest of the program
+data UniType ann =
+  UnificationVariable ann Natural
+  | RegularType (Type ann)
+
+-- | resolved types
 data Type ann
   = TPrim ann TypePrim
   | TFunction ann [Type ann] (Type ann)

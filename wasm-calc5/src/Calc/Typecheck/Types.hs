@@ -1,4 +1,4 @@
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
 module Calc.Typecheck.Types
@@ -7,32 +7,37 @@ module Calc.Typecheck.Types
     TypecheckEnv (..),
     lookupVar,
     withVar,
-    withVars,
     lookupFunction,
-    withFunctionArgs,
+    withFunctionEnv,
     storeFunction,
   )
 where
 
-import Calc.Typecheck.Error
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Type
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Bifunctor (first)
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HM
+import           Calc.Typecheck.Error
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Type
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.Bifunctor        (first)
+import qualified Data.HashMap.Strict   as HM
+import qualified Data.Set              as S
 
-newtype TypecheckEnv ann = TypecheckEnv
-  { tceVars :: HashMap Identifier (Type ann)
+-- | temporary read-only state
+data TypecheckEnv ann = TypecheckEnv
+  { tceVars     :: HM.HashMap Identifier (Type ann),
+    tceGenerics :: S.Set TypeVar
   }
   deriving stock (Eq, Ord, Show)
 
 newtype TypecheckState ann = TypecheckState
-  {tcsFunctions :: HashMap FunctionName (Type ann)}
+  {tcsFunctions :: HM.HashMap FunctionName (TypeScheme ann)}
   deriving stock (Eq, Ord, Show)
+
+data TypeScheme ann
+  = TypeScheme { tsType :: Type ann, tsGenerics :: S.Set TypeVar }
+  deriving stock (Eq,Ord,Show)
 
 newtype TypecheckM ann a = TypecheckM
   { getTypecheckM ::
@@ -56,14 +61,15 @@ runTypecheckM env action =
 
 storeFunction ::
   FunctionName ->
+  S.Set TypeVar ->
   Type ann ->
   TypecheckM ann ()
-storeFunction fnName ty =
+storeFunction fnName generics ty =
   modify
     ( \tcs ->
         tcs
           { tcsFunctions =
-              HM.insert fnName ty (tcsFunctions tcs)
+              HM.insert fnName (TypeScheme ty generics) (tcsFunctions tcs)
           }
     )
 
@@ -72,7 +78,7 @@ lookupFunction :: ann -> FunctionName -> TypecheckM ann (Type ann)
 lookupFunction ann fnName = do
   maybeType <- gets (HM.lookup fnName . tcsFunctions)
   case maybeType of
-    Just found -> pure found
+    Just found -> pure (tsType found ) -- TODO: generalise this type with type scheme
     Nothing -> do
       allFunctions <- gets (HM.keysSet . tcsFunctions)
       throwError (FunctionNotFound ann fnName allFunctions)
@@ -98,19 +104,18 @@ withVar identifier ty =
           }
     )
 
-withVars :: [(Identifier, Type ann)] -> TypecheckM ann a -> TypecheckM ann a
-withVars args =
-  local
-    ( \tce ->
-        tce
-          { tceVars = tceVars tce <> HM.fromList args
-          }
-    )
-
-withFunctionArgs ::
+-- | temporarily add function arguments and generics into the Reader env
+withFunctionEnv ::
   [(ArgumentName, Type ann)] ->
+  S.Set TypeVar ->
   TypecheckM ann a ->
   TypecheckM ann a
-withFunctionArgs =
-  withVars
-    . fmap (first (\(ArgumentName arg) -> Identifier arg))
+withFunctionEnv args generics =
+  let identifiers = fmap (first (\(ArgumentName arg) -> Identifier arg)) args
+   in local
+    ( \tce ->
+        tce
+          { tceVars = tceVars tce <> HM.fromList identifiers,
+            tceGenerics = generics
+          }
+    )
