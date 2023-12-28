@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DerivingStrategies  #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,23 +9,25 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import Calc.ExprUtils
-import Calc.TypeUtils
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Types
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Prim
-import Calc.Types.Type
-import Control.Monad (when, zipWithM)
-import Control.Monad.Except
-import Data.Bifunctor (second)
-import Data.Functor
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Substitute
+import           Calc.Typecheck.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Prim
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad             (when, zipWithM)
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Bifunctor            (second)
+import           Data.Functor
+import qualified Data.List                 as List
+import qualified Data.List.NonEmpty        as NE
+import qualified Data.Set                  as S
 
 elaborateModule ::
   forall ann.
@@ -42,16 +44,32 @@ elaborateModule (Module {mdFunctions, mdExpr}) =
         )
         mdFunctions
 
-    Module fns <$> infer mdExpr
+    Module fns <$> inferAndSubstitute mdExpr
+
+inferAndSubstitute ::
+  Expr ann ->
+  TypecheckM ann (Expr (Type ann))
+inferAndSubstitute expr = do
+  exprA <- infer expr
+  unified <- gets tcsUnified
+  pure $ substitute unified <$> exprA
 
 elaborateFunction ::
   Function ann ->
   TypecheckM ann (Function (Type ann))
 elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody}) = do
-  exprA <- withFunctionEnv fnArgs (S.fromList fnGenerics) (infer fnBody)
-  _ <- error "we should now substitute from the state to exprA to fill it what we learned"
-  let argsA = fmap (second (\ty -> fmap (const ty) ty)) fnArgs
-  let tyFn = TFunction fnAnn (snd <$> fnArgs) (getOuterAnnotation exprA)
+  exprA <-
+    withFunctionEnv
+      fnArgs
+      (S.fromList fnGenerics)
+      (inferAndSubstitute fnBody)
+  let argsA =
+        second (\ty -> fmap (const ty) ty) <$> fnArgs
+  let tyFn =
+        TFunction
+          fnAnn
+          (snd <$> fnArgs)
+          (getOuterAnnotation exprA)
   pure
     ( Function
         { fnAnn = tyFn,
@@ -76,7 +94,9 @@ unify (TUnificationVar _ nat) b = do
 unify a (TUnificationVar _ nat) = do
   unifyVariableWithType nat a
 unify (TFunction ann argA bodyA) (TFunction _ argB bodyB) =
-  TFunction ann <$> zipWithM unify argA argB <*> unify bodyA bodyB
+  TFunction ann
+    <$> zipWithM unify argA argB
+    <*> unify bodyA bodyB
 unify (TTuple ann a as) (TTuple _ b bs) =
   TTuple ann
     <$> unify a b
@@ -96,7 +116,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
@@ -157,7 +177,8 @@ inferApply ann fnName args = do
         (length args /= length tArgs)
         (throwError $ FunctionArgumentLengthMismatch ann (length tArgs) (length args))
       elabArgs <- zipWithM check tArgs args -- check each arg against type
-      pure (tReturn, elabArgs)
+      unified <- gets tcsUnified
+      pure (substitute unified tReturn, elabArgs)
     _ -> throwError $ NonFunctionTypeFound ann fn
   pure (EApply (ty $> ann) fnName elabArgs)
 
@@ -194,8 +215,8 @@ infer (EInfix ann op a b) =
   inferInfix ann op a b
 
 typePrimFromPrim :: Prim -> TypePrim
-typePrimFromPrim (PInt _) = TInt
-typePrimFromPrim (PBool _) = TBool
+typePrimFromPrim (PInt _)   = TInt
+typePrimFromPrim (PBool _)  = TBool
 typePrimFromPrim (PFloat _) = TFloat
 
 typeFromPrim :: ann -> Prim -> Type ann

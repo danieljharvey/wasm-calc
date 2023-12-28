@@ -70,6 +70,7 @@ common shared
     Calc.Typecheck.Error
     Calc.Typecheck.Generalise
     Calc.Typecheck.Helpers
+    Calc.Typecheck.Substitute
     Calc.Typecheck.Types
     Calc.Types
     Calc.Types.Annotation

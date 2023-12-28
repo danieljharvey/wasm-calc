@@ -35,7 +35,10 @@ data TypecheckState ann = TypecheckState
   }
   deriving stock (Eq, Ord, Show)
 
-data TypeScheme ann = TypeScheme {tsType :: Type ann, tsGenerics :: S.Set TypeVar}
+data TypeScheme ann = TypeScheme
+  { tsType :: Type ann,
+    tsGenerics :: S.Set TypeVar
+  }
   deriving stock (Eq, Ord, Show)
 
 newtype TypecheckM ann a = TypecheckM

@@ -2,22 +2,22 @@
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck.Elaborate
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Types
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck.Elaborate
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either              (isLeft)
+import           Data.Foldable            (traverse_)
+import           Data.Text                (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -88,9 +88,15 @@ spec = do
     describe "Module" $ do
       let succeeding =
             [ ("function ignore() { 1 } 42", tyInt),
-              ("function increment(a: Integer) { a + 1 } increment(41)", tyInt),
-              ("function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)", tyInt),
-              ("function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))", tyTuple [tyInt, tyBool])
+              ( "function increment(a: Integer) { a + 1 } increment(41)",
+                tyInt
+              ),
+              ( "function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)",
+                tyInt
+              ),
+              ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))",
+                tyTuple [tyInt, tyBool]
+              )
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding

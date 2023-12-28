@@ -1,6 +1,13 @@
-module Calc.TypeUtils (bindType, mapOuterTypeAnnotation, getOuterTypeAnnotation) where
+module Calc.TypeUtils
+  ( bindType,
+    mapType,
+    mapOuterTypeAnnotation,
+    getOuterTypeAnnotation,
+  )
+where
 
 import Calc.Types.Type
+import Control.Monad.Identity
 
 getOuterTypeAnnotation :: Type ann -> ann
 getOuterTypeAnnotation (TPrim ann _) = ann
@@ -16,7 +23,15 @@ mapOuterTypeAnnotation f (TTuple ann a b) = TTuple (f ann) a b
 mapOuterTypeAnnotation f (TVar ann v) = TVar (f ann) v
 mapOuterTypeAnnotation f (TUnificationVar ann v) = TUnificationVar (f ann) v
 
-bindType :: (Applicative m) => (Type ann -> m (Type ann)) -> Type ann -> m (Type ann)
+mapType :: (Type ann -> Type ann) -> Type ann -> Type ann
+mapType f ty =
+  runIdentity (bindType (pure . f) ty)
+
+bindType ::
+  (Applicative m) =>
+  (Type ann -> m (Type ann)) ->
+  Type ann ->
+  m (Type ann)
 bindType _ (TPrim ann p) =
   pure $ TPrim ann p
 bindType f (TFunction ann a b) =

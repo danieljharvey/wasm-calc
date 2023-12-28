@@ -1,5 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
@@ -11,21 +11,20 @@ module Calc.Typecheck.Helpers
     storeFunction,
   )
 where
-
-import Calc.Typecheck.Error
-import Calc.Typecheck.Generalise
-import Calc.Typecheck.Types
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Type
-import Calc.Types.TypeVar
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Bifunctor (first)
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Set as S
-import GHC.Natural
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Generalise
+import           Calc.Typecheck.Types
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Type
+import           Calc.Types.TypeVar
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.Bifunctor            (first)
+import qualified Data.HashMap.Strict       as HM
+import qualified Data.Set                  as S
+import           GHC.Natural
 
 runTypecheckM ::
   TypecheckEnv ann ->
@@ -34,7 +33,12 @@ runTypecheckM ::
 runTypecheckM env action =
   evalStateT
     (runReaderT (getTypecheckM action) env)
-    (TypecheckState {tcsFunctions = mempty, tcsUnique = 0, tcsUnified = mempty})
+    ( TypecheckState
+        { tcsFunctions = mempty,
+          tcsUnique = 0,
+          tcsUnified = mempty
+        }
+    )
 
 storeFunction ::
   FunctionName ->
@@ -46,16 +50,21 @@ storeFunction fnName generics ty =
     ( \tcs ->
         tcs
           { tcsFunctions =
-              HM.insert fnName (TypeScheme ty generics) (tcsFunctions tcs)
+              HM.insert
+                fnName
+                (TypeScheme ty generics)
+                (tcsFunctions tcs)
           }
     )
 
 -- | look up a saved identifier "in the environment"
-lookupFunction :: ann -> FunctionName -> TypecheckM ann (Type ann)
+lookupFunction ::  ann -> FunctionName -> TypecheckM ann (Type ann)
 lookupFunction ann fnName = do
-  maybeType <- gets (HM.lookup fnName . tcsFunctions)
+  maybeType <- gets (HM.lookup fnName .  tcsFunctions)
+
   case maybeType of
-    Just (TypeScheme {tsType, tsGenerics}) -> generalise tsGenerics tsType
+    Just (TypeScheme {tsType, tsGenerics}) ->
+      generalise tsGenerics tsType
     Nothing -> do
       allFunctions <- gets (HM.keysSet . tcsFunctions)
       throwError (FunctionNotFound ann fnName allFunctions)
@@ -99,7 +108,10 @@ withFunctionEnv args generics =
 
 -- | given a unification variable, either save it and return the type
 -- or explode because we've already unified it with something else
-unifyVariableWithType :: Natural -> Type ann -> TypecheckM ann (Type ann)
+unifyVariableWithType ::
+  Natural ->
+  Type ann ->
+  TypecheckM ann (Type ann)
 unifyVariableWithType nat ty =
   do
     existing <- gets (HM.lookup nat . tcsUnified)
@@ -108,7 +120,10 @@ unifyVariableWithType nat ty =
         -- this is the first match, store it and return the passed-in type
         modify
           ( \tcs ->
-              tcs {tcsUnified = tcsUnified tcs <> HM.singleton nat ty}
+              tcs
+                { tcsUnified =
+                    HM.insert nat ty (tcsUnified tcs)
+                }
           )
         pure ty
       Just _existingTy -> do
