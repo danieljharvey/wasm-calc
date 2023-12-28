@@ -1,52 +1,55 @@
-{-# LANGUAGE DerivingStrategies  #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
-  ( elaborate,
+  ( infer,
     elaborateFunction,
     elaborateModule,
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad        (when, zipWithM)
-import           Control.Monad.Except
-import           Data.Bifunctor       (second)
-import           Data.Functor
-import qualified Data.List            as List
-import qualified Data.List.NonEmpty   as NE
-import qualified Data.Set             as S
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Prim
+import Calc.Types.Type
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Data.Bifunctor (second)
+import Data.Functor
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
   Module ann ->
   Either (TypeError ann) (Module (Type ann))
-elaborateModule (Module {mdFunctions, mdExpr }) = runTypecheckM (TypecheckEnv mempty mempty) $ do
-  fns <-
-    traverse
-      ( \fn -> do
-          elabFn <- elaborateFunction fn
-          storeFunction (fnFunctionName elabFn) (S.fromList $ fnGenerics fn) (fnAnn elabFn)
-          pure elabFn
-      )
-      mdFunctions
+elaborateModule (Module {mdFunctions, mdExpr}) =
+  runTypecheckM (TypecheckEnv mempty mempty) $ do
+    fns <-
+      traverse
+        ( \fn -> do
+            elabFn <- elaborateFunction fn
+            storeFunction (fnFunctionName elabFn) (S.fromList $ fnGenerics fn) (fnAnn elabFn)
+            pure elabFn
+        )
+        mdFunctions
 
-  Module fns <$> infer mdExpr
+    Module fns <$> infer mdExpr
 
 elaborateFunction ::
   Function ann ->
   TypecheckM ann (Function (Type ann))
 elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody}) = do
   exprA <- withFunctionEnv fnArgs (S.fromList fnGenerics) (infer fnBody)
+  _ <- error "we should now substitute from the state to exprA to fill it what we learned"
   let argsA = fmap (second (\ty -> fmap (const ty) ty)) fnArgs
   let tyFn = TFunction fnAnn (snd <$> fnArgs) (getOuterAnnotation exprA)
   pure
@@ -59,18 +62,26 @@ elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody})
         }
     )
 
-elaborate :: Expr ann -> Either (TypeError ann) (Expr (Type ann))
-elaborate = runTypecheckM (TypecheckEnv mempty mempty) . infer
-
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty expr = do
   exprA <- infer expr
-  _ <- checkTypeIsEqual ty (getOuterAnnotation exprA)
-  pure (mapOuterExprAnnotation (const ty) exprA)
+  unifiedTy <- unify ty (getOuterAnnotation exprA)
+  pure (mapOuterExprAnnotation (const unifiedTy) exprA)
 
--- simple check for now
-checkTypeIsEqual :: Type ann -> Type ann -> TypecheckM ann (Type ann)
-checkTypeIsEqual tyA tyB =
+-- unification. for our simple purposes this means "smash two types
+-- together and see what we learn" (or explode if it makes no sense)
+unify :: Type ann -> Type ann -> TypecheckM ann (Type ann)
+unify (TUnificationVar _ nat) b = do
+  unifyVariableWithType nat b
+unify a (TUnificationVar _ nat) = do
+  unifyVariableWithType nat a
+unify (TFunction ann argA bodyA) (TFunction _ argB bodyB) =
+  TFunction ann <$> zipWithM unify argA argB <*> unify bodyA bodyB
+unify (TTuple ann a as) (TTuple _ b bs) =
+  TTuple ann
+    <$> unify a b
+    <*> (NE.fromList <$> zipWithM unify (NE.toList as) (NE.toList bs))
+unify tyA tyB =
   if void tyA == void tyB
     then pure tyA
     else throwError (TypeMismatch tyA tyB)
@@ -85,7 +96,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
@@ -133,8 +144,11 @@ inferInfix ann op a b = do
             )
   pure (EInfix ty op elabA elabB)
 
-inferApply :: ann -> FunctionName -> [Expr ann] ->
-    TypecheckM ann (Expr (Type ann))
+inferApply ::
+  ann ->
+  FunctionName ->
+  [Expr ann] ->
+  TypecheckM ann (Expr (Type ann))
 inferApply ann fnName args = do
   fn <- lookupFunction ann fnName
   (ty, elabArgs) <- case fn of
@@ -180,8 +194,8 @@ infer (EInfix ann op a b) =
   inferInfix ann op a b
 
 typePrimFromPrim :: Prim -> TypePrim
-typePrimFromPrim (PInt _)   = TInt
-typePrimFromPrim (PBool _)  = TBool
+typePrimFromPrim (PInt _) = TInt
+typePrimFromPrim (PBool _) = TBool
 typePrimFromPrim (PFloat _) = TFloat
 
 typeFromPrim :: ann -> Prim -> Type ann

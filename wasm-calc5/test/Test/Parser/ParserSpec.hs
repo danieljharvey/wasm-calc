@@ -2,13 +2,13 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import           Calc
-import           Data.Foldable      (traverse_)
-import           Data.Functor
+import Calc
+import Data.Foldable (traverse_)
+import Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text          as T
-import           Test.Helpers
-import           Test.Hspec
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 spec :: Spec
 spec = do
@@ -25,7 +25,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -69,7 +69,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -99,16 +99,15 @@ spec = do
                     fnArgs = [("a", tyVar "a"), ("b", tyVar "b")],
                     fnFunctionName = "pair",
                     fnBody = ETuple () (var "a") (NE.singleton (var "b")),
-                    fnGenerics = ["a","b"]
+                    fnGenerics = ["a", "b"]
                   }
               )
-
             ]
       traverse_
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e         -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -143,7 +142,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 

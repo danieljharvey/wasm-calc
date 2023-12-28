@@ -12,6 +12,7 @@ where
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Type
+import Calc.Types.TypeVar
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T

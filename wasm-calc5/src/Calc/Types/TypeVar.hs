@@ -1,13 +1,13 @@
-{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
 module Calc.Types.TypeVar (TypeVar (..), safeMkTypeVar) where
 
-import qualified Data.Char     as Ch
-import           Data.Hashable
-import           Data.String
-import           Data.Text     (Text)
-import qualified Data.Text     as T
+import qualified Data.Char as Ch
+import Data.Hashable
+import Data.String
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Prettyprinter as PP
 
 newtype TypeVar = TypeVar Text

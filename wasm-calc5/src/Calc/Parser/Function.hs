@@ -12,6 +12,7 @@ import Calc.Types.Annotation
 import Calc.Types.Function
 import Calc.Types.Identifier
 import Calc.Types.Type
+import Calc.Types.TypeVar
 import Text.Megaparsec
 
 argumentNameParser :: Parser ArgumentName

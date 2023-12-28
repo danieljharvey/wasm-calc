@@ -1,27 +1,21 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Types.Type (UniType(..), Type (..), TypePrim (..), TypeVar (..)) where
+module Calc.Types.Type (Type (..), TypePrim (..)) where
 
-import           Calc.Types.TypeVar
+import Calc.Types.TypeVar
 import qualified Data.List.NonEmpty as NE
-import           GHC.Natural
-import qualified Prettyprinter      as PP
+import GHC.Natural
+import qualified Prettyprinter as PP
 
 data TypePrim = TBool | TInt | TFloat
   deriving stock (Eq, Ord, Show)
 
 instance PP.Pretty TypePrim where
-  pretty TBool  = "Boolean"
-  pretty TInt   = "Integer"
+  pretty TBool = "Boolean"
+  pretty TInt = "Integer"
   pretty TFloat = "Float"
-
--- | we differentiate types like these because we don't want unification
--- variables to 'escape' to the rest of the program
-data UniType ann =
-  UnificationVariable ann Natural
-  | RegularType (Type ann)
 
 -- | resolved types
 data Type ann
@@ -29,6 +23,7 @@ data Type ann
   | TFunction ann [Type ann] (Type ann)
   | TTuple ann (Type ann) (NE.NonEmpty (Type ann))
   | TVar ann TypeVar
+  | TUnificationVar ann Natural
   deriving stock (Eq, Ord, Show, Functor)
 
 instance PP.Pretty (Type ann) where
@@ -38,6 +33,7 @@ instance PP.Pretty (Type ann) where
     "(" <> prettyArgs <> ") -> " <> PP.pretty ret
     where
       prettyArgs = PP.concatWith (PP.surround PP.comma) (PP.pretty <$> args)
+  pretty (TUnificationVar _ i) = "U" <> PP.pretty i
   pretty (TTuple _ a as) =
     "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> tupleItems a as)) <> ")"
     where

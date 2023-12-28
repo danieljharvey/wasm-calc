@@ -2,21 +2,22 @@
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.Typecheck.Elaborate
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Type
-import           Control.Monad
-import           Data.Either              (isLeft)
-import           Data.Foldable            (traverse_)
-import           Data.Text                (Text)
-import           Test.Helpers
-import           Test.Hspec
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.Typecheck.Elaborate
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Type
+import Control.Monad
+import Data.Either (isLeft)
+import Data.Foldable (traverse_)
+import Data.Text (Text)
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -26,7 +27,7 @@ testTypecheck (input, result) = it (show input) $ do
   case (,) <$> parseExprAndFormatError input <*> parseTypeAndFormatError result of
     Left e -> error (show e)
     Right (expr, tyResult) -> do
-      getOuterAnnotation <$> elaborate (void expr)
+      getOuterAnnotation <$> runTC (infer (void expr))
         `shouldBe` Right (void tyResult)
 
 testFailing :: (Text, TypeError ()) -> Spec
@@ -34,7 +35,7 @@ testFailing (input, result) = it (show input) $ do
   case parseExprAndFormatError input of
     Left e -> error (show e)
     Right expr -> do
-      getOuterAnnotation <$> elaborate (void expr)
+      getOuterAnnotation <$> runTC (infer (void expr))
         `shouldBe` Left result
 
 testSucceedingFunction :: (Text, Type ()) -> Spec
@@ -73,11 +74,12 @@ spec = do
               ( "function not (bool: Boolean) { if bool then False else True }",
                 TFunction () [tyBool] tyBool
               ),
-              ("function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) }",
-                  TFunction () [tyTuple [tyVar "a", tyVar "b"]]
-                          (tyTuple [tyVar "b", tyVar "a"])
+              ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) }",
+                TFunction
+                  ()
+                  [tyTuple [tyVar "a", tyVar "b"]]
+                  (tyTuple [tyVar "b", tyVar "a"])
               )
-
             ]
 
       describe "Successfully typechecking functions" $ do

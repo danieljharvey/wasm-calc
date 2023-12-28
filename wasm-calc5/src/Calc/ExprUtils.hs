@@ -3,6 +3,7 @@
 module Calc.ExprUtils
   ( mapOuterExprAnnotation,
     getOuterAnnotation,
+    bindExpr,
   )
 where
 
@@ -31,3 +32,21 @@ mapOuterExprAnnotation f expr' =
     EApply ann a b -> EApply (f ann) a b
     ETuple ann a b -> ETuple (f ann) a b
     ETupleAccess ann a b -> ETupleAccess (f ann) a b
+
+-- | Given a function that changes `Expr` values to `m Expr`, apply it throughout
+-- an AST tree
+bindExpr :: (Applicative m) => (Expr ann -> m (Expr ann)) -> Expr ann -> m (Expr ann)
+bindExpr f (EInfix ann op a b) =
+  EInfix ann op <$> f a <*> f b
+bindExpr _ (EPrim ann a) =
+  pure $ EPrim ann a
+bindExpr _ (EVar ann a) =
+  pure $ EVar ann a
+bindExpr f (EApply ann fn args) =
+  EApply ann fn <$> traverse f args
+bindExpr f (EIf ann predExpr thenExpr elseExpr) =
+  EIf ann <$> f predExpr <*> f thenExpr <*> f elseExpr
+bindExpr f (ETuple ann a as) =
+  ETuple ann <$> f a <*> traverse f as
+bindExpr f (ETupleAccess ann a nat) =
+  ETupleAccess ann <$> f a <*> pure nat

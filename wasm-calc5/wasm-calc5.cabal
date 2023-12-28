@@ -68,6 +68,8 @@ common shared
     Calc.SourceSpan
     Calc.Typecheck.Elaborate
     Calc.Typecheck.Error
+    Calc.Typecheck.Generalise
+    Calc.Typecheck.Helpers
     Calc.Typecheck.Types
     Calc.Types
     Calc.Types.Annotation
