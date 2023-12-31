@@ -247,7 +247,7 @@ typeErrorDiagnostic input e =
                       )
                 ]
             )
-            [Diag.Note $ "Perhaps try wrapping the value in Box()"]
+            [Diag.Note "Perhaps try wrapping the value in Box()"]
    in Diag.addReport diag report
 
 -- | becomes "a, b, c, d"
