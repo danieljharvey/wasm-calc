@@ -42,7 +42,7 @@ if swapPair((100,True)).1 then 7 else 8
 
 ## wasm-calc5
 
-Floats, use different WASM types
+Floats, boxing, polymorphism, use different WASM types
 
 ```
 function sumPair(pair: (Float,Float)) {
@@ -50,4 +50,12 @@ function sumPair(pair: (Float,Float)) {
 }
 
 sumPair((100.0,200.0))
+```
+
+```
+function makePair<a,b>(left: a, right: b) {
+  (left, right)
+}
+
+makePair(Box(100.0),Box(200.0))
 ```
