@@ -173,6 +173,13 @@ checkApplyArg ty@(TUnificationVar {}) expr = do
     _other -> check ty expr
 checkApplyArg ty expr = check ty expr
 
+-- | if our return type is polymorphic, our concrete type should not be a
+-- primitive
+checkReturnType :: Type ann -> Type ann -> TypecheckM ann (Type ann)
+checkReturnType (TUnificationVar {}) p@(TPrim ann _) =
+  throwError (NonBoxedGenericValue ann p)
+checkReturnType _ ty = pure ty
+
 inferApply ::
   ann ->
   FunctionName ->
@@ -184,11 +191,21 @@ inferApply ann fnName args = do
     TFunction _ tArgs tReturn -> do
       when
         (length args /= length tArgs)
-        (throwError $ FunctionArgumentLengthMismatch ann (length tArgs) (length args))
+        ( throwError $
+            FunctionArgumentLengthMismatch
+              ann
+              (length tArgs)
+              (length args)
+        )
       elabArgs <- zipWithM checkApplyArg tArgs args -- check each arg against type
       unified <- gets tcsUnified
-      pure (substitute unified tReturn, elabArgs)
+      actualTyReturn <-
+        checkReturnType
+          tReturn
+          (substitute unified tReturn)
+      pure (actualTyReturn, elabArgs)
     _ -> throwError $ NonFunctionTypeFound ann fn
+
   pure (EApply (ty $> ann) fnName elabArgs)
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))

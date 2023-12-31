@@ -99,6 +99,9 @@ spec = do
               ),
               ( "function boxedId<a>(value: a) { value } boxedId(Box(1))",
                 tyContainer [tyInt]
+              ),
+              ( "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 } unboxedReturnFst((Box(1),Box(2)))",
+                tyContainer [tyInt]
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -106,7 +109,8 @@ spec = do
 
       let failing =
             [ "function increment(b: Boolean) { a + 1 } increment(41)",
-              "function usesNonBoxedGeneric<a>(ohno: a) { ohno } usesNonBoxedGeneric(1)"
+              "function usesNonBoxedGeneric<a>(ohno: a) { ohno } usesNonBoxedGeneric(1)",
+              "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 } unboxedReturnFst((1,2))"
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
