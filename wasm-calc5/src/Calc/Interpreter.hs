@@ -151,6 +151,8 @@ interpret (EIf ann predExpr thenExpr elseExpr) = do
     (EPrim _ (PBool True)) -> interpret thenExpr
     (EPrim _ (PBool False)) -> interpret elseExpr
     other -> throwError (NonBooleanPredicate ann other)
+interpret (EBox ann a) =
+  EBox ann <$> interpret a
 
 interpretTupleAccess :: Expr ann -> Natural -> InterpretM ann (Expr ann)
 interpretTupleAccess wholeExpr@(ETuple _ fstExpr restExpr) index = do

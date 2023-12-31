@@ -17,9 +17,10 @@ spec = do
       let strings =
             [ ("Boolean", tyBool),
               ("Integer", tyInt),
-              ("(Boolean, Boolean, Integer)", tyTuple [tyBool, tyBool, tyInt]),
+              ("(Boolean, Boolean, Integer)", tyContainer [tyBool, tyBool, tyInt]),
               ("a", tyVar "a"),
-              ("(a,b)", tyTuple [tyVar "a", tyVar "b"])
+              ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
+              ("Box(a)", tyContainer [tyVar "a"])
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -135,8 +136,12 @@ spec = do
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2)", EApply () "add" [int 1, int 2]),
+              ("add(1,2).1", ETupleAccess () (EApply () "add" [int 1, int 2]) 1),
               ("go()", EApply () "go" []),
-              ("tuple.1", ETupleAccess () (var "tuple") 1)
+              ("tuple.1", ETupleAccess () (var "tuple") 1),
+              ("Box(1)", EBox () (int 1)),
+              ("Box(1).1", ETupleAccess () (box (int 1)) 1),
+              ("Box(Box(1)).2.1", ETupleAccess () (ETupleAccess () (box (box (int 1))) 2) 1)
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

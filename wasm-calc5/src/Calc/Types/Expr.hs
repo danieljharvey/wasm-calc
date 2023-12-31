@@ -20,6 +20,7 @@ data Expr ann
   | EApply ann FunctionName [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | ETupleAccess ann (Expr ann) Natural
+  | EBox ann (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- when on multilines, indent by `i`, if not then nothing
@@ -46,6 +47,8 @@ instance PP.Pretty (Expr ann) where
       tupleItems b bs = b : NE.toList bs
   pretty (ETupleAccess _ tup nat) =
     PP.pretty tup <> "." <> PP.pretty nat
+  pretty (EBox _ inner) =
+    "Box(" <> PP.pretty inner <> ")"
 
 data Op
   = OpAdd

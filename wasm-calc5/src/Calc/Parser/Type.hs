@@ -22,7 +22,7 @@ import Text.Megaparsec
 -- | top-level parser for type signatures
 typeParser :: Parser ParserType
 typeParser =
-  tyPrimitiveParser <|> tyTupleParser <|> tyVarParser
+  tyPrimitiveParser <|> tyTupleParser <|> tyBoxParser <|> tyVarParser
 
 tyPrimitiveParser :: Parser ParserType
 tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
@@ -33,16 +33,26 @@ tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
         <|> stringLiteral "Float"
         $> TFloat
 
+tyBoxParser :: Parser ParserType
+tyBoxParser = label "box" $
+  addTypeLocation $ do
+    _ <- stringLiteral "Box"
+    _ <- stringLiteral "("
+    tyInner <- typeParser
+    _ <- stringLiteral ")"
+    pure (TContainer mempty $ NE.singleton tyInner)
+
+-- | tuples use container, but we parse them distinctly
 tyTupleParser :: Parser ParserType
 tyTupleParser = label "tuple" $
   addTypeLocation $ do
     _ <- stringLiteral "("
     neArgs <- NE.fromList <$> sepBy1 typeParser (stringLiteral ",")
-    neTail <- case NE.nonEmpty (NE.tail neArgs) of
+    _neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
       _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
-    pure (TTuple mempty (NE.head neArgs) neTail)
+    pure (TContainer mempty neArgs)
 
 tyVarParser :: Parser ParserType
 tyVarParser = label "type variable" $

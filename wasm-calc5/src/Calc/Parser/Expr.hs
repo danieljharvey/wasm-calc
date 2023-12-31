@@ -9,8 +9,9 @@ import Calc.Parser.Types
 import Calc.Types.Annotation
 import Calc.Types.Expr
 import Control.Monad.Combinators.Expr
+import Data.Foldable (foldl')
 import qualified Data.List.NonEmpty as NE
-import Data.Text
+import qualified Data.Text as T
 import GHC.Natural
 import Text.Megaparsec
 
@@ -21,6 +22,7 @@ exprPart :: Parser (Expr Annotation)
 exprPart =
   try tupleAccessParser
     <|> try tupleParser
+    <|> boxParser
     <|> inBrackets (addLocation exprParser)
     <|> primExprParser
     <|> ifParser
@@ -37,7 +39,7 @@ table =
     [binary "==" (EInfix mempty OpEquals)]
   ]
 
-binary :: Text -> (a -> a -> a) -> Operator Parser a
+binary :: T.Text -> (a -> a -> a) -> Operator Parser a
 binary name f = InfixL (f <$ stringLiteral name)
 
 ifParser :: Parser (Expr Annotation)
@@ -77,9 +79,28 @@ tupleAccessParser =
       natParser = myLexeme (fromIntegral <$> intParser)
 
       tupParser :: Parser (Expr Annotation)
-      tupParser = try tupleParser <|> try varParser <|> applyParser
+      tupParser =
+        try tupleParser
+          <|> try applyParser
+          <|> try varParser
+          <|> boxParser
    in label "tuple access" $
         addLocation $ do
           tup <- tupParser
-          stringLiteral "."
-          ETupleAccess mempty tup <$> natParser
+          _ <- stringLiteral "."
+          accesses <- sepBy1 natParser (stringLiteral ".")
+          pure $
+            foldl'
+              ( ETupleAccess mempty
+              )
+              tup
+              accesses
+
+boxParser :: Parser (Expr Annotation)
+boxParser = label "box" $
+  addLocation $ do
+    _ <- stringLiteral "Box"
+    _ <- stringLiteral "("
+    inner <- exprParser
+    _ <- stringLiteral ")"
+    pure (EBox mempty inner)

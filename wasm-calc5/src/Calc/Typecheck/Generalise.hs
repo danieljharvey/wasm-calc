@@ -1,14 +1,13 @@
 module Calc.Typecheck.Generalise (generalise) where
 
-
-import           Calc.Typecheck.Types
-import           Calc.Types.Type
-import           Calc.Types.TypeVar
-import           Calc.TypeUtils       (mapType)
-import           Control.Monad.State
-import qualified Data.HashMap.Strict  as HM
-import qualified Data.Set             as S
-import           GHC.Natural
+import Calc.TypeUtils (mapType)
+import Calc.Typecheck.Types
+import Calc.Types.Type
+import Calc.Types.TypeVar
+import Control.Monad.State
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Set as S
+import GHC.Natural
 
 -- get a nice new number
 freshUnificationVariable :: TypecheckM ann Natural
@@ -25,10 +24,10 @@ allFresh generics =
 -- given a type, replace anything that should be generic with unification
 -- variables so that we know to replace them with types easily
 generalise :: S.Set TypeVar -> Type ann -> TypecheckM ann (Type ann)
-generalise generics ty
-  = do
-      fresh <- allFresh generics
-      pure $ generaliseInternal fresh ty
+generalise generics ty =
+  do
+    fresh <- allFresh generics
+    pure $ generaliseInternal fresh ty
 
 -- given a type, replace anything that should be generic with unification
 -- variables so that we know to replace them with types easily

@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies  #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,25 +9,25 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Substitute
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad             (when, zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Bifunctor            (second)
-import           Data.Functor
-import qualified Data.List                 as List
-import qualified Data.List.NonEmpty        as NE
-import qualified Data.Set                  as S
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Prim
+import Calc.Types.Type
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Bifunctor (second)
+import Data.Functor
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
@@ -97,10 +97,9 @@ unify (TFunction ann argA bodyA) (TFunction _ argB bodyB) =
   TFunction ann
     <$> zipWithM unify argA argB
     <*> unify bodyA bodyB
-unify (TTuple ann a as) (TTuple _ b bs) =
-  TTuple ann
-    <$> unify a b
-    <*> (NE.fromList <$> zipWithM unify (NE.toList as) (NE.toList bs))
+unify (TContainer ann as) (TContainer _ bs) =
+  TContainer ann
+    <$> (NE.fromList <$> zipWithM unify (NE.toList as) (NE.toList bs))
 unify tyA tyB =
   if void tyA == void tyB
     then pure tyA
@@ -116,7 +115,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
@@ -185,23 +184,34 @@ inferApply ann fnName args = do
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EPrim ann prim) =
   pure (EPrim (typeFromPrim ann prim) prim)
+infer (EBox ann inner) = do
+  typedInner <- infer inner
+  pure $
+    EBox
+      ( TContainer
+          ann
+          (NE.singleton $ getOuterAnnotation typedInner)
+      )
+      typedInner
 infer (EIf ann predExpr thenExpr elseExpr) =
   inferIf ann predExpr thenExpr elseExpr
 infer (ETuple ann fstExpr restExpr) = do
   typedFst <- infer fstExpr
   typedRest <- traverse infer restExpr
   let typ =
-        TTuple
+        TContainer
           ann
-          (getOuterAnnotation typedFst)
-          (getOuterAnnotation <$> typedRest)
+          ( NE.cons
+              (getOuterAnnotation typedFst)
+              (getOuterAnnotation <$> typedRest)
+          )
   pure $ ETuple typ typedFst typedRest
 infer (ETupleAccess ann tup index) = do
   tyTup <- infer tup
   case getOuterAnnotation tyTup of
-    TTuple _ tyFst tyRest ->
-      let tyAll = zip ([0 ..] :: [Int]) (tyFst : NE.toList tyRest)
-       in case List.lookup (fromIntegral $ index - 1) tyAll of
+    TContainer _ tyAll ->
+      let tyNumbered = zip ([0 ..] :: [Int]) (NE.toList tyAll)
+       in case List.lookup (fromIntegral $ index - 1) tyNumbered of
             Just ty ->
               pure (ETupleAccess ty tyTup index)
             Nothing -> throwError $ AccessingOutsideTupleBounds ann (getOuterAnnotation tyTup) index
@@ -215,8 +225,8 @@ infer (EInfix ann op a b) =
   inferInfix ann op a b
 
 typePrimFromPrim :: Prim -> TypePrim
-typePrimFromPrim (PInt _)   = TInt
-typePrimFromPrim (PBool _)  = TBool
+typePrimFromPrim (PInt _) = TInt
+typePrimFromPrim (PBool _) = TBool
 typePrimFromPrim (PFloat _) = TFloat
 
 typeFromPrim :: ann -> Prim -> Type ann

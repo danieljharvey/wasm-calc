@@ -2,22 +2,22 @@
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.Typecheck.Elaborate
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Type
-import           Control.Monad
-import           Data.Either              (isLeft)
-import           Data.Foldable            (traverse_)
-import           Data.Text                (Text)
-import           Test.Helpers
-import           Test.Hspec
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.Typecheck.Elaborate
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Type
+import Control.Monad
+import Data.Either (isLeft)
+import Data.Foldable (traverse_)
+import Data.Text (Text)
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -77,8 +77,8 @@ spec = do
               ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) }",
                 TFunction
                   ()
-                  [tyTuple [tyVar "a", tyVar "b"]]
-                  (tyTuple [tyVar "b", tyVar "a"])
+                  [tyContainer [tyVar "a", tyVar "b"]]
+                  (tyContainer [tyVar "b", tyVar "a"])
               )
             ]
 
@@ -95,7 +95,7 @@ spec = do
                 tyInt
               ),
               ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))",
-                tyTuple [tyInt, tyBool]
+                tyContainer [tyInt, tyBool]
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -120,7 +120,9 @@ spec = do
               ("if True then 1 else 2", "Integer"),
               ("if False then True else False", "Boolean"),
               ("(1,2,True)", "(Integer,Integer,Boolean)"),
-              ("(1,2,3).2", "Integer")
+              ("(1,2,3).2", "Integer"),
+              ("Box(1)", "Box(Integer)"),
+              ("Box(1).1", "Integer")
             ]
 
       describe "Successfully typechecking expressions" $ do

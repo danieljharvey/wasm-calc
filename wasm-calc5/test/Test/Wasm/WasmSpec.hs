@@ -58,6 +58,16 @@ spec = do
               Wasm.VI32 1
             ),
             ( joinLines
+                [ "Box(100).1"
+                ],
+              Wasm.VI64 100
+            ),
+            ( joinLines
+                [ "Box(Box(100)).1.1"
+                ],
+              Wasm.VI64 100
+            ),
+            ( joinLines
                 [ "(10,True).2"
                 ],
               Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
@@ -80,6 +90,24 @@ spec = do
                   "fst(((10,2),(3,4)).1)"
                 ],
               Wasm.VI64 10
+            ),
+            ( joinLines
+                [ "function fst<a,b>(pair: (a,b)) { Box(pair.1) }",
+                  "fst((10,2)).1"
+                ],
+              Wasm.VI64 10
+            ),
+            ( joinLines
+                [ "function pair<a,b>(left: Box(a), right:Box(b)) { (left, right) }",
+                  "pair(Box(43),Box(42)).1.1"
+                ],
+              Wasm.VI64 43
+            ),
+            ( joinLines
+                [ "function pair<a,b>(left: Box(a), right:Box(b)) { (left, right) }",
+                  "pair(Box(43),Box(42)).2.1"
+                ],
+              Wasm.VI64 42
             )
           ]
 

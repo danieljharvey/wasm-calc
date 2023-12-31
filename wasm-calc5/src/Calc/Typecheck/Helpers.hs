@@ -1,5 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
@@ -11,20 +11,21 @@ module Calc.Typecheck.Helpers
     storeFunction,
   )
 where
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Generalise
-import           Calc.Typecheck.Types
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.Type
-import           Calc.Types.TypeVar
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Data.Bifunctor            (first)
-import qualified Data.HashMap.Strict       as HM
-import qualified Data.Set                  as S
-import           GHC.Natural
+
+import Calc.Typecheck.Error
+import Calc.Typecheck.Generalise
+import Calc.Typecheck.Types
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.Type
+import Calc.Types.TypeVar
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import Data.Bifunctor (first)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Set as S
+import GHC.Natural
 
 runTypecheckM ::
   TypecheckEnv ann ->
@@ -58,9 +59,9 @@ storeFunction fnName generics ty =
     )
 
 -- | look up a saved identifier "in the environment"
-lookupFunction ::  ann -> FunctionName -> TypecheckM ann (Type ann)
+lookupFunction :: ann -> FunctionName -> TypecheckM ann (Type ann)
 lookupFunction ann fnName = do
-  maybeType <- gets (HM.lookup fnName .  tcsFunctions)
+  maybeType <- gets (HM.lookup fnName . tcsFunctions)
 
   case maybeType of
     Just (TypeScheme {tsType, tsGenerics}) ->
