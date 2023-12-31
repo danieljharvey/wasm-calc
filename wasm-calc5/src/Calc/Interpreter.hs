@@ -160,6 +160,10 @@ interpretTupleAccess wholeExpr@(ETuple _ fstExpr restExpr) index = do
   case lookup (index - 1) items of
     Just expr -> pure expr
     Nothing -> throwError (AccessOutsideTupleBounds wholeExpr index)
+interpretTupleAccess wholeExpr@(EBox _ innerExpr) index = do
+  case index of
+    1 -> interpret innerExpr
+    _ -> throwError (AccessOutsideTupleBounds wholeExpr index)
 interpretTupleAccess expr _ = throwError (AccessNonTuple expr)
 
 interpretModule ::

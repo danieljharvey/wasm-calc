@@ -163,6 +163,16 @@ inferInfix ann op a b = do
             )
   pure (EInfix ty op elabA elabB)
 
+-- | like `check`, but we also check we're not passing a non-boxed value to a
+-- generic argument
+checkApplyArg :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
+checkApplyArg ty@(TUnificationVar {}) expr = do
+  tyExpr <- infer expr
+  case getOuterAnnotation tyExpr of
+    p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
+    _other -> check ty expr
+checkApplyArg ty expr = check ty expr
+
 inferApply ::
   ann ->
   FunctionName ->
@@ -175,7 +185,7 @@ inferApply ann fnName args = do
       when
         (length args /= length tArgs)
         (throwError $ FunctionArgumentLengthMismatch ann (length tArgs) (length args))
-      elabArgs <- zipWithM check tArgs args -- check each arg against type
+      elabArgs <- zipWithM checkApplyArg tArgs args -- check each arg against type
       unified <- gets tcsUnified
       pure (substitute unified tReturn, elabArgs)
     _ -> throwError $ NonFunctionTypeFound ann fn

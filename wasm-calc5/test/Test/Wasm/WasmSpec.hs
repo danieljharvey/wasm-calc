@@ -98,13 +98,13 @@ spec = do
               Wasm.VI64 10
             ),
             ( joinLines
-                [ "function pair<a,b>(left: Box(a), right:Box(b)) { (left, right) }",
+                [ "function pair<a,b>(left: a, right:b) { (left, right) }",
                   "pair(Box(43),Box(42)).1.1"
                 ],
               Wasm.VI64 43
             ),
             ( joinLines
-                [ "function pair<a,b>(left: Box(a), right:Box(b)) { (left, right) }",
+                [ "function pair<a,b>(left: a, right: b) { (left, right) }",
                   "pair(Box(43),Box(42)).2.1"
                 ],
               Wasm.VI64 42

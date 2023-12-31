@@ -2,22 +2,22 @@
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.Typecheck.Elaborate
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Type
-import           Control.Monad
-import           Data.Either              (isLeft)
-import           Data.Foldable            (traverse_)
-import           Data.Text                (Text)
-import           Test.Helpers
-import           Test.Hspec
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.Typecheck.Elaborate
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Type
+import Control.Monad
+import Data.Either (isLeft)
+import Data.Foldable (traverse_)
+import Data.Text (Text)
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -96,6 +96,9 @@ spec = do
               ),
               ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))",
                 tyContainer [tyInt, tyBool]
+              ),
+              ( "function boxedId<a>(value: a) { value } boxedId(Box(1))",
+                tyContainer [tyInt]
               )
             ]
       describe "Successfully typechecking modules" $ do

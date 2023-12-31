@@ -64,7 +64,8 @@ spec = do
               ("1.0 * 1.0", "1.0"),
               ("if False then True else False", "False"),
               ("if 1 == 1 then 6 else 5", "6"),
-              ("(1, True).2", "True")
+              ("(1, True).2", "True"),
+              ("Box(Box(1)).1.1", "1")
             ]
       traverse_
         ( \(input, expect) ->
