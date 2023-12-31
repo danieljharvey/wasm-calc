@@ -6,6 +6,7 @@ import Calc.ExprUtils
 import Calc.Parser
 import Calc.Typecheck.Elaborate
 import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
 import Calc.Typecheck.Types
 import Calc.Types.Expr
 import Calc.Types.Function
@@ -19,14 +20,14 @@ import Test.Helpers
 import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
-runTC = runTypecheckM (TypecheckEnv mempty)
+runTC = runTypecheckM (TypecheckEnv mempty mempty)
 
 testTypecheck :: (Text, Text) -> Spec
 testTypecheck (input, result) = it (show input) $ do
   case (,) <$> parseExprAndFormatError input <*> parseTypeAndFormatError result of
     Left e -> error (show e)
     Right (expr, tyResult) -> do
-      getOuterAnnotation <$> elaborate (void expr)
+      getOuterAnnotation <$> runTC (infer (void expr))
         `shouldBe` Right (void tyResult)
 
 testFailing :: (Text, TypeError ()) -> Spec
@@ -34,7 +35,7 @@ testFailing (input, result) = it (show input) $ do
   case parseExprAndFormatError input of
     Left e -> error (show e)
     Right expr -> do
-      getOuterAnnotation <$> elaborate (void expr)
+      getOuterAnnotation <$> runTC (infer (void expr))
         `shouldBe` Left result
 
 testSucceedingFunction :: (Text, Type ()) -> Spec
@@ -72,6 +73,12 @@ spec = do
             [ ("function one () { 1 }", TFunction () [] tyInt),
               ( "function not (bool: Boolean) { if bool then False else True }",
                 TFunction () [tyBool] tyBool
+              ),
+              ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) }",
+                TFunction
+                  ()
+                  [tyContainer [tyVar "a", tyVar "b"]]
+                  (tyContainer [tyVar "b", tyVar "a"])
               )
             ]
 
@@ -81,14 +88,29 @@ spec = do
     describe "Module" $ do
       let succeeding =
             [ ("function ignore() { 1 } 42", tyInt),
-              ("function increment(a: Integer) { a + 1 } increment(41)", tyInt),
-              ("function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)", TPrim () TInt)
+              ( "function increment(a: Integer) { a + 1 } increment(41)",
+                tyInt
+              ),
+              ( "function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)",
+                tyInt
+              ),
+              ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))",
+                tyContainer [tyInt, tyBool]
+              ),
+              ( "function boxedId<a>(value: a) { value } boxedId(Box(1))",
+                tyContainer [tyInt]
+              ),
+              ( "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 } unboxedReturnFst((Box(1),Box(2)))",
+                tyContainer [tyInt]
+              )
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
 
       let failing =
-            [ "function increment(b: Boolean) { a + 1 } increment(41)"
+            [ "function increment(b: Boolean) { a + 1 } increment(41)",
+              "function usesNonBoxedGeneric<a>(ohno: a) { ohno } usesNonBoxedGeneric(1)",
+              "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 } unboxedReturnFst((1,2))"
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
@@ -106,7 +128,9 @@ spec = do
               ("if True then 1 else 2", "Integer"),
               ("if False then True else False", "Boolean"),
               ("(1,2,True)", "(Integer,Integer,Boolean)"),
-              ("(1,2,3).2", "Integer")
+              ("(1,2,3).2", "Integer"),
+              ("Box(1)", "Box(Integer)"),
+              ("Box(1).1", "Integer")
             ]
 
       describe "Successfully typechecking expressions" $ do

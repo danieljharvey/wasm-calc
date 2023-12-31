@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Function (functionParser, functionNameParser) where
@@ -11,6 +12,7 @@ import Calc.Types.Annotation
 import Calc.Types.Function
 import Calc.Types.Identifier
 import Calc.Types.Type
+import Calc.Types.TypeVar
 import Text.Megaparsec
 
 argumentNameParser :: Parser ArgumentName
@@ -20,18 +22,30 @@ argumentNameParser = do
 
 functionParser :: Parser (Function Annotation)
 functionParser =
-  withLocation (\ann (args, fnName, expr) -> Function ann args fnName expr) innerParser
+  withLocation
+    ( \fnAnn (fnFunctionName, fnGenerics, fnArgs, fnBody) ->
+        Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody}
+    )
+    innerParser
   where
     innerParser = do
       stringLiteral "function"
       fnName <- functionNameParser
+      generics <- try genericsParser <|> pure mempty
       stringLiteral "("
       args <- sepBy argTypeParser (stringLiteral ",")
       stringLiteral ")"
       stringLiteral "{"
       expr <- exprParser
       stringLiteral "}"
-      pure (args, fnName, expr)
+      pure (fnName, generics, args, expr)
+
+genericsParser :: Parser [TypeVar]
+genericsParser = do
+  stringLiteral "<"
+  generics <- sepBy typeVarParser (stringLiteral ",")
+  stringLiteral ">"
+  pure generics
 
 argTypeParser :: Parser (ArgumentName, Type Annotation)
 argTypeParser = do

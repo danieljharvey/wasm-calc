@@ -12,6 +12,7 @@ where
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Type
+import Calc.Types.TypeVar
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -24,6 +25,7 @@ instance IsString ArgumentName where
 
 data Function ann = Function
   { fnAnn :: ann,
+    fnGenerics :: [TypeVar],
     fnArgs :: [(ArgumentName, Type ann)],
     fnFunctionName :: FunctionName,
     fnBody :: Expr ann

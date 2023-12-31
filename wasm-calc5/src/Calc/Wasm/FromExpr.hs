@@ -30,8 +30,14 @@ data FromWasmError
 
 data FromExprState = FromExprState
   { fesIdentifiers :: M.Map Identifier Natural,
-    fesFunctions :: M.Map FunctionName Natural,
+    fesFunctions :: M.Map FunctionName FromExprFunc,
     fesItems :: [WasmType]
+  }
+
+data FromExprFunc = FromExprFunc
+  { fefIndex :: Natural,
+    fefArgs :: [WasmType],
+    fefReturnType :: WasmType
   }
 
 addLocal ::
@@ -60,7 +66,7 @@ lookupIdent ident = do
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   FunctionName ->
-  m Natural
+  m FromExprFunc
 lookupFunction functionName = do
   maybeNat <- gets (M.lookup functionName . fesFunctions)
   case maybeNat of
@@ -72,7 +78,11 @@ scalarFromType (TPrim _ TInt) = pure I64
 scalarFromType (TPrim _ TBool) = pure I32
 scalarFromType (TPrim _ TFloat) = pure F64
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
-scalarFromType (TTuple {}) = pure Pointer
+scalarFromType (TContainer {}) = pure Pointer
+scalarFromType (TVar _ _) =
+  pure Pointer -- all polymorphic variables are Pointer
+scalarFromType (TUnificationVar {}) =
+  error "scalarFromType TUnificationVar"
 
 fromExpr ::
   ( MonadError FromWasmError m,
@@ -81,8 +91,8 @@ fromExpr ::
   ) =>
   Expr (Type ann) ->
   m WasmExpr
-fromExpr (EPrim _ prim) =
-  pure $ WPrim prim
+fromExpr (EPrim _ prim) = do
+  pure (WPrim prim)
 fromExpr (EInfix _ op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result
@@ -92,10 +102,10 @@ fromExpr (EIf _ predE thenE elseE) =
   WIf <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
 fromExpr (EVar _ ident) =
   WVar <$> lookupIdent ident
-fromExpr (EApply _ funcName args) =
-  WApply
-    <$> lookupFunction funcName
-    <*> traverse fromExpr args -- need to look up the function name in some sort of state
+fromExpr (EApply _ funcName args) = do
+  (FromExprFunc {fefIndex}) <- lookupFunction funcName
+  WApply fefIndex
+    <$> traverse fromExpr args
 fromExpr (ETuple ty a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
@@ -111,19 +121,47 @@ fromExpr (ETuple ty a as) = do
             <*> fromExpr item
       )
       allItems
-fromExpr (ETupleAccess ty tup nat) =
+fromExpr (EContainerAccess ty tup nat) =
   let offset = getOffsetList (getOuterAnnotation tup) !! fromIntegral (nat - 1)
    in WTupleAccess
         <$> liftEither (scalarFromType ty)
         <*> fromExpr tup
         <*> pure offset
+fromExpr (EBox ty inner) = do
+  innerWasmType <- liftEither $ scalarFromType (getOuterAnnotation inner)
+  containerWasmType <- liftEither $ scalarFromType ty
+  index <- addLocal Nothing containerWasmType
+  boxed index innerWasmType <$> fromExpr inner
+
+-- | wrap a `WasmExpr` in a single item struct
+boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
+boxed index ty wExpr =
+  let allocate = WAllocate (memorySize ty)
+   in WSet index allocate [(0, ty, wExpr)]
 
 getOffsetList :: Type ann -> [Natural]
-getOffsetList (TTuple _ a as) =
-  let items = a : NE.toList as
-   in drop 1 (scanl (\offset item -> offset + memorySizeForType item) 0 items)
+getOffsetList (TContainer _ items) =
+  scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
 getOffsetList _ = []
 
+-- | size of the primitive in memory (ie, struct is size of its pointer)
+offsetForType :: Type ann -> Natural
+offsetForType (TPrim _ TInt) =
+  memorySize I64
+offsetForType (TPrim _ TFloat) =
+  memorySize F64
+offsetForType (TPrim _ TBool) =
+  memorySize I32
+offsetForType (TContainer _ _) =
+  memorySize Pointer
+offsetForType (TFunction {}) =
+  memorySize Pointer
+offsetForType (TVar _ _) =
+  memorySize Pointer
+offsetForType (TUnificationVar _ _) =
+  error "offsetForType TUnificationVar"
+
+-- | the actual size of the item in memory
 memorySizeForType :: Type ann -> Natural
 memorySizeForType (TPrim _ TInt) =
   memorySize I64
@@ -131,14 +169,18 @@ memorySizeForType (TPrim _ TFloat) =
   memorySize F64
 memorySizeForType (TPrim _ TBool) =
   memorySize I32
-memorySizeForType (TTuple _ a as) =
-  memorySizeForType a + getSum (foldMap (Sum . memorySizeForType) as)
+memorySizeForType (TContainer _ as) =
+  getSum (foldMap (Sum . memorySizeForType) as)
 memorySizeForType (TFunction {}) =
   memorySize Pointer
+memorySizeForType (TVar _ _) =
+  memorySize Pointer
+memorySizeForType (TUnificationVar _ _) =
+  error "memorySizeForType TUnificationVar"
 
 fromFunction ::
   (Show ann) =>
-  M.Map FunctionName Natural ->
+  M.Map FunctionName FromExprFunc ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
 fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
@@ -164,16 +206,32 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
         wfLocals = fesItems fes
       }
 
-fromModule :: (Show ann) => Module (Type ann) -> Either FromWasmError WasmModule
-fromModule (Module {mdExpr, mdFunctions}) = do
-  let funcMap =
-        M.fromList $
-          ( \(i, Function {fnFunctionName}) ->
-              (fnFunctionName, i + 1)
-          )
-            <$> zip [0 ..] mdFunctions
+-- take only the function info we need
+getFunctionMap :: [Function (Type ann)] -> Either FromWasmError (M.Map FunctionName FromExprFunc)
+getFunctionMap mdFunctions =
+  M.fromList
+    <$> traverse
+      ( \(i, Function {fnFunctionName, fnArgs, fnBody}) -> do
+          fefArgs <- traverse (scalarFromType . snd) fnArgs
+          fefReturnType <- scalarFromType (getOuterAnnotation fnBody)
+          pure
+            ( fnFunctionName,
+              FromExprFunc {fefIndex = i + 1, fefArgs, fefReturnType}
+            )
+      )
+      (zip [0 ..] mdFunctions)
 
-  (expr, fes) <- runStateT (fromExpr mdExpr) (FromExprState mempty funcMap mempty)
+fromModule ::
+  (Show ann) =>
+  Module (Type ann) ->
+  Either FromWasmError WasmModule
+fromModule (Module {mdExpr, mdFunctions}) = do
+  funcMap <- getFunctionMap mdFunctions
+
+  (expr, fes) <-
+    runStateT
+      (fromExpr mdExpr)
+      (FromExprState mempty funcMap mempty)
 
   retType <- scalarFromType (getOuterAnnotation mdExpr)
 

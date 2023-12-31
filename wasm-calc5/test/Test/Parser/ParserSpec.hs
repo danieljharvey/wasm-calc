@@ -5,6 +5,7 @@ module Test.Parser.ParserSpec (spec) where
 import Calc
 import Data.Foldable (traverse_)
 import Data.Functor
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import Test.Helpers
 import Test.Hspec
@@ -16,7 +17,10 @@ spec = do
       let strings =
             [ ("Boolean", tyBool),
               ("Integer", tyInt),
-              ("(Boolean, Boolean, Integer)", tyTuple [tyBool, tyBool, tyInt])
+              ("(Boolean, Boolean, Integer)", tyContainer [tyBool, tyBool, tyInt]),
+              ("a", tyVar "a"),
+              ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
+              ("Box(a)", tyContainer [tyVar "a"])
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -30,12 +34,33 @@ spec = do
       let strings =
             [ ("42", Module [] (int 42)),
               ( "function increment(a: Integer) { a + 1 } 42",
-                Module [Function () [("a", TPrim () TInt)] "increment" (EInfix () OpAdd (var "a") (int 1))] (int 42)
+                Module
+                  [ Function
+                      { fnAnn = (),
+                        fnArgs = [("a", TPrim () TInt)],
+                        fnFunctionName = "increment",
+                        fnBody = EInfix () OpAdd (var "a") (int 1),
+                        fnGenerics = mempty
+                      }
+                  ]
+                  (int 42)
               ),
               ( "function increment(a: Integer) { a + 1 } function decrement(a: Integer) { a - 1} 42",
                 Module
-                  [ Function () [("a", TPrim () TInt)] "increment" (EInfix () OpAdd (var "a") (int 1)),
-                    Function () [("a", TPrim () TInt)] "decrement" (EInfix () OpSubtract (var "a") (int 1))
+                  [ Function
+                      { fnAnn = (),
+                        fnArgs = [("a", TPrim () TInt)],
+                        fnFunctionName = "increment",
+                        fnBody = EInfix () OpAdd (var "a") (int 1),
+                        fnGenerics = mempty
+                      },
+                    Function
+                      { fnAnn = (),
+                        fnArgs = [("a", TPrim () TInt)],
+                        fnFunctionName = "decrement",
+                        fnBody = EInfix () OpSubtract (var "a") (int 1),
+                        fnGenerics = mempty
+                      }
                   ]
                   (int 42)
               )
@@ -51,14 +76,32 @@ spec = do
 
     describe "Function" $ do
       let strings =
-            [ ("function one() { 1 }", Function () [] "one" (int 1)),
+            [ ( "function one() { 1 }",
+                Function
+                  { fnAnn = (),
+                    fnArgs = [],
+                    fnFunctionName = "one",
+                    fnBody = int 1,
+                    fnGenerics = mempty
+                  }
+              ),
               ( "function sum (a: Integer, b: Integer) { a + b }",
                 Function
-                  ()
-                  [("a", TPrim () TInt), ("b", TPrim () TInt)]
-                  "sum"
-                  ( EInfix () OpAdd (var "a") (var "b")
-                  )
+                  { fnAnn = (),
+                    fnArgs = [("a", TPrim () TInt), ("b", TPrim () TInt)],
+                    fnFunctionName = "sum",
+                    fnBody = EInfix () OpAdd (var "a") (var "b"),
+                    fnGenerics = mempty
+                  }
+              ),
+              ( "function pair<a,b>(a: a, b: b) { (a,b) }",
+                Function
+                  { fnAnn = (),
+                    fnArgs = [("a", tyVar "a"), ("b", tyVar "b")],
+                    fnFunctionName = "pair",
+                    fnBody = ETuple () (var "a") (NE.singleton (var "b")),
+                    fnGenerics = ["a", "b"]
+                  }
               )
             ]
       traverse_
@@ -93,8 +136,14 @@ spec = do
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2)", EApply () "add" [int 1, int 2]),
+              ("add(1,2).1", EContainerAccess () (EApply () "add" [int 1, int 2]) 1),
               ("go()", EApply () "go" []),
-              ("tuple.1", ETupleAccess () (var "tuple") 1)
+              ("tuple.1", EContainerAccess () (var "tuple") 1),
+              ("Box(1)", EBox () (int 1)),
+              ("Box(1).1", EContainerAccess () (box (int 1)) 1),
+              ("Box(1)!", EContainerAccess () (box (int 1)) 1),
+              ("Box(Box(1)).2.1", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
+              ("Box(Box(1)).2!", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1)
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

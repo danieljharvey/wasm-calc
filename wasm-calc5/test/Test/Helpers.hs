@@ -4,12 +4,14 @@ module Test.Helpers
   ( int,
     bool,
     float,
+    box,
     var,
     tuple,
     tyInt,
     tyFloat,
     tyBool,
-    tyTuple,
+    tyContainer,
+    tyVar,
   )
 where
 
@@ -29,6 +31,9 @@ bool = EPrim mempty . PBool
 var :: (Monoid ann) => String -> Expr ann
 var = EVar mempty . Identifier . fromString
 
+box :: (Monoid ann) => Expr ann -> Expr ann
+box = EBox mempty
+
 tuple :: (Monoid ann) => [Expr ann] -> Expr ann
 tuple = \case
   (a : b : rest) -> ETuple mempty a (b NE.:| rest)
@@ -43,7 +48,10 @@ tyFloat = TPrim mempty TFloat
 tyBool :: (Monoid ann) => Type ann
 tyBool = TPrim mempty TBool
 
-tyTuple :: (Monoid ann) => [Type ann] -> Type ann
-tyTuple = \case
-  (a : b : rest) -> TTuple mempty a (b NE.:| rest)
-  _ -> error "not enough items for tyTuple"
+tyContainer :: (Monoid ann) => [Type ann] -> Type ann
+tyContainer = \case
+  (a : rest) -> TContainer mempty (a NE.:| rest)
+  _ -> error "not enough items for tyContainer"
+
+tyVar :: (Monoid ann) => String -> Type ann
+tyVar = TVar mempty . TypeVar . fromString

@@ -3,6 +3,7 @@
 module Calc.Parser.Identifier
   ( identifierParser,
     functionNameParser,
+    typeVarParser,
   )
 where
 
@@ -31,8 +32,21 @@ filterProtectedNames tx =
     then Nothing
     else Just tx
 
--- identifier
+protectedTypeNames :: Set Text
+protectedTypeNames =
+  S.fromList
+    [ "Integer",
+      "Float",
+      "Boolean"
+    ]
 
+filterProtectedTypeNames :: Text -> Maybe Text
+filterProtectedTypeNames tx =
+  if S.member tx protectedTypeNames
+    then Nothing
+    else Just tx
+
+-- identifier
 identifierParser :: Parser Identifier
 identifierParser =
   myLexeme identifierParserInternal
@@ -48,3 +62,15 @@ functionNameParser :: Parser FunctionName
 functionNameParser = do
   (Identifier fnName) <- identifierParser
   pure (FunctionName fnName)
+
+-- typeVar
+typeVarParser :: Parser TypeVar
+typeVarParser =
+  myLexeme typeVarParserInternal
+
+-- use this when you are going to wrap myLexeme yourself
+typeVarParserInternal :: Parser TypeVar
+typeVarParserInternal =
+  maybePred
+    (takeWhile1P (Just "type variable name") Char.isAlphaNum)
+    (filterProtectedTypeNames >=> safeMkTypeVar)

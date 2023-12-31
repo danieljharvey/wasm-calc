@@ -31,6 +31,7 @@ data TypeError ann
   | NonFunctionTypeFound ann (Type ann)
   | AccessingNonTuple ann (Type ann)
   | AccessingOutsideTupleBounds ann (Type ann) Natural
+  | NonBoxedGenericValue ann (Type ann)
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -231,6 +232,22 @@ typeErrorDiagnostic input e =
                 ]
             )
             [Diag.Note $ "Available in scope: " <> prettyPrint (prettyHashset existing)]
+        (NonBoxedGenericValue ann ty) ->
+          Diag.Err
+            Nothing
+            "Cannot pass non-boxed value to generic function!"
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This (prettyPrint $ "Expected boxed type, instead found " <> PP.pretty ty)
+                      )
+                ]
+            )
+            [Diag.Note "Perhaps try wrapping the value in Box()"]
    in Diag.addReport diag report
 
 -- | becomes "a, b, c, d"

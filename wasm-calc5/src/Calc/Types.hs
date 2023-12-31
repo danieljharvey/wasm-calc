@@ -6,6 +6,7 @@ module Calc.Types
     module Calc.Types.Module,
     module Calc.Types.Prim,
     module Calc.Types.Type,
+    module Calc.Types.TypeVar,
   )
 where
 
@@ -16,3 +17,4 @@ import Calc.Types.Identifier
 import Calc.Types.Module
 import Calc.Types.Prim
 import Calc.Types.Type
+import Calc.Types.TypeVar

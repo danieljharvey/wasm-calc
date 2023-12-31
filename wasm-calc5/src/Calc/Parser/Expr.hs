@@ -9,8 +9,9 @@ import Calc.Parser.Types
 import Calc.Types.Annotation
 import Calc.Types.Expr
 import Control.Monad.Combinators.Expr
+import Data.Foldable (foldl')
 import qualified Data.List.NonEmpty as NE
-import Data.Text
+import qualified Data.Text as T
 import GHC.Natural
 import Text.Megaparsec
 
@@ -19,8 +20,10 @@ exprParser = addLocation (makeExprParser exprPart table) <?> "expression"
 
 exprPart :: Parser (Expr Annotation)
 exprPart =
-  try tupleAccessParser
+  try unboxParser
+    <|> try containerAccessParser
     <|> try tupleParser
+    <|> boxParser
     <|> inBrackets (addLocation exprParser)
     <|> primExprParser
     <|> ifParser
@@ -37,7 +40,7 @@ table =
     [binary "==" (EInfix mempty OpEquals)]
   ]
 
-binary :: Text -> (a -> a -> a) -> Operator Parser a
+binary :: T.Text -> (a -> a -> a) -> Operator Parser a
 binary name f = InfixL (f <$ stringLiteral name)
 
 ifParser :: Parser (Expr Annotation)
@@ -71,15 +74,50 @@ tupleParser = label "tuple" $
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 
-tupleAccessParser :: Parser (Expr Annotation)
-tupleAccessParser =
+unboxParser :: Parser (Expr Annotation)
+unboxParser =
+  let tupParser :: Parser (Expr Annotation)
+      tupParser =
+        try containerAccessParser
+          <|> try tupleParser
+          <|> try applyParser
+          <|> try varParser
+          <|> boxParser
+   in label "unbox" $
+        addLocation $ do
+          tup <- tupParser
+          _ <- stringLiteral "!"
+          pure $
+            EContainerAccess mempty tup 1
+
+containerAccessParser :: Parser (Expr Annotation)
+containerAccessParser =
   let natParser :: Parser Natural
       natParser = myLexeme (fromIntegral <$> intParser)
 
       tupParser :: Parser (Expr Annotation)
-      tupParser = try tupleParser <|> try varParser <|> applyParser
-   in label "tuple access" $
+      tupParser =
+        try tupleParser
+          <|> try applyParser
+          <|> try varParser
+          <|> boxParser
+   in label "container access" $
         addLocation $ do
           tup <- tupParser
-          stringLiteral "."
-          ETupleAccess mempty tup <$> natParser
+          _ <- stringLiteral "."
+          accesses <- sepBy1 natParser (stringLiteral ".")
+          pure $
+            foldl'
+              ( EContainerAccess mempty
+              )
+              tup
+              accesses
+
+boxParser :: Parser (Expr Annotation)
+boxParser = label "box" $
+  addLocation $ do
+    _ <- stringLiteral "Box"
+    _ <- stringLiteral "("
+    inner <- exprParser
+    _ <- stringLiteral ")"
+    pure (EBox mempty inner)
