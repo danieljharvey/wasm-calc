@@ -2,13 +2,13 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import Calc
-import Data.Foldable (traverse_)
-import Data.Functor
+import           Calc
+import           Data.Foldable      (traverse_)
+import           Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 spec :: Spec
 spec = do
@@ -26,7 +26,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -70,7 +70,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -108,7 +108,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e -> error (T.unpack e)
+              Left e         -> error (T.unpack e)
         )
         strings
 
@@ -136,18 +136,21 @@ spec = do
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2)", EApply () "add" [int 1, int 2]),
-              ("add(1,2).1", ETupleAccess () (EApply () "add" [int 1, int 2]) 1),
+              ("add(1,2).1", EContainerAccess () (EApply () "add" [int 1, int 2]) 1),
               ("go()", EApply () "go" []),
-              ("tuple.1", ETupleAccess () (var "tuple") 1),
+              ("tuple.1", EContainerAccess () (var "tuple") 1),
               ("Box(1)", EBox () (int 1)),
-              ("Box(1).1", ETupleAccess () (box (int 1)) 1),
-              ("Box(Box(1)).2.1", ETupleAccess () (ETupleAccess () (box (box (int 1))) 2) 1)
+              ("Box(1).1", EContainerAccess () (box (int 1)) 1),
+              ("Box(1)!", EContainerAccess () (box (int 1)) 1),
+              ("Box(Box(1)).2.1", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
+              ("Box(Box(1)).2!", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1)
+
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 

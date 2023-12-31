@@ -1,24 +1,24 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Type
-import Calc.Wasm.Helpers
-import Calc.Wasm.Types
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import Data.Monoid
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Type
+import           Calc.Wasm.Helpers
+import           Calc.Wasm.Types
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty    as NE
+import qualified Data.Map.Strict       as M
+import           Data.Monoid
+import           GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
@@ -30,13 +30,13 @@ data FromWasmError
 
 data FromExprState = FromExprState
   { fesIdentifiers :: M.Map Identifier Natural,
-    fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesItems :: [WasmType]
+    fesFunctions   :: M.Map FunctionName FromExprFunc,
+    fesItems       :: [WasmType]
   }
 
 data FromExprFunc = FromExprFunc
-  { fefIndex :: Natural,
-    fefArgs :: [WasmType],
+  { fefIndex      :: Natural,
+    fefArgs       :: [WasmType],
     fefReturnType :: WasmType
   }
 
@@ -61,7 +61,7 @@ lookupIdent ident = do
   maybeNat <- gets (M.lookup ident . fesIdentifiers)
   case maybeNat of
     Just nat -> pure nat
-    Nothing -> throwError $ IdentifierNotFound ident
+    Nothing  -> throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -71,7 +71,7 @@ lookupFunction functionName = do
   maybeNat <- gets (M.lookup functionName . fesFunctions)
   case maybeNat of
     Just nat -> pure nat
-    Nothing -> throwError $ FunctionNotFound functionName
+    Nothing  -> throwError $ FunctionNotFound functionName
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I64
@@ -121,7 +121,7 @@ fromExpr (ETuple ty a as) = do
             <*> fromExpr item
       )
       allItems
-fromExpr (ETupleAccess ty tup nat) =
+fromExpr (EContainerAccess ty tup nat) =
   let offset = getOffsetList (getOuterAnnotation tup) !! fromIntegral (nat - 1)
    in WTupleAccess
         <$> liftEither (scalarFromType ty)

@@ -1,16 +1,16 @@
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveTraversable  #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Types.Expr (Expr (..), Op (..)) where
 
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Prim
-import qualified Data.List.NonEmpty as NE
-import GHC.Natural
-import Prettyprinter ((<+>))
-import qualified Prettyprinter as PP
+import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
+import           Calc.Types.Prim
+import qualified Data.List.NonEmpty      as NE
+import           GHC.Natural
+import           Prettyprinter           ((<+>))
+import qualified Prettyprinter           as PP
 
 data Expr ann
   = EPrim ann Prim
@@ -19,7 +19,7 @@ data Expr ann
   | EVar ann Identifier
   | EApply ann FunctionName [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
-  | ETupleAccess ann (Expr ann) Natural
+  | EContainerAccess ann (Expr ann) Natural
   | EBox ann (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -45,7 +45,7 @@ instance PP.Pretty (Expr ann) where
     where
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs
-  pretty (ETupleAccess _ tup nat) =
+  pretty (EContainerAccess _ tup nat) =
     PP.pretty tup <> "." <> PP.pretty nat
   pretty (EBox _ inner) =
     "Box(" <> PP.pretty inner <> ")"
@@ -59,7 +59,7 @@ data Op
 
 -- how to print `Op` values
 instance PP.Pretty Op where
-  pretty OpAdd = "+"
+  pretty OpAdd      = "+"
   pretty OpMultiply = "*"
   pretty OpSubtract = "-"
-  pretty OpEquals = "=="
+  pretty OpEquals   = "=="
