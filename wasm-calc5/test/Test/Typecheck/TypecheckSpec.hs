@@ -2,22 +2,22 @@
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck.Elaborate
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Types
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck.Elaborate
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either              (isLeft)
+import           Data.Foldable            (traverse_)
+import           Data.Text                (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -102,7 +102,8 @@ spec = do
         traverse_ testSucceedingModule succeeding
 
       let failing =
-            [ "function increment(b: Boolean) { a + 1 } increment(41)"
+            [ "function increment(b: Boolean) { a + 1 } increment(41)",
+              "function usesNonBoxedGeneric<a>(ohno: a) { ohno } usesNonBoxedGeneric(1)"
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
