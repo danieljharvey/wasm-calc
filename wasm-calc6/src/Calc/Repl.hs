@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DerivingStrategies    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,22 +11,23 @@ module Calc.Repl
   )
 where
 
-import Calc.Parser
-import Calc.Parser.Types
-import Calc.Typecheck.Elaborate
-import Calc.Typecheck.Error
-import Calc.Wasm.FromExpr
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
-import Calc.Wasm.Types
-import Control.Monad.IO.Class
-import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Void
-import qualified Error.Diagnose as Diag
-import Error.Diagnose.Compat.Megaparsec
-import qualified Language.Wasm.Interpreter as Wasm
-import System.Console.Haskeline
+import           Calc.Linearity                   (validateModule)
+import           Calc.Parser
+import           Calc.Parser.Types
+import           Calc.Typecheck.Elaborate
+import           Calc.Typecheck.Error
+import           Calc.Wasm.FromExpr
+import           Calc.Wasm.Run
+import           Calc.Wasm.ToWasm
+import           Calc.Wasm.Types
+import           Control.Monad.IO.Class
+import           Data.Text                        (Text)
+import qualified Data.Text                        as T
+import           Data.Void
+import qualified Error.Diagnose                   as Diag
+import           Error.Diagnose.Compat.Megaparsec
+import qualified Language.Wasm.Interpreter        as Wasm
+import           System.Console.Haskeline
 
 instance HasHints Void msg where
   hints _ = mempty
@@ -52,15 +53,18 @@ repl = do
               Left typeErr -> do
                 printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
                 loop
-              Right typedMod -> do
-                case fromModule typedMod of
-                  Left _fromWasmError -> do
-                    -- printDiagnostic "From Wasm Error"
-                    loop
-                  Right wasmMod -> do
-                    resp <- liftIO $ runWasmModule wasmMod
-                    liftIO $ putStrLn resp
-                    loop
+              Right typedMod ->
+                case validateModule typedMod of
+                  Left e -> error (show e)
+                  Right _ ->
+                    case fromModule typedMod of
+                      Left _fromWasmError -> do
+                        -- printDiagnostic "From Wasm Error"
+                        loop
+                      Right wasmMod -> do
+                        resp <- liftIO $ runWasmModule wasmMod
+                        liftIO $ putStrLn resp
+                        loop
 
 runWasmModule :: WasmModule -> IO String
 runWasmModule mod' =

@@ -2,6 +2,7 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
+import           Calc.Linearity            (validateModule)
 import           Calc.Parser
 import           Calc.Typecheck.Elaborate
 import           Calc.Wasm.FromExpr
@@ -18,12 +19,15 @@ testCompileExpr (input, result) = it (show input) $ do
     Left e -> error (show e)
     Right expr -> case elaborateModule expr of
       Left typeErr -> error (show typeErr)
-      Right mod' ->
-        case fromModule mod' of
+      Right typedMod ->
+        case validateModule typedMod of
           Left e -> error (show e)
-          Right wasmMod -> do
-            resp <- runWasm (moduleToWasm wasmMod)
-            resp `shouldBe` Just [result]
+          Right _ ->
+            case fromModule typedMod of
+              Left e -> error (show e)
+              Right wasmMod -> do
+                resp <- runWasm (moduleToWasm wasmMod)
+                resp `shouldBe` Just [result]
 
 joinLines :: [Text] -> Text
 joinLines = foldr (\a b -> a <> "\n" <> b) ""
@@ -41,8 +45,7 @@ spec = do
             ("if False then 1 else 2", Wasm.VI64 2),
             ("if 1 == 1 then 7 else 10", Wasm.VI64 7),
             ("if 2 == 1 then True else False", Wasm.VI32 0),
-
-            ("let a = 100; a + 1", Wasm.VI64 101) ,
+            ("let a = 100; a + 1", Wasm.VI64 101),
             ( "let dog = 1; let cat = 2; let hat = 3; 100",
               Wasm.VI64 100
             ),
@@ -53,15 +56,14 @@ spec = do
                 ],
               Wasm.VI64 3
             ),
-            ("function increment(a: Integer) { a + 1 } increment(41)", Wasm.VI64 42),
-
-            ("function sum(a: Integer, b: Integer) { a + b } sum(20,22)", Wasm.VI64 42),
-            ("function inc(a: Integer) { a + 1 } inc(inc(inc(inc(0))))", Wasm.VI64 4),
-            ( joinLines
-                [ "function ignoreTuple(pair: (Integer, Boolean)) { True }",
-                  "ignoreTuple((1,True))"
-                ],
-              Wasm.VI32 1
+            ( "function increment(a: Integer) { a + 1 } increment(41)",
+              Wasm.VI64 42
+            ),
+            ( "function sum(a: Integer, b: Integer) { a + b } sum(20,22)",
+              Wasm.VI64 42
+            ),
+            ( "function inc(a: Integer) { a + 1 } inc(inc(inc(inc(0))))",
+              Wasm.VI64 4
             ),
             ( joinLines
                 [ "Box(100).1"
@@ -76,7 +78,7 @@ spec = do
             ( joinLines
                 [ "(10,True).2"
                 ],
-              Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
+              Wasm.VI32 1
             ),
             ( joinLines
                 [ "function swapIntAndBool(pair: (Integer, Boolean)) { (pair.2, pair.1) }",
