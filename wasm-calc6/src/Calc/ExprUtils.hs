@@ -14,6 +14,7 @@ import Calc.Types
 getOuterAnnotation :: Expr ann -> ann
 getOuterAnnotation (EInfix ann _ _ _) = ann
 getOuterAnnotation (EPrim ann _) = ann
+getOuterAnnotation (ELet ann _ _ _) = ann
 getOuterAnnotation (EIf ann _ _ _) = ann
 getOuterAnnotation (EVar ann _) = ann
 getOuterAnnotation (EApply ann _ _) = ann
@@ -28,6 +29,7 @@ mapOuterExprAnnotation f expr' =
   case expr' of
     EInfix ann a b c -> EInfix (f ann) a b c
     EPrim ann a -> EPrim (f ann) a
+    ELet ann a b c -> ELet (f ann) a b c
     EIf ann a b c -> EIf (f ann) a b c
     EVar ann a -> EVar (f ann) a
     EApply ann a b -> EApply (f ann) a b
@@ -42,6 +44,8 @@ bindExpr f (EInfix ann op a b) =
   EInfix ann op <$> f a <*> f b
 bindExpr _ (EPrim ann a) =
   pure $ EPrim ann a
+bindExpr f (ELet ann ident a b) =
+  ELet ann ident <$> f a <*> f b
 bindExpr _ (EVar ann a) =
   pure $ EVar ann a
 bindExpr f (EApply ann fn args) =

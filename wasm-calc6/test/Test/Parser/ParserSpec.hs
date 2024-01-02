@@ -143,7 +143,8 @@ spec = do
               ("Box(1).1", EContainerAccess () (box (int 1)) 1),
               ("Box(1)!", EContainerAccess () (box (int 1)) 1),
               ("Box(Box(1)).2.1", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
-              ("Box(Box(1)).2!", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1)
+              ("Box(Box(1)).2!", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
+              ("let a = 100; a", ELet () "a" (int 100) (var "a"))
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

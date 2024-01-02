@@ -24,6 +24,7 @@ exprPart =
     <|> try containerAccessParser
     <|> try tupleParser
     <|> boxParser
+    <|> letParser
     <|> inBrackets (addLocation exprParser)
     <|> primExprParser
     <|> ifParser
@@ -44,7 +45,7 @@ binary :: T.Text -> (a -> a -> a) -> Operator Parser a
 binary name f = InfixL (f <$ stringLiteral name)
 
 ifParser :: Parser (Expr Annotation)
-ifParser = addLocation $ do
+ifParser = label "if" $ addLocation $ do
   stringLiteral "if"
   predExpr <- exprParser
   stringLiteral "then"
@@ -53,7 +54,16 @@ ifParser = addLocation $ do
   EIf mempty predExpr thenExpr <$> exprParser
 
 varParser :: Parser (Expr Annotation)
-varParser = addLocation $ EVar mempty <$> identifierParser
+varParser = label "var" $ addLocation $ EVar mempty <$> identifierParser
+
+letParser :: Parser (Expr Annotation)
+letParser = label "let" $ addLocation $ do
+  _ <- stringLiteral "let"
+  ident <- identifierParser
+  _ <- stringLiteral "="
+  expr <- exprParser
+  _ <- stringLiteral ";"
+  ELet mempty ident expr <$> exprParser
 
 applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do

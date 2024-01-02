@@ -39,6 +39,7 @@ data WasmFunction = WasmFunction
 data WasmExpr
   = WPrim Prim
   | WInfix WasmType Op WasmExpr WasmExpr
+  | WLet Natural WasmExpr WasmExpr
   | WIf WasmExpr WasmExpr WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]

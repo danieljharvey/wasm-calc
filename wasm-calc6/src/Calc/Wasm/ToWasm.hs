@@ -28,7 +28,7 @@ fromFunction wfIndex (WasmFunction {wfExpr, wfArgs, wfLocals}) =
    in Wasm.Function
         (fromIntegral $ wfIndex + 1)
         (locals <> args)
-        (fromExpr wfExpr)
+        (toWasm wfExpr)
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
 typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
@@ -55,44 +55,46 @@ instructionFromOp ty OpMultiply = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
 instructionFromOp ty OpSubtract = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
 instructionFromOp ty OpEquals = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
 
-fromExpr :: WasmExpr -> [Wasm.Instruction Natural]
-fromExpr (WPrim (PInt i)) =
+toWasm :: WasmExpr -> [Wasm.Instruction Natural]
+toWasm (WPrim (PInt i)) =
   [Wasm.I64Const $ fromIntegral i]
-fromExpr (WPrim (PFloat f)) =
+toWasm (WPrim (PFloat f)) =
   [Wasm.F64Const $ realToFrac f]
-fromExpr (WPrim (PBool True)) =
+toWasm (WPrim (PBool True)) =
   [Wasm.I32Const 1]
-fromExpr (WPrim (PBool False)) =
+toWasm (WPrim (PBool False)) =
   [Wasm.I32Const 0]
-fromExpr (WInfix ty op a b) =
-  fromExpr a <> fromExpr b <> [instructionFromOp ty op]
-fromExpr (WIf predExpr thenExpr elseExpr) =
-  fromExpr thenExpr <> fromExpr elseExpr <> fromExpr predExpr <> [Wasm.Select]
-fromExpr (WVar i) = [Wasm.GetLocal i]
-fromExpr (WApply fnIndex args) =
-  foldMap fromExpr args <> [Wasm.Call $ fnIndex + 1]
--- we need to store the return value so we can refer to it in multiple places
-fromExpr (WAllocate i) =
+toWasm (WLet index expr body) = do
+  toWasm expr <> [Wasm.SetLocal index] <> toWasm body
+toWasm (WInfix ty op a b) =
+  toWasm a <> toWasm b <> [instructionFromOp ty op]
+toWasm (WIf predExpr thenExpr elseExpr) =
+  toWasm thenExpr <> toWasm elseExpr <> toWasm predExpr <> [Wasm.Select]
+toWasm (WVar i) = [Wasm.GetLocal i]
+toWasm (WApply fnIndex args) =
+  foldMap toWasm args <> [Wasm.Call $ fnIndex + 1]
+toWasm (WAllocate i) =
   [Wasm.I32Const (fromIntegral i), Wasm.Call 0]
-fromExpr (WSet index container items) =
+-- we need to store the return value so we can refer to it in multiple places
+toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
         let storeInstruction = case ty of
               F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
               I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
               I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
               Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
-         in [Wasm.GetLocal index] <> fromExpr value <> [storeInstruction]
-   in fromExpr container
+         in [Wasm.GetLocal index] <> toWasm value <> [storeInstruction]
+   in toWasm container
         <> [Wasm.SetLocal index]
         <> foldMap fromItem items
         <> [Wasm.GetLocal index]
-fromExpr (WTupleAccess ty tup offset) =
+toWasm (WTupleAccess ty tup offset) =
   let loadInstruction = case ty of
         F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
         I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
         I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
         Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
-   in fromExpr tup <> [loadInstruction]
+   in toWasm tup <> [loadInstruction]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module

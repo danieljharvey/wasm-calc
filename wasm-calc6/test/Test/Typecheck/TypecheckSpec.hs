@@ -130,7 +130,8 @@ spec = do
               ("(1,2,True)", "(Integer,Integer,Boolean)"),
               ("(1,2,3).2", "Integer"),
               ("Box(1)", "Box(Integer)"),
-              ("Box(1).1", "Integer")
+              ("Box(1).1", "Integer"),
+              ("let a = 100; a", "Integer")
             ]
 
       describe "Successfully typechecking expressions" $ do

@@ -134,6 +134,9 @@ interpret (EPrim ann p) =
   pure (EPrim ann p)
 interpret (EVar _ ident) =
   lookupVar ident
+interpret (ELet _ (Identifier ident) expr rest) = do
+  aExpr <- interpret expr
+  withVars [ArgumentName ident] [aExpr] (interpret rest)
 interpret (EApply _ fnName args) =
   interpretApply fnName args
 interpret (EInfix ann op a b) =

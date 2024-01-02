@@ -220,6 +220,10 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
+infer (ELet _ ident expr rest) = do
+  typedExpr <- infer expr
+  typedRest <- withVar ident (getOuterAnnotation typedExpr) (infer rest)
+  pure $ ELet (getOuterAnnotation typedRest) ident typedExpr typedRest
 infer (EIf ann predExpr thenExpr elseExpr) =
   inferIf ann predExpr thenExpr elseExpr
 infer (ETuple ann fstExpr restExpr) = do

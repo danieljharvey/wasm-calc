@@ -46,10 +46,16 @@ addLocal ::
   WasmType ->
   m Natural
 addLocal maybeIdent ty = do
-  len <- gets (fromIntegral . (\fes -> length (fesIdentifiers fes) + length (fesItems fes)))
+  len <-
+    gets
+      ( fromIntegral
+          . (\fes -> length (fesIdentifiers fes) + length (fesItems fes))
+      )
   modify (\fes -> fes {fesItems = fesItems fes <> [ty]})
   case maybeIdent of
-    Just ident -> modify (\fes -> fes {fesIdentifiers = fesIdentifiers fes <> M.singleton ident len})
+    Just ident ->
+      modify
+        (\fes -> fes {fesIdentifiers = fesIdentifiers fes <> M.singleton ident len})
     Nothing -> pure ()
   pure len
 
@@ -82,7 +88,7 @@ scalarFromType (TContainer {}) = pure Pointer
 scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
-  error "scalarFromType TUnificationVar"
+  pure Pointer
 
 fromExpr ::
   ( MonadError FromWasmError m,
@@ -93,6 +99,15 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim _ prim) = do
   pure (WPrim prim)
+fromExpr (ELet _ ident expr rest) = do
+  -- get type of the let binding from `expr`
+  wasmType <- liftEither (scalarFromType (getOuterAnnotation expr))
+  -- record the type and get an unused identifier
+  index <- addLocal (Just ident) wasmType
+  -- convert expr
+  wasmExpr <- fromExpr expr
+  -- convert the rest
+  WLet index wasmExpr <$> fromExpr rest
 fromExpr (EInfix _ op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result

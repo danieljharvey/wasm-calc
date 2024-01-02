@@ -14,6 +14,7 @@ import qualified Prettyprinter as PP
 
 data Expr ann
   = EPrim ann Prim
+  | ELet ann Identifier (Expr ann) (Expr ann)
   | EInfix ann Op (Expr ann) (Expr ann)
   | EIf ann (Expr ann) (Expr ann) (Expr ann)
   | EVar ann Identifier
@@ -32,6 +33,14 @@ indentMulti i doc =
 instance PP.Pretty (Expr ann) where
   pretty (EPrim _ prim) =
     PP.pretty prim
+  pretty (ELet _ ident body rest) =
+    "let"
+      <+> PP.pretty ident
+      <+> "="
+      <+> PP.pretty body
+      <> ";"
+      <+> PP.line
+      <> PP.pretty rest
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
   pretty (EIf _ predExpr thenExpr elseExpr) =
