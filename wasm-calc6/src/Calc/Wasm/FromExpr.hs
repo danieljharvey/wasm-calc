@@ -1,24 +1,25 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Type
-import Calc.Wasm.Helpers
-import Calc.Wasm.Types
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import Data.Monoid
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Type
+import           Calc.Wasm.Helpers
+import           Calc.Wasm.Types
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List             as List
+import qualified Data.List.NonEmpty    as NE
+import qualified Data.Map.Strict       as M
+import           Data.Monoid
+import           GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
@@ -29,45 +30,51 @@ data FromWasmError
   deriving stock (Eq, Ord, Show)
 
 data FromExprState = FromExprState
-  { fesIdentifiers :: M.Map Identifier Natural,
-    fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesItems :: [WasmType]
+  { fesFunctions :: M.Map FunctionName FromExprFunc,
+    fesVars      :: [(Maybe Identifier, WasmType)]
   }
 
 data FromExprFunc = FromExprFunc
-  { fefIndex :: Natural,
-    fefArgs :: [WasmType],
+  { fefIndex      :: Natural,
+    fefArgs       :: [WasmType],
     fefReturnType :: WasmType
   }
 
+-- | add a local type, returning a unique index
 addLocal ::
   (MonadState FromExprState m) =>
   Maybe Identifier ->
   WasmType ->
   m Natural
 addLocal maybeIdent ty = do
-  len <-
-    gets
-      ( fromIntegral
-          . (\fes -> length (fesIdentifiers fes) + length (fesItems fes))
-      )
-  modify (\fes -> fes {fesItems = fesItems fes <> [ty]})
-  case maybeIdent of
-    Just ident ->
-      modify
-        (\fes -> fes {fesIdentifiers = fesIdentifiers fes <> M.singleton ident len})
-    Nothing -> pure ()
-  pure len
+  modify
+    ( \fes ->
+        fes
+          { fesVars =
+              fesVars fes <> [(maybeIdent, ty)]
+          }
+    )
+  len <- gets
+    ( fromIntegral . length . fesVars
+    )
+  pure (len - 1)
 
 lookupIdent ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   Identifier ->
   m Natural
 lookupIdent ident = do
-  maybeNat <- gets (M.lookup ident . fesIdentifiers)
+  let matchIdent (_, (thisIdent, _)) = thisIdent == Just ident
+
+  maybeNat <-
+    gets
+      ( List.find matchIdent
+          . zip [0 ..]
+          . fesVars
+      )
   case maybeNat of
-    Just nat -> pure nat
-    Nothing -> throwError $ IdentifierNotFound ident
+    Just (nat, _) -> pure nat
+    Nothing       -> throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -77,7 +84,7 @@ lookupFunction functionName = do
   maybeNat <- gets (M.lookup functionName . fesFunctions)
   case maybeNat of
     Just nat -> pure nat
-    Nothing -> throwError $ FunctionNotFound functionName
+    Nothing  -> throwError $ FunctionNotFound functionName
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I64
@@ -199,15 +206,22 @@ fromFunction ::
   Function (Type ann) ->
   Either FromWasmError WasmFunction
 fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
-  args <- traverse (scalarFromType . snd) fnArgs
-  let argMap =
-        M.fromList $
-          ( \(i, (ArgumentName ident, _)) ->
-              (Identifier ident, i)
-          )
-            <$> zip [0 ..] fnArgs
+  args <-
+    traverse
+      ( \(ArgumentName ident, ty) -> do
+          wasmType <- scalarFromType ty
+          pure (Just (Identifier ident), wasmType)
+      )
+      fnArgs
 
-  (expr, fes) <- runStateT (fromExpr fnBody) (FromExprState argMap funcMap mempty)
+  (expr, fes) <-
+    runStateT
+      (fromExpr fnBody)
+      ( FromExprState
+          { fesVars = args,
+            fesFunctions = funcMap
+          }
+      )
 
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
@@ -216,9 +230,9 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
       { wfName = fnFunctionName,
         wfExpr = expr,
         wfPublic = False,
-        wfArgs = args,
+        wfArgs = snd <$> args,
         wfReturnType = retType,
-        wfLocals = fesItems fes
+        wfLocals = snd <$> fesVars fes
       }
 
 -- take only the function info we need
@@ -246,7 +260,11 @@ fromModule (Module {mdExpr, mdFunctions}) = do
   (expr, fes) <-
     runStateT
       (fromExpr mdExpr)
-      (FromExprState mempty funcMap mempty)
+      ( FromExprState
+          { fesVars = mempty,
+            fesFunctions = funcMap
+          }
+      )
 
   retType <- scalarFromType (getOuterAnnotation mdExpr)
 
@@ -257,7 +275,7 @@ fromModule (Module {mdExpr, mdFunctions}) = do
             wfPublic = True,
             wfArgs = mempty,
             wfReturnType = retType,
-            wfLocals = fesItems fes
+            wfLocals = snd <$> fesVars fes
           }
 
   wasmFunctions <- traverse (fromFunction funcMap) mdFunctions
