@@ -121,7 +121,7 @@ interpretApply fnName args = do
   fn <- gets (M.lookup fnName . isFunctions)
   case fn of
     Just (Function {fnArgs, fnBody}) ->
-      withVars (fst <$> fnArgs) args (interpret fnBody)
+      withVars (faName <$> fnArgs) args (interpret fnBody)
     Nothing -> do
       allFnNames <- gets (M.keys . isFunctions)
       throwError (FunctionNotFound fnName allFnNames)

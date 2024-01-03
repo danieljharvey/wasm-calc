@@ -6,6 +6,7 @@ module Calc.Types.Function
   ( ArgumentName (..),
     FunctionName (..),
     Function (..),
+    FunctionArg (..),
   )
 where
 
@@ -26,8 +27,11 @@ instance IsString ArgumentName where
 data Function ann = Function
   { fnAnn :: ann,
     fnGenerics :: [TypeVar],
-    fnArgs :: [(ArgumentName, Type ann)],
+    fnArgs :: [FunctionArg ann],
     fnFunctionName :: FunctionName,
     fnBody :: Expr ann
   }
+  deriving stock (Eq, Ord, Show, Functor)
+
+data FunctionArg ann = FunctionArg {faAnn :: ann, faName :: ArgumentName, faType :: Type ann}
   deriving stock (Eq, Ord, Show, Functor)

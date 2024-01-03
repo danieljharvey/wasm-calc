@@ -22,7 +22,6 @@ import Calc.Types.TypeVar
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Bifunctor (first)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Set as S
 import GHC.Natural
@@ -93,12 +92,15 @@ withVar identifier ty =
 
 -- | temporarily add function arguments and generics into the Reader env
 withFunctionEnv ::
-  [(ArgumentName, Type ann)] ->
+  [FunctionArg ann] ->
   S.Set TypeVar ->
   TypecheckM ann a ->
   TypecheckM ann a
 withFunctionEnv args generics =
-  let identifiers = fmap (first (\(ArgumentName arg) -> Identifier arg)) args
+  let identifiers =
+        fmap
+          (\FunctionArg {faName = ArgumentName arg, faType} -> (Identifier arg, faType))
+          args
    in local
         ( \tce ->
             tce

@@ -2,16 +2,16 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck.Elaborate
-import           Calc.Wasm.FromExpr
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm
-import           Data.Foldable             (traverse_)
-import           Data.Text                 (Text)
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Data.Foldable (traverse_)
+import Data.Text (Text)
 import qualified Language.Wasm.Interpreter as Wasm
-import           Test.Hspec
+import Test.Hspec
 
 testCompileExpr :: (Text, Wasm.Value) -> Spec
 testCompileExpr (input, result) = it (show input) $ do
@@ -46,8 +46,8 @@ spec = do
             ("if 1 == 1 then 7 else 10", Wasm.VI64 7),
             ("if 2 == 1 then True else False", Wasm.VI32 0),
             ("let a = 100; a + 1", Wasm.VI64 101),
-            ( "let dog = 1; let cat = 2; let hat = 3; 100",
-              Wasm.VI64 100
+            ( "let dog = 1; let cat = dog + 2; let hat = cat + 3; hat",
+              Wasm.VI64 6
             ),
             ( joinLines
                 [ "function one() { 1 }",

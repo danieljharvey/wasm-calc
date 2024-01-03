@@ -4,10 +4,7 @@ module Test.Typecheck.TypecheckSpec (spec) where
 
 import Calc.ExprUtils
 import Calc.Parser
-import Calc.Typecheck.Elaborate
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Types
+import Calc.Typecheck
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Module

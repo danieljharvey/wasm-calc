@@ -11,7 +11,6 @@ import Calc.Parser.Types
 import Calc.Types.Annotation
 import Calc.Types.Function
 import Calc.Types.Identifier
-import Calc.Types.Type
 import Calc.Types.TypeVar
 import Text.Megaparsec
 
@@ -47,8 +46,12 @@ genericsParser = do
   stringLiteral ">"
   pure generics
 
-argTypeParser :: Parser (ArgumentName, Type Annotation)
-argTypeParser = do
-  arg <- argumentNameParser
-  stringLiteral ":"
-  (,) arg <$> typeParser
+argTypeParser :: Parser (FunctionArg Annotation)
+argTypeParser = withLocation
+  ( \faAnn (faName, faType) ->
+      FunctionArg {faAnn, faName, faType}
+  )
+  $ do
+    arg <- argumentNameParser
+    stringLiteral ":"
+    (,) arg <$> typeParser

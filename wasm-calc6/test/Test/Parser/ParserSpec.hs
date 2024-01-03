@@ -37,7 +37,13 @@ spec = do
                 Module
                   [ Function
                       { fnAnn = (),
-                        fnArgs = [("a", TPrim () TInt)],
+                        fnArgs =
+                          [ FunctionArg
+                              { faName = "a",
+                                faType = TPrim () TInt,
+                                faAnn = ()
+                              }
+                          ],
                         fnFunctionName = "increment",
                         fnBody = EInfix () OpAdd (var "a") (int 1),
                         fnGenerics = mempty
@@ -49,14 +55,26 @@ spec = do
                 Module
                   [ Function
                       { fnAnn = (),
-                        fnArgs = [("a", TPrim () TInt)],
+                        fnArgs =
+                          [ FunctionArg
+                              { faName = "a",
+                                faType = TPrim () TInt,
+                                faAnn = ()
+                              }
+                          ],
                         fnFunctionName = "increment",
                         fnBody = EInfix () OpAdd (var "a") (int 1),
                         fnGenerics = mempty
                       },
                     Function
                       { fnAnn = (),
-                        fnArgs = [("a", TPrim () TInt)],
+                        fnArgs =
+                          [ FunctionArg
+                              { faName = "a",
+                                faType = TPrim () TInt,
+                                faAnn = ()
+                              }
+                          ],
                         fnFunctionName = "decrement",
                         fnBody = EInfix () OpSubtract (var "a") (int 1),
                         fnGenerics = mempty
@@ -88,7 +106,18 @@ spec = do
               ( "function sum (a: Integer, b: Integer) { a + b }",
                 Function
                   { fnAnn = (),
-                    fnArgs = [("a", TPrim () TInt), ("b", TPrim () TInt)],
+                    fnArgs =
+                      [ FunctionArg
+                          { faName = "a",
+                            faType = TPrim () TInt,
+                            faAnn = ()
+                          },
+                        FunctionArg
+                          { faName = "b",
+                            faType = TPrim () TInt,
+                            faAnn = ()
+                          }
+                      ],
                     fnFunctionName = "sum",
                     fnBody = EInfix () OpAdd (var "a") (var "b"),
                     fnGenerics = mempty
@@ -97,7 +126,14 @@ spec = do
               ( "function pair<a,b>(a: a, b: b) { (a,b) }",
                 Function
                   { fnAnn = (),
-                    fnArgs = [("a", tyVar "a"), ("b", tyVar "b")],
+                    fnArgs =
+                      [ FunctionArg
+                          { faName = "a",
+                            faType = tyVar "a",
+                            faAnn = ()
+                          },
+                        FunctionArg {faName = "b", faType = tyVar "b", faAnn = ()}
+                      ],
                     fnFunctionName = "pair",
                     fnBody = ETuple () (var "a") (NE.singleton (var "b")),
                     fnGenerics = ["a", "b"]

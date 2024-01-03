@@ -23,7 +23,6 @@ import Calc.Types.Type
 import Control.Monad (when, zipWithM)
 import Control.Monad.Except
 import Control.Monad.State
-import Data.Bifunctor (second)
 import Data.Functor
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
@@ -64,11 +63,18 @@ elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody})
       (S.fromList fnGenerics)
       (inferAndSubstitute fnBody)
   let argsA =
-        second (\ty -> fmap (const ty) ty) <$> fnArgs
+        ( \FunctionArg {faName, faType, faAnn} ->
+            FunctionArg
+              { faName,
+                faType = fmap (const faType) faType,
+                faAnn = fmap (const faAnn) faType
+              }
+        )
+          <$> fnArgs
   let tyFn =
         TFunction
           fnAnn
-          (snd <$> fnArgs)
+          (faType <$> fnArgs)
           (getOuterAnnotation exprA)
   pure
     ( Function

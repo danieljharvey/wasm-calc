@@ -209,8 +209,8 @@ fromFunction ::
 fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
   args <-
     traverse
-      ( \(ArgumentName ident, ty) -> do
-          wasmType <- scalarFromType ty
+      ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
+          wasmType <- scalarFromType faType
           pure (Just (Identifier ident), wasmType)
       )
       fnArgs
@@ -242,7 +242,7 @@ getFunctionMap mdFunctions =
   M.fromList
     <$> traverse
       ( \(i, Function {fnFunctionName, fnArgs, fnBody}) -> do
-          fefArgs <- traverse (scalarFromType . snd) fnArgs
+          fefArgs <- traverse (scalarFromType . faType) fnArgs
           fefReturnType <- scalarFromType (getOuterAnnotation fnBody)
           pure
             ( fnFunctionName,

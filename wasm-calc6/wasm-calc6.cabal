@@ -56,6 +56,9 @@ common shared
     Calc.ExprUtils
     Calc.Interpreter
     Calc.Linearity
+    Calc.Linearity.Error
+    Calc.Linearity.Types
+    Calc.Linearity.Validate
     Calc.Parser
     Calc.Parser.Expr
     Calc.Parser.Function
@@ -67,6 +70,7 @@ common shared
     Calc.Parser.Types
     Calc.Repl
     Calc.SourceSpan
+    Calc.Typecheck
     Calc.Typecheck.Elaborate
     Calc.Typecheck.Error
     Calc.Typecheck.Generalise
