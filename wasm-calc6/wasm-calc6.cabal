@@ -64,6 +64,7 @@ common shared
     Calc.Parser.Function
     Calc.Parser.Identifier
     Calc.Parser.Module
+    Calc.Parser.Pattern
     Calc.Parser.Primitives
     Calc.Parser.Shared
     Calc.Parser.Type
@@ -84,6 +85,7 @@ common shared
     Calc.Types.FunctionName
     Calc.Types.Identifier
     Calc.Types.Module
+    Calc.Types.Pattern
     Calc.Types.Prim
     Calc.Types.Type
     Calc.Types.TypeVar

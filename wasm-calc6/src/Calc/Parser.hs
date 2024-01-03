@@ -9,20 +9,23 @@ module Calc.Parser
     parseFunctionAndFormatError,
     parseModule,
     parseModuleAndFormatError,
+    parsePattern,
+    parsePatternAndFormatError,
     replFilename,
   )
 where
 
-import Calc.Parser.Expr
-import Calc.Parser.Function
-import Calc.Parser.Module
-import Calc.Parser.Type
-import Calc.Parser.Types
-import Data.Bifunctor (first)
-import Data.Text (Text)
-import qualified Data.Text as T
-import Text.Megaparsec
-import Text.Megaparsec.Char
+import           Calc.Parser.Expr
+import           Calc.Parser.Function
+import           Calc.Parser.Module
+import           Calc.Parser.Pattern
+import           Calc.Parser.Type
+import           Calc.Parser.Types
+import           Data.Bifunctor       (first)
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           Text.Megaparsec
+import           Text.Megaparsec.Char
 
 -- | which file are we parsing?
 -- we use this to show the right text in errors
@@ -65,3 +68,11 @@ parseModule = parse (space *> moduleParser <* eof) replFilename
 -- | `parseModule`, but format error to text
 parseModuleAndFormatError :: Text -> Either Text ParserModule
 parseModuleAndFormatError = parseAndFormat (space *> moduleParser <* eof)
+
+-- parse pattern, using it all up
+parsePattern :: Text -> Either ParseErrorType ParserPattern
+parsePattern = parse (space *> patternParser <* eof) replFilename
+
+-- | `parsePattern`, but format error to text
+parsePatternAndFormatError :: Text -> Either Text ParserPattern
+parsePatternAndFormatError = parseAndFormat (space *> patternParser <* eof)
