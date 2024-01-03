@@ -1,25 +1,21 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Type
-import Calc.Wasm.Helpers
-import Calc.Wasm.Types
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import Data.Monoid
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.Helpers
+import           Calc.Wasm.Types
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List            as List
+import qualified Data.List.NonEmpty   as NE
+import qualified Data.Map.Strict      as M
+import           Data.Monoid
+import           GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
@@ -31,12 +27,12 @@ data FromWasmError
 
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesVars :: [(Maybe Identifier, WasmType)]
+    fesVars      :: [(Maybe Identifier, WasmType)]
   }
 
 data FromExprFunc = FromExprFunc
-  { fefIndex :: Natural,
-    fefArgs :: [WasmType],
+  { fefIndex      :: Natural,
+    fefArgs       :: [WasmType],
     fefReturnType :: WasmType
   }
 
@@ -75,7 +71,7 @@ lookupIdent ident = do
       )
   case maybeNat of
     Just (nat, _) -> pure nat
-    Nothing -> throwError $ IdentifierNotFound ident
+    Nothing       -> throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -85,7 +81,7 @@ lookupFunction functionName = do
   maybeNat <- gets (M.lookup functionName . fesFunctions)
   case maybeNat of
     Just nat -> pure nat
-    Nothing -> throwError $ FunctionNotFound functionName
+    Nothing  -> throwError $ FunctionNotFound functionName
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I64
@@ -107,7 +103,7 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim _ prim) = do
   pure (WPrim prim)
-fromExpr (ELet _ ident expr rest) = do
+fromExpr (ELet _ (PVar _ ident) expr rest) = do
   -- get type of the let binding from `expr`
   wasmType <- liftEither (scalarFromType (getOuterAnnotation expr))
   -- record the type and get an unused identifier
@@ -116,6 +112,7 @@ fromExpr (ELet _ ident expr rest) = do
   wasmExpr <- fromExpr expr
   -- convert the rest
   WLet index wasmExpr <$> fromExpr rest
+fromExpr (ELet {}) = error "wasm fromExpr other pattern"
 fromExpr (EInfix _ op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result

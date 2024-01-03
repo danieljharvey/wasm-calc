@@ -2,18 +2,19 @@
 
 module Calc.Parser.Expr (exprParser) where
 
-import Calc.Parser.Identifier
-import Calc.Parser.Primitives
-import Calc.Parser.Shared
-import Calc.Parser.Types
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Control.Monad.Combinators.Expr
-import Data.Foldable (foldl')
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import GHC.Natural
-import Text.Megaparsec
+import           Calc.Parser.Identifier
+import           Calc.Parser.Pattern
+import           Calc.Parser.Primitives
+import           Calc.Parser.Shared
+import           Calc.Parser.Types
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Control.Monad.Combinators.Expr
+import           Data.Foldable                  (foldl')
+import qualified Data.List.NonEmpty             as NE
+import qualified Data.Text                      as T
+import           GHC.Natural
+import           Text.Megaparsec
 
 exprParser :: Parser (Expr Annotation)
 exprParser = addLocation (makeExprParser exprPart table) <?> "expression"
@@ -59,11 +60,11 @@ varParser = label "var" $ addLocation $ EVar mempty <$> identifierParser
 letParser :: Parser (Expr Annotation)
 letParser = label "let" $ addLocation $ do
   _ <- stringLiteral "let"
-  ident <- identifierParser
+  pat <- patternParser
   _ <- stringLiteral "="
   expr <- exprParser
   _ <- stringLiteral ";"
-  ELet mempty ident expr <$> exprParser
+  ELet mempty pat expr <$> exprParser
 
 applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do
@@ -80,7 +81,7 @@ tupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepBy1 exprParser (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _ -> fail "Expected at least two items in a tuple"
+      _       -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 

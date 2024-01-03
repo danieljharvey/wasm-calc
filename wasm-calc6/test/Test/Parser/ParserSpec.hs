@@ -3,7 +3,6 @@
 module Test.Parser.ParserSpec (spec) where
 
 import           Calc
-import           Calc.Types.Pattern
 import           Data.Foldable      (traverse_)
 import           Data.Functor
 import qualified Data.List.NonEmpty as NE
@@ -194,7 +193,7 @@ spec = do
               ("Box(1)!", EContainerAccess () (box (int 1)) 1),
               ("Box(Box(1)).2.1", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
               ("Box(Box(1)).2!", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
-              ("let a = 100; a", ELet () "a" (int 100) (var "a"))
+              ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a"))
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
