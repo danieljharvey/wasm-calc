@@ -1,5 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
@@ -12,20 +12,22 @@ module Calc.Typecheck.Helpers
   )
 where
 
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Generalise
-import           Calc.Typecheck.Types
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.Types.TypeVar
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
-import qualified Data.HashMap.Strict       as HM
-import qualified Data.Set                  as S
-import           GHC.Natural
+import Calc.Typecheck.Error
+import Calc.Typecheck.Generalise
+import Calc.Typecheck.Types
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Calc.Types.TypeVar
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
+import GHC.Natural
 
 runTypecheckM ::
   TypecheckEnv ann ->
@@ -80,17 +82,33 @@ lookupVar ann identifier = do
       allIdentifiers <- asks (HM.keysSet . tceVars)
       throwError (VarNotFound ann identifier allIdentifiers)
 
+identifiersFromPattern :: Pattern ann -> Type ann -> TypecheckM ann [(Identifier, Type ann)]
+identifiersFromPattern (PVar _ identifier) ty =
+  pure [(identifier, ty)]
+identifiersFromPattern (PBox _ pat) (TContainer _ tys)
+  | length tys == 1 =
+      identifiersFromPattern pat (NE.head tys)
+identifiersFromPattern (PWildcard _) _ = pure mempty
+identifiersFromPattern pat@(PTuple _ p ps) ty@(TContainer _ tyItems) = do
+  when
+    (length (NE.tail tyItems) /= length ps)
+    (throwError $ PatternMismatch ty pat)
+  allIdents <- zipWithM identifiersFromPattern (p : NE.toList ps) (NE.toList tyItems)
+  pure $ mconcat allIdents
+identifiersFromPattern pat ty =
+  throwError $ PatternMismatch ty pat
+
 -- | add identifiers to the environment
 withVar :: Pattern ann -> Type ann -> TypecheckM ann a -> TypecheckM ann a
-withVar (PVar _ identifier) ty =
+withVar pat ty action = do
+  idents <- HM.fromList <$> identifiersFromPattern pat ty
   local
     ( \tce ->
         tce
-          { tceVars =
-              HM.insert identifier ty (tceVars tce)
+          { tceVars = idents <> tceVars tce
           }
     )
-withVar _ _ = error "withVar with other pattern"
+    action
 
 -- | temporarily add function arguments and generics into the Reader env
 withFunctionEnv ::

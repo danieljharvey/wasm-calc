@@ -1,17 +1,17 @@
-{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Expr (Expr (..), Op (..)) where
 
-import           Calc.Types.FunctionName
-import           Calc.Types.Identifier
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import qualified Data.List.NonEmpty      as NE
-import           GHC.Natural
-import           Prettyprinter           ((<+>))
-import qualified Prettyprinter           as PP
+import Calc.Types.FunctionName
+import Calc.Types.Identifier
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import qualified Data.List.NonEmpty as NE
+import GHC.Natural
+import Prettyprinter ((<+>))
+import qualified Prettyprinter as PP
 
 data Expr ann
   = EPrim ann Prim
@@ -69,7 +69,7 @@ data Op
 
 -- how to print `Op` values
 instance PP.Pretty Op where
-  pretty OpAdd      = "+"
+  pretty OpAdd = "+"
   pretty OpMultiply = "*"
   pretty OpSubtract = "-"
-  pretty OpEquals   = "=="
+  pretty OpEquals = "=="

@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies  #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,25 +9,25 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Substitute
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad             (when, zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Functor
-import qualified Data.List                 as List
-import qualified Data.List.NonEmpty        as NE
-import qualified Data.Set                  as S
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import Calc.Types.Type
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Functor
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
@@ -122,7 +122,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
@@ -177,7 +177,7 @@ checkApplyArg ty@(TUnificationVar {}) expr = do
   tyExpr <- infer expr
   case getOuterAnnotation tyExpr of
     p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
-    _other     -> check ty expr
+    _other -> check ty expr
 checkApplyArg ty expr = check ty expr
 
 -- | if our return type is polymorphic, our concrete type should not be a
@@ -216,7 +216,19 @@ inferApply ann fnName args = do
   pure (EApply (ty $> ann) fnName elabArgs)
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
-checkPattern _ _ = error "checkPattern"
+checkPattern ty (PWildcard _) = pure (PWildcard ty)
+checkPattern ty (PVar _ var) = pure (PVar ty var)
+checkPattern ty@(TContainer _ tyItems) (PBox _ a)
+  | length tyItems == 1 =
+      PBox ty <$> checkPattern (NE.head tyItems) a
+checkPattern ty@(TContainer _ tyItems) pat@(PTuple _ p ps) = do
+  when
+    (length (NE.tail tyItems) /= length ps)
+    (throwError $ PatternMismatch ty pat)
+  pHead <- checkPattern (NE.head tyItems) p
+  pTail <- zipWithM checkPattern (NE.tail tyItems) (NE.toList ps)
+  pure (PTuple ty pHead (NE.fromList pTail))
+checkPattern ty pat = throwError $ PatternMismatch ty pat
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EPrim ann prim) =
@@ -267,8 +279,8 @@ infer (EInfix ann op a b) =
   inferInfix ann op a b
 
 typePrimFromPrim :: Prim -> TypePrim
-typePrimFromPrim (PInt _)   = TInt
-typePrimFromPrim (PBool _)  = TBool
+typePrimFromPrim (PInt _) = TInt
+typePrimFromPrim (PBool _) = TBool
 typePrimFromPrim (PFloat _) = TFloat
 
 typeFromPrim :: ann -> Prim -> Type ann

@@ -8,10 +8,12 @@ import Calc.Typecheck
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Module
+import Calc.Types.Pattern
 import Calc.Types.Type
 import Control.Monad
 import Data.Either (isLeft)
 import Data.Foldable (traverse_)
+import qualified Data.List.NonEmpty as NE
 import Data.Text (Text)
 import Test.Helpers
 import Test.Hspec
@@ -128,7 +130,8 @@ spec = do
               ("(1,2,3).2", "Integer"),
               ("Box(1)", "Box(Integer)"),
               ("Box(1).1", "Integer"),
-              ("let a = 100; a", "Integer")
+              ("let a = 100; a", "Integer"),
+              ("let (a,b) = (1,2); a + b", "Integer")
             ]
 
       describe "Successfully typechecking expressions" $ do
@@ -141,7 +144,25 @@ spec = do
               ("1 + True", InfixTypeMismatch OpAdd [(tyInt, tyBool)]),
               ("True + False", InfixTypeMismatch OpAdd [(tyInt, tyBool), (tyInt, tyBool)]),
               ("1 * False", InfixTypeMismatch OpMultiply [(TPrim () TInt, TPrim () TBool)]),
-              ("True - 1", InfixTypeMismatch OpSubtract [(TPrim () TInt, TPrim () TBool)])
+              ("True - 1", InfixTypeMismatch OpSubtract [(TPrim () TInt, TPrim () TBool)]),
+              ( "let (a,b) = 1; a + b",
+                PatternMismatch
+                  tyInt
+                  ( PTuple
+                      ()
+                      (PVar () "a")
+                      (NE.singleton $ PVar () "b")
+                  )
+              ),
+              ( "let (a,b,c) = (1,2); a + b",
+                PatternMismatch
+                  (tyContainer [tyInt, tyInt])
+                  ( PTuple
+                      ()
+                      (PVar () "a")
+                      (NE.fromList [PVar () "b", PVar () "c"])
+                  )
+              )
             ]
 
       describe "Failing typechecking expressions" $ do

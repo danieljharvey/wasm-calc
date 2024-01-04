@@ -1,7 +1,7 @@
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Interpreter
   ( runInterpreter,
@@ -13,15 +13,16 @@ module Calc.Interpreter
   )
 where
 
-import           Calc.Types
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Data.Coerce
-import qualified Data.List.NonEmpty   as NE
-import           Data.Map.Strict      (Map)
-import qualified Data.Map.Strict      as M
-import           GHC.Natural
+import Calc.Types
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import Data.Coerce
+import qualified Data.List.NonEmpty as NE
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
+import GHC.Natural
 
 -- | type for interpreter state
 newtype InterpreterState ann = InterpreterState
@@ -35,6 +36,7 @@ data InterpreterError ann
   | VarNotFound Identifier [Identifier]
   | AccessNonTuple (Expr ann)
   | AccessOutsideTupleBounds (Expr ann) Natural
+  | PatternMismatch (Expr ann) (Pattern ann)
   deriving stock (Eq, Ord, Show)
 
 -- | type of Reader env for interpreter state
@@ -66,16 +68,14 @@ runInterpreter = flip evalStateT initialState . flip runReaderT initialEnv . run
 -- we use the Reader env here because the vars disappear after we use them,
 -- say, in a function
 withVars ::
-  [ArgumentName] ->
-  [Expr ann] ->
+  [(Identifier, Expr ann)] ->
   InterpretM ann a ->
   InterpretM ann a
-withVars fnArgs inputs =
-  let newVars = M.fromList $ zip (coerce <$> fnArgs) inputs
-   in local
-        ( \(InterpreterEnv ieVars) ->
-            InterpreterEnv $ ieVars <> newVars
-        )
+withVars newVars =
+  local
+    ( \(InterpreterEnv ieVars) ->
+        InterpreterEnv $ ieVars <> M.fromList newVars
+    )
 
 -- | lookup a variable in the Reader environment
 lookupVar :: Identifier -> InterpretM ann (Expr ann)
@@ -121,10 +121,28 @@ interpretApply fnName args = do
   fn <- gets (M.lookup fnName . isFunctions)
   case fn of
     Just (Function {fnArgs, fnBody}) ->
-      withVars (faName <$> fnArgs) args (interpret fnBody)
+      withVars (zip (coerce . faName <$> fnArgs) args) (interpret fnBody)
     Nothing -> do
       allFnNames <- gets (M.keys . isFunctions)
       throwError (FunctionNotFound fnName allFnNames)
+
+identifiersFromPattern :: Pattern ann -> Expr ann -> InterpretM ann [(Identifier, Expr ann)]
+identifiersFromPattern (PVar _ identifier) expr = do
+  iExpr <- interpret expr
+  pure [(identifier, iExpr)]
+identifiersFromPattern (PBox _ pat) (EBox _ expr) =
+  identifiersFromPattern pat expr
+identifiersFromPattern (PWildcard _) _ = pure mempty
+identifiersFromPattern pat@(PTuple _ p ps) expr@(ETuple _ a as) = do
+  iA <- interpret a
+  iAs <- traverse interpret as
+  when
+    (length as /= length ps)
+    (throwError $ PatternMismatch expr pat)
+  allIdents <- zipWithM identifiersFromPattern (p : NE.toList ps) (iA : NE.toList iAs)
+  pure $ mconcat allIdents
+identifiersFromPattern pat ty =
+  throwError $ PatternMismatch ty pat
 
 -- | just keep reducing the thing until the smallest thing
 interpret ::
@@ -134,10 +152,9 @@ interpret (EPrim ann p) =
   pure (EPrim ann p)
 interpret (EVar _ ident) =
   lookupVar ident
-interpret (ELet _ (PVar _ (Identifier ident)) expr rest) = do
-  aExpr <- interpret expr
-  withVars [ArgumentName ident] [aExpr] (interpret rest)
-interpret (ELet {}) = error "interpret other pattern"
+interpret (ELet _ pat expr rest) = do
+  vars <- identifiersFromPattern pat expr
+  withVars vars (interpret rest)
 interpret (EApply _ fnName args) =
   interpretApply fnName args
 interpret (EInfix ann op a b) =
@@ -152,9 +169,9 @@ interpret (EContainerAccess _ tup index) = do
 interpret (EIf ann predExpr thenExpr elseExpr) = do
   predA <- interpret predExpr
   case predA of
-    (EPrim _ (PBool True))  -> interpret thenExpr
+    (EPrim _ (PBool True)) -> interpret thenExpr
     (EPrim _ (PBool False)) -> interpret elseExpr
-    other                   -> throwError (NonBooleanPredicate ann other)
+    other -> throwError (NonBooleanPredicate ann other)
 interpret (EBox ann a) =
   EBox ann <$> interpret a
 
@@ -163,7 +180,7 @@ interpretTupleAccess wholeExpr@(ETuple _ fstExpr restExpr) index = do
   let items = zip ([0 ..] :: [Natural]) (fstExpr : NE.toList restExpr)
   case lookup (index - 1) items of
     Just expr -> pure expr
-    Nothing   -> throwError (AccessOutsideTupleBounds wholeExpr index)
+    Nothing -> throwError (AccessOutsideTupleBounds wholeExpr index)
 interpretTupleAccess wholeExpr@(EBox _ innerExpr) index = do
   case index of
     1 -> interpret innerExpr

@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -9,20 +9,20 @@ module Calc.Linearity.Validate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Linearity.Error
-import           Calc.Linearity.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad.State
-import           Data.Foldable         (traverse_)
-import qualified Data.Map              as M
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Linearity.Error
+import Calc.Linearity.Types
+import Calc.TypeUtils
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Control.Monad.State
+import Data.Foldable (traverse_)
+import qualified Data.Map as M
+import GHC.Natural
 
 validateModule :: Module (Type ann) -> Either (LinearityError ann) ()
 validateModule (Module {mdFunctions, mdExpr}) =
@@ -101,7 +101,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
@@ -130,7 +130,7 @@ addLetBinding ::
 addLetBinding (PVar _ ident) ty =
   let initialLinearity = case ty of
         TPrim {} -> LTPrimitive
-        _        -> LTBoxed
+        _ -> LTBoxed
    in modify
         ( \ls ->
             ls

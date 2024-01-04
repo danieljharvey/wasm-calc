@@ -5,13 +5,13 @@ module Calc.Parser.Pattern
   )
 where
 
-import           Calc.Parser.Identifier
-import           Calc.Parser.Shared
-import           Calc.Parser.Types
-import           Calc.Types.Pattern
-import qualified Data.List.NonEmpty     as NE
-import           Text.Megaparsec
-import           Text.Megaparsec.Char
+import Calc.Parser.Identifier
+import Calc.Parser.Shared
+import Calc.Parser.Types
+import Calc.Types.Pattern
+import qualified Data.List.NonEmpty as NE
+import Text.Megaparsec
+import Text.Megaparsec.Char
 
 patternParser :: Parser ParserPattern
 patternParser =
@@ -49,12 +49,11 @@ patTupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepBy1 patternParser (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _       -> fail "Expected at least two items in a tuple"
+      _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (NE.head neArgs, neTail)
 
 ----
-
 
 patBoxParser :: Parser ParserPattern
 patBoxParser = label "box" $

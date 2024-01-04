@@ -65,19 +65,13 @@ spec = do
             ( "function inc(a: Integer) { a + 1 } inc(inc(inc(inc(0))))",
               Wasm.VI64 4
             ),
-            ( joinLines
-                [ "Box(100).1"
-                ],
+            ( "Box(100).1",
               Wasm.VI64 100
             ),
-            ( joinLines
-                [ "Box(Box(100)).1.1"
-                ],
+            ( "Box(Box(100)).1.1",
               Wasm.VI64 100
             ),
-            ( joinLines
-                [ "(10,True).2"
-                ],
+            ( "(10,True).2",
               Wasm.VI32 1
             ),
             ( joinLines
@@ -85,7 +79,7 @@ spec = do
                   "function fst(pair: (Boolean, Integer)) { pair.1 }",
                   "fst(swapIntAndBool((1,True)))"
                 ],
-              Wasm.VI32 1 -- note we cannot make polymorphic versions of these functions yet, although we will
+              Wasm.VI32 1
             ),
             ( joinLines
                 [ "function sumTuple(pair: (Float, Float)) { pair.1 + pair.2 }",
@@ -116,7 +110,9 @@ spec = do
                   "pair(Box(43),Box(42)).2.1"
                 ],
               Wasm.VI64 42
-            )
+            ),
+            ("let (a,b) = (1,2); a + b", Wasm.VI64 3),
+            ("let Box(a) = Box(42); a", Wasm.VI64 42)
           ]
 
     describe "From expressions" $ do

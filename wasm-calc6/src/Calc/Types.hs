@@ -11,12 +11,12 @@ module Calc.Types
   )
 where
 
-import           Calc.Types.Annotation
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import           Calc.Types.TypeVar
+import Calc.Types.Annotation
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import Calc.Types.Type
+import Calc.Types.TypeVar

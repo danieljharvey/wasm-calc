@@ -4,6 +4,7 @@ module Calc.ExprUtils
   ( mapOuterExprAnnotation,
     getOuterAnnotation,
     bindExpr,
+    getOuterPatternAnnotation,
   )
 where
 
@@ -57,3 +58,9 @@ bindExpr f (ETuple ann a as) =
 bindExpr f (EContainerAccess ann a nat) =
   EContainerAccess ann <$> f a <*> pure nat
 bindExpr f (EBox ann a) = EBox ann <$> f a
+
+getOuterPatternAnnotation :: Pattern ann -> ann
+getOuterPatternAnnotation (PWildcard ann) = ann
+getOuterPatternAnnotation (PVar ann _) = ann
+getOuterPatternAnnotation (PTuple ann _ _) = ann
+getOuterPatternAnnotation (PBox ann _) = ann

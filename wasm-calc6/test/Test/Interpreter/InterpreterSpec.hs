@@ -53,6 +53,7 @@ spec = do
                 `shouldBe` Right (unsafeParseExpr expect)
         )
         cases
+
     describe "Expressions" $ do
       let cases =
             [ ("1 + 1", "2"),
@@ -66,7 +67,8 @@ spec = do
               ("if 1 == 1 then 6 else 5", "6"),
               ("(1, True).2", "True"),
               ("Box(Box(1)).1.1", "1"),
-              ("let a = 100; a + 1", "101")
+              ("let a = 100; a + 1", "101"),
+              ("let (a,b) = (1,2); a + b", "3")
             ]
       traverse_
         ( \(input, expect) ->

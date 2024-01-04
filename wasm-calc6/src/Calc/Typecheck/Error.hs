@@ -4,12 +4,14 @@
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
+import Calc.ExprUtils
 import Calc.SourceSpan
 import Calc.TypeUtils
 import Calc.Types.Annotation
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
+import Calc.Types.Pattern
 import Calc.Types.Type
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
@@ -32,6 +34,7 @@ data TypeError ann
   | AccessingNonTuple ann (Type ann)
   | AccessingOutsideTupleBounds ann (Type ann) Natural
   | NonBoxedGenericValue ann (Type ann)
+  | PatternMismatch (Type ann) (Pattern ann)
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -73,6 +76,28 @@ typeErrorDiagnostic input e =
                       ( Diag.This
                           ( prettyPrint $
                               "This has type "
+                                <> PP.pretty ty
+                                <> "."
+                          )
+                      )
+                ]
+            )
+            []
+        (PatternMismatch ty pat) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Pattern and type do not match!"
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      (getOuterPatternAnnotation pat)
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $
+                              "Expected this to have type "
                                 <> PP.pretty ty
                                 <> "."
                           )
