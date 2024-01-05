@@ -94,6 +94,72 @@ scalarFromType (TVar _ _) =
 scalarFromType (TUnificationVar {}) =
   pure Pointer
 
+patternToPaths :: Pattern (Type ann) -> [Natural] -> M.Map Identifier (Type ann, [Natural])
+patternToPaths (PWildcard _) _ = mempty
+patternToPaths (PVar ty ident) offset = M.singleton ident (ty, offset)
+patternToPaths (PBox _ pat) offset = patternToPaths pat (offset <> [0])
+patternToPaths (PTuple ty p ps) offset =
+  let offsetList = getOffsetList ty
+   in patternToPaths p (offset <> [head offsetList])
+        <> mconcat
+          ( ( \(index, pat) ->
+                patternToPaths pat (offset <> [offsetList !! index])
+            )
+              <$> zip [1 ..] (NE.toList ps)
+          )
+
+fromLet ::
+  ( Show ann,
+    MonadError FromWasmError m,
+    MonadState FromExprState m
+  ) =>
+  Pattern (Type ann) ->
+  Expr (Type ann) ->
+  Expr (Type ann) ->
+  m WasmExpr
+fromLet pat expr rest = do
+  let paths = patternToPaths pat []
+  if null paths
+    then WSequence <$> fromExpr expr <*> fromExpr rest
+    else do
+      -- get type of the main expr
+      wasmType <- liftEither (scalarFromType (getOuterAnnotation expr))
+      -- first we make a nameless binding of the whole value
+      index <- addLocal Nothing wasmType
+      -- convert expr
+      wasmExpr <- fromExpr expr
+      -- turn patterns into indexes and expressions
+      indexes <-
+        traverse
+          ( \(ident, (ty, offset)) -> do
+              -- wasm type of var
+              bindingType <- liftEither (scalarFromType ty)
+              -- named binding
+              bindingIndex <- addLocal (Just ident) bindingType
+              -- get type we're going to be grabbing
+              let innerTy = I64 -- TODO: wrong
+              _ <- error "need to work out innerTy"
+              -- make expr for fetching value by folding through offsets
+              let fetchExpr =
+                    foldr (flip $ WTupleAccess innerTy) (WVar index) offset
+              -- return some stuff
+              pure (bindingIndex, fetchExpr)
+          )
+          (M.toList paths)
+
+      -- convert the rest
+      wasmRest <- fromExpr rest
+
+      -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
+      pure $
+        WLet index wasmExpr $
+          foldr
+            ( \(bindingIndex, fetchExpr) thisExpr ->
+                WLet bindingIndex fetchExpr thisExpr
+            )
+            wasmRest
+            indexes
+
 fromExpr ::
   ( MonadError FromWasmError m,
     MonadState FromExprState m,
@@ -103,18 +169,8 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim _ prim) = do
   pure (WPrim prim)
-fromExpr (ELet _ (PVar _ ident) expr rest) = do
-  -- get type of the let binding from `expr`
-  wasmType <- liftEither (scalarFromType (getOuterAnnotation expr))
-  -- record the type and get an unused identifier
-  index <- addLocal (Just ident) wasmType
-  -- convert expr
-  wasmExpr <- fromExpr expr
-  -- convert the rest
-  WLet index wasmExpr <$> fromExpr rest
-fromExpr (ELet _ (PWildcard _) expr rest) = do
-  WSequence <$> fromExpr expr <*> fromExpr rest
-fromExpr (ELet {}) = error "wasm fromExpr other pattern"
+fromExpr (ELet _ pat expr rest) =
+  fromLet pat expr rest
 fromExpr (EInfix _ op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result

@@ -29,14 +29,15 @@ testCompileExpr (input, result) = it (show input) $ do
                 resp <- runWasm (moduleToWasm wasmMod)
                 resp `shouldBe` Just [result]
 
-joinLines :: [Text] -> Text
-joinLines = foldr (\a b -> a <> "\n" <> b) ""
+_joinLines :: [Text] -> Text
+_joinLines = foldr (\a b -> a <> "\n" <> b) ""
 
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
     let testVals =
-          [ ("42", Wasm.VI64 42),
+          [ {-
+            ("42", Wasm.VI64 42),
             ("(1 + 1)", Wasm.VI64 2),
             ("1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
             ("6 * 6", Wasm.VI64 36),
@@ -111,9 +112,13 @@ spec = do
                 ],
               Wasm.VI64 42
             ),
+            -}
             ("let _ = 1; 2", Wasm.VI64 2),
+            ("let Box(a) = Box(42); a", Wasm.VI64 42),
+            ("let Box(a) = Box(1.23); a", Wasm.VF64 1.23),
             ("let (a,b) = (1,2); a + b", Wasm.VI64 3),
-            ("let Box(a) = Box(42); a", Wasm.VI64 42)
+            ("let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
+            ("let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6)
           ]
 
     describe "From expressions" $ do

@@ -2,15 +2,15 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import           Calc
-import           Calc.Linearity
-import           Calc.Typecheck
-import           Control.Monad   (void)
-import           Data.Either     (isRight)
-import           Data.Foldable   (traverse_)
+import Calc
+import Calc.Linearity
+import Calc.Typecheck
+import Control.Monad (void)
+import Data.Either (isRight)
+import Data.Foldable (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text       as T
-import           Test.Hspec
+import qualified Data.Text as T
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -100,7 +100,7 @@ spec = do
                 ( "function dup<a>(a: a) { (a,a)}",
                   UsedMultipleTimes "a"
                 ),
-                  {-( "function twice(pair: (Integer, Integer)) { pair.1 + pair.2 }",
+                {-( "function twice(pair: (Integer, Integer)) { pair.1 + pair.2 }",
                   UsedMultipleTimes "pair"
                 ),-}
                 ( "function withPair<a,b>(pair: (a,b)) { let (a,b) = pair; (a, a, b) }",
