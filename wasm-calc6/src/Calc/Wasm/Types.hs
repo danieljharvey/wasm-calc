@@ -40,6 +40,7 @@ data WasmExpr
   = WPrim Prim
   | WInfix WasmType Op WasmExpr WasmExpr
   | WLet Natural WasmExpr WasmExpr
+  | WSequence WasmExpr WasmExpr -- do firsr, return second
   | WIf WasmExpr WasmExpr WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]

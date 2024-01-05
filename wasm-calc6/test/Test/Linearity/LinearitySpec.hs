@@ -2,15 +2,15 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad   (void)
+import           Data.Either     (isRight)
+import           Data.Foldable   (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Text       as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -74,7 +74,9 @@ spec = do
               [ "function sum (a: Integer, b: Integer) { a + b }",
                 "function pair<a,b>(a: a, b: b) { (a,b) }",
                 "function main() { let a = 1; let b = Box(a); b! }",
-                "function addPair(pair: (Integer,Integer)) { pair.1 + pair.2 }"
+                "function addPair(pair: (Integer,Integer)) { let (a,b) = pair; a + b }",
+                "function fst<a,b>(pair: (a,b)) { let (a,_) = pair; Box(a) }",
+                "function main() { let _ = 1; 2 }"
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do
@@ -97,11 +99,13 @@ spec = do
                 ),
                 ( "function dup<a>(a: a) { (a,a)}",
                   UsedMultipleTimes "a"
-                ) {-,
-
-                  ( "function withPair<a,b>(pair: (a,b)) { (pair.1, pair.1, pair.2) }",
-                    SliceUsedMultipleTimes "pair" 1
-                  )-}
+                ),
+                  {-( "function twice(pair: (Integer, Integer)) { pair.1 + pair.2 }",
+                  UsedMultipleTimes "pair"
+                ),-}
+                ( "function withPair<a,b>(pair: (a,b)) { let (a,b) = pair; (a, a, b) }",
+                  UsedMultipleTimes "a"
+                )
               ]
         traverse_
           ( \(str, err) -> it (T.unpack str) $ do

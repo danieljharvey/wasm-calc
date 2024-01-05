@@ -2,23 +2,23 @@
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import Calc.Types.Expr
-import Calc.Types.FunctionName
-import Calc.Types.Prim
-import Calc.Wasm.Allocator
-import Calc.Wasm.Types
-import Data.Maybe (catMaybes)
-import qualified Data.Text.Lazy as TL
-import GHC.Natural
+import           Calc.Types.Expr
+import           Calc.Types.FunctionName
+import           Calc.Types.Prim
+import           Calc.Wasm.Allocator
+import           Calc.Wasm.Types
+import           Data.Maybe              (catMaybes)
+import qualified Data.Text.Lazy          as TL
+import           GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
 mapWithIndex f = fmap f . zip [0 ..]
 
 fromType :: WasmType -> Wasm.ValueType
-fromType I32 = Wasm.I32
-fromType I64 = Wasm.I64
-fromType F64 = Wasm.F64
+fromType I32     = Wasm.I32
+fromType I64     = Wasm.I64
+fromType F64     = Wasm.F64
 fromType Pointer = Wasm.I32
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
@@ -40,20 +40,20 @@ exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
-bitsizeFromType I32 = Wasm.BS32
-bitsizeFromType I64 = Wasm.BS64
-bitsizeFromType F64 = Wasm.BS64
+bitsizeFromType I32     = Wasm.BS32
+bitsizeFromType I64     = Wasm.BS64
+bitsizeFromType F64     = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
 instructionFromOp :: WasmType -> Op -> Wasm.Instruction Natural
-instructionFromOp F64 OpAdd = Wasm.FBinOp (bitsizeFromType F64) Wasm.FAdd
+instructionFromOp F64 OpAdd      = Wasm.FBinOp (bitsizeFromType F64) Wasm.FAdd
 instructionFromOp F64 OpMultiply = Wasm.FBinOp (bitsizeFromType F64) Wasm.FMul
 instructionFromOp F64 OpSubtract = Wasm.FBinOp (bitsizeFromType F64) Wasm.FSub
-instructionFromOp F64 OpEquals = Wasm.FRelOp (bitsizeFromType F64) Wasm.FEq
-instructionFromOp ty OpAdd = Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
-instructionFromOp ty OpMultiply = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
-instructionFromOp ty OpSubtract = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
-instructionFromOp ty OpEquals = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
+instructionFromOp F64 OpEquals   = Wasm.FRelOp (bitsizeFromType F64) Wasm.FEq
+instructionFromOp ty OpAdd       = Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
+instructionFromOp ty OpMultiply  = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
+instructionFromOp ty OpSubtract  = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
+instructionFromOp ty OpEquals    = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
 
 toWasm :: WasmExpr -> [Wasm.Instruction Natural]
 toWasm (WPrim (PInt i)) =
@@ -66,6 +66,8 @@ toWasm (WPrim (PBool False)) =
   [Wasm.I32Const 0]
 toWasm (WLet index expr body) = do
   toWasm expr <> [Wasm.SetLocal index] <> toWasm body
+toWasm (WSequence first second) =
+  toWasm first <> [Wasm.Drop] <> toWasm second
 toWasm (WInfix ty op a b) =
   toWasm a <> toWasm b <> [instructionFromOp ty op]
 toWasm (WIf predExpr thenExpr elseExpr) =
@@ -79,9 +81,9 @@ toWasm (WAllocate i) =
 toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
         let storeInstruction = case ty of
-              F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
-              I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
-              I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
+              F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
+              I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
+              I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
               Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
          in [Wasm.GetLocal index] <> toWasm value <> [storeInstruction]
    in toWasm container
@@ -90,9 +92,9 @@ toWasm (WSet index container items) =
         <> [Wasm.GetLocal index]
 toWasm (WTupleAccess ty tup offset) =
   let loadInstruction = case ty of
-        F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
-        I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
-        I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
+        F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
+        I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
+        I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
         Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
    in toWasm tup <> [loadInstruction]
 

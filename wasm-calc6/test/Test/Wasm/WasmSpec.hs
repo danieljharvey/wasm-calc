@@ -111,6 +111,7 @@ spec = do
                 ],
               Wasm.VI64 42
             ),
+            ("let _ = 1; 2", Wasm.VI64 2),
             ("let (a,b) = (1,2); a + b", Wasm.VI64 3),
             ("let Box(a) = Box(42); a", Wasm.VI64 42)
           ]

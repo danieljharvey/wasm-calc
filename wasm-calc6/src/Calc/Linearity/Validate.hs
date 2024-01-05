@@ -125,9 +125,8 @@ recordContainerAccessUse index ident =
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
   Pattern (Type ann) ->
-  Type ann ->
   m ()
-addLetBinding (PVar _ ident) ty =
+addLetBinding (PVar ty ident) =
   let initialLinearity = case ty of
         TPrim {} -> LTPrimitive
         _ -> LTBoxed
@@ -138,7 +137,12 @@ addLetBinding (PVar _ ident) ty =
                   M.insert ident (initialLinearity, getOuterTypeAnnotation ty) (lsVars ls)
               }
         )
-addLetBinding _ _ = error "addLetBinding with other pattern"
+addLetBinding (PWildcard _) = pure ()
+addLetBinding (PBox _ pat) =
+  addLetBinding pat
+addLetBinding (PTuple _ p ps) = do
+  addLetBinding p
+  traverse_ addLetBinding ps
 
 decorateWithUses ::
   (MonadState (LinearState ann) m) =>
@@ -151,8 +155,8 @@ decorateWithUses (EContainerAccess ann (EVar ann' ident) index) =
   do
     recordContainerAccessUse index ident
     pure (EContainerAccess ann (EVar ann' ident) index)
-decorateWithUses (ELet ann ident expr rest) = do
-  addLetBinding ident (getOuterAnnotation expr)
-  ELet ann ident <$> decorateWithUses expr <*> decorateWithUses rest
+decorateWithUses (ELet ann pat expr rest) = do
+  addLetBinding pat
+  ELet ann pat <$> decorateWithUses expr <*> decorateWithUses rest
 decorateWithUses other =
   bindExpr decorateWithUses other
