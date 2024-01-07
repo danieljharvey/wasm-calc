@@ -94,19 +94,41 @@ scalarFromType (TVar _ _) =
 scalarFromType (TUnificationVar {}) =
   pure Pointer
 
-patternToPaths :: Pattern (Type ann) -> [Natural] -> M.Map Identifier (Type ann, [Natural])
+patternToPaths :: Pattern (Type ann) -> (Path ann -> Path ann) ->
+    M.Map Identifier (Path ann)
 patternToPaths (PWildcard _) _ = mempty
-patternToPaths (PVar ty ident) offset = M.singleton ident (ty, offset)
-patternToPaths (PBox _ pat) offset = patternToPaths pat (offset <> [0])
-patternToPaths (PTuple ty p ps) offset =
+patternToPaths (PVar ty ident) addPath =
+  M.singleton ident (addPath (PathFetch ty))
+patternToPaths (PBox _ pat) addPath =
+  patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) 0 . addPath)
+patternToPaths (PTuple ty p ps) addPath =
   let offsetList = getOffsetList ty
-   in patternToPaths p (offset <> [head offsetList])
+   in patternToPaths p (PathSelect (getOuterPatternAnnotation p) (head offsetList) . addPath)
         <> mconcat
           ( ( \(index, pat) ->
-                patternToPaths pat (offset <> [offsetList !! index])
+                patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) (offsetList !! index) . addPath)
             )
               <$> zip [1 ..] (NE.toList ps)
           )
+
+data Path ann =
+  -- | we're going in deeper
+  PathSelect (Type ann) Natural (Path ann)
+    -- | return this item
+    | PathFetch (Type ann)
+
+-- | given a path, create AST for fetching it
+fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr
+fromPath wholeExprIndex (PathFetch _ty) =
+  pure (WVar wholeExprIndex)
+fromPath wholeExprIndex (PathSelect ty index inner) = do
+  wasmTy <- liftEither (scalarFromType ty)
+  innerExpr <- fromPath wholeExprIndex inner
+  pure (WTupleAccess wasmTy innerExpr index)
+
+typeFromPath :: Path ann -> Type ann
+typeFromPath (PathSelect _ _ inner) = typeFromPath inner
+typeFromPath (PathFetch ty)         = ty
 
 fromLet ::
   ( Show ann,
@@ -118,7 +140,7 @@ fromLet ::
   Expr (Type ann) ->
   m WasmExpr
 fromLet pat expr rest = do
-  let paths = patternToPaths pat []
+  let paths = patternToPaths pat id
   if null paths
     then WSequence <$> fromExpr expr <*> fromExpr rest
     else do
@@ -131,17 +153,14 @@ fromLet pat expr rest = do
       -- turn patterns into indexes and expressions
       indexes <-
         traverse
-          ( \(ident, (ty, offset)) -> do
+          ( \(ident, path) -> do
+              let ty = typeFromPath path
               -- wasm type of var
               bindingType <- liftEither (scalarFromType ty)
               -- named binding
               bindingIndex <- addLocal (Just ident) bindingType
               -- get type we're going to be grabbing
-              let innerTy = I64 -- TODO: wrong
-              _ <- error "need to work out innerTy"
-              -- make expr for fetching value by folding through offsets
-              let fetchExpr =
-                    foldr (flip $ WTupleAccess innerTy) (WVar index) offset
+              fetchExpr <- fromPath index path
               -- return some stuff
               pure (bindingIndex, fetchExpr)
           )
