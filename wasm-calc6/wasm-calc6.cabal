@@ -94,6 +94,7 @@ common shared
     Calc.Wasm.Allocator
     Calc.Wasm.FromExpr
     Calc.Wasm.Helpers
+    Calc.Wasm.Patterns
     Calc.Wasm.Run
     Calc.Wasm.ToWasm
     Calc.Wasm.Types

@@ -5,11 +5,13 @@ module Calc.Wasm.Types
     WasmModule (..),
     WasmFunction (..),
     WasmExpr (..),
+    FromWasmError (..),
   )
 where
 
 import Calc.Types.Expr
 import Calc.Types.Function
+import Calc.Types.Identifier
 import Calc.Types.Prim
 import GHC.Natural
 
@@ -47,4 +49,10 @@ data WasmExpr
   | WAllocate Natural
   | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 2) [(0, 1),(1, 2)]
   | WTupleAccess WasmType WasmExpr Natural
+  deriving stock (Eq, Ord, Show)
+
+data FromWasmError
+  = FunctionTypeNotScalar
+  | IdentifierNotFound Identifier
+  | FunctionNotFound FunctionName
   deriving stock (Eq, Ord, Show)

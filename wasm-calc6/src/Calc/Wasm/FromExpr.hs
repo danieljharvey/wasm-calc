@@ -1,38 +1,32 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.Helpers
-import           Calc.Wasm.Types
-import           Control.Monad.Except
-import           Control.Monad.State
-import qualified Data.List            as List
-import qualified Data.List.NonEmpty   as NE
-import qualified Data.Map.Strict      as M
-import           Data.Monoid
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.Helpers
+import Calc.Wasm.Patterns
+import Calc.Wasm.Types
+import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
-data FromWasmError
-  = FunctionTypeNotScalar
-  | IdentifierNotFound Identifier
-  | FunctionNotFound FunctionName
-  deriving stock (Eq, Ord, Show)
-
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesVars      :: [(Maybe Identifier, WasmType)]
+    fesVars :: [(Maybe Identifier, WasmType)]
   }
 
 data FromExprFunc = FromExprFunc
-  { fefIndex      :: Natural,
-    fefArgs       :: [WasmType],
+  { fefIndex :: Natural,
+    fefArgs :: [WasmType],
     fefReturnType :: WasmType
   }
 
@@ -71,7 +65,7 @@ lookupIdent ident = do
       )
   case maybeNat of
     Just (nat, _) -> pure nat
-    Nothing       -> throwError $ IdentifierNotFound ident
+    Nothing -> throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -81,54 +75,7 @@ lookupFunction functionName = do
   maybeNat <- gets (M.lookup functionName . fesFunctions)
   case maybeNat of
     Just nat -> pure nat
-    Nothing  -> throwError $ FunctionNotFound functionName
-
-scalarFromType :: Type ann -> Either FromWasmError WasmType
-scalarFromType (TPrim _ TInt) = pure I64
-scalarFromType (TPrim _ TBool) = pure I32
-scalarFromType (TPrim _ TFloat) = pure F64
-scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
-scalarFromType (TContainer {}) = pure Pointer
-scalarFromType (TVar _ _) =
-  pure Pointer -- all polymorphic variables are Pointer
-scalarFromType (TUnificationVar {}) =
-  pure Pointer
-
-patternToPaths :: Pattern (Type ann) -> (Path ann -> Path ann) ->
-    M.Map Identifier (Path ann)
-patternToPaths (PWildcard _) _ = mempty
-patternToPaths (PVar ty ident) addPath =
-  M.singleton ident (addPath (PathFetch ty))
-patternToPaths (PBox _ pat) addPath =
-  patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) 0 . addPath)
-patternToPaths (PTuple ty p ps) addPath =
-  let offsetList = getOffsetList ty
-   in patternToPaths p (PathSelect (getOuterPatternAnnotation p) (head offsetList) . addPath)
-        <> mconcat
-          ( ( \(index, pat) ->
-                patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) (offsetList !! index) . addPath)
-            )
-              <$> zip [1 ..] (NE.toList ps)
-          )
-
-data Path ann =
-  -- | we're going in deeper
-  PathSelect (Type ann) Natural (Path ann)
-    -- | return this item
-    | PathFetch (Type ann)
-
--- | given a path, create AST for fetching it
-fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr
-fromPath wholeExprIndex (PathFetch _ty) =
-  pure (WVar wholeExprIndex)
-fromPath wholeExprIndex (PathSelect ty index inner) = do
-  wasmTy <- liftEither (scalarFromType ty)
-  innerExpr <- fromPath wholeExprIndex inner
-  pure (WTupleAccess wasmTy innerExpr index)
-
-typeFromPath :: Path ann -> Type ann
-typeFromPath (PathSelect _ _ inner) = typeFromPath inner
-typeFromPath (PathFetch ty)         = ty
+    Nothing -> throwError $ FunctionNotFound functionName
 
 fromLet ::
   ( Show ann,
@@ -229,51 +176,6 @@ fromExpr (EBox ty inner) = do
   containerWasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing containerWasmType
   boxed index innerWasmType <$> fromExpr inner
-
--- | wrap a `WasmExpr` in a single item struct
-boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
-boxed index ty wExpr =
-  let allocate = WAllocate (memorySize ty)
-   in WSet index allocate [(0, ty, wExpr)]
-
-getOffsetList :: Type ann -> [Natural]
-getOffsetList (TContainer _ items) =
-  scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
-getOffsetList _ = []
-
--- | size of the primitive in memory (ie, struct is size of its pointer)
-offsetForType :: Type ann -> Natural
-offsetForType (TPrim _ TInt) =
-  memorySize I64
-offsetForType (TPrim _ TFloat) =
-  memorySize F64
-offsetForType (TPrim _ TBool) =
-  memorySize I32
-offsetForType (TContainer _ _) =
-  memorySize Pointer
-offsetForType (TFunction {}) =
-  memorySize Pointer
-offsetForType (TVar _ _) =
-  memorySize Pointer
-offsetForType (TUnificationVar _ _) =
-  error "offsetForType TUnificationVar"
-
--- | the actual size of the item in memory
-memorySizeForType :: Type ann -> Natural
-memorySizeForType (TPrim _ TInt) =
-  memorySize I64
-memorySizeForType (TPrim _ TFloat) =
-  memorySize F64
-memorySizeForType (TPrim _ TBool) =
-  memorySize I32
-memorySizeForType (TContainer _ as) =
-  getSum (foldMap (Sum . memorySizeForType) as)
-memorySizeForType (TFunction {}) =
-  memorySize Pointer
-memorySizeForType (TVar _ _) =
-  memorySize Pointer
-memorySizeForType (TUnificationVar _ _) =
-  error "memorySizeForType TUnificationVar"
 
 fromFunction ::
   (Show ann) =>
