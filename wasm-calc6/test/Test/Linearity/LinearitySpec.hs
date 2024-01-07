@@ -2,15 +2,15 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad   (void)
+import           Data.Either     (isRight)
+import           Data.Foldable   (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Text       as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -24,25 +24,25 @@ spec = do
                 LinearState
                   { lsVars =
                       M.fromList [("a", (LTPrimitive, ())), ("b", (LTPrimitive, ()))],
-                    lsUses = [("b", Whole), ("a", Whole)]
+                    lsUses = [("b", Whole ()), ("a", Whole ())]
                   }
               ),
               ( "function pair<a,b>(a: a, b: b) { (a,b) }",
                 LinearState
                   { lsVars = M.fromList [("a", (LTBoxed, ())), ("b", (LTBoxed, ()))],
-                    lsUses = [("b", Whole), ("a", Whole)]
+                    lsUses = [("b", Whole ()), ("a", Whole ())]
                   }
               ),
               ( "function dontUseA<a,b>(a: a, b: b) { b }",
                 LinearState
                   { lsVars = M.fromList [("a", (LTBoxed, ())), ("b", (LTBoxed, ()))],
-                    lsUses = [("b", Whole)]
+                    lsUses = [("b", Whole ())]
                   }
               ),
               ( "function dup<a>(a: a) { (a,a)}",
                 LinearState
                   { lsVars = M.fromList [("a", (LTBoxed, ()))],
-                    lsUses = [("a", Whole), ("a", Whole)]
+                    lsUses = [("a", Whole ()), ("a", Whole ())]
                   }
               ),
               ( "function main() { let a = 1; let b = Box(a); b! }",
@@ -52,7 +52,7 @@ spec = do
                         [ ("a", (LTPrimitive, ())),
                           ("b", (LTBoxed, ()))
                         ],
-                    lsUses = [("b", Slice 1), ("a", Whole)]
+                    lsUses = [("b", Slice () 1), ("a", Whole ())]
                   }
               )
             ]
@@ -98,13 +98,13 @@ spec = do
                   NotUsed () "a"
                 ),
                 ( "function dup<a>(a: a) { (a,a)}",
-                  UsedMultipleTimes "a"
+                  UsedMultipleTimes [(),()] "a"
                 ),
                 {-( "function twice(pair: (Integer, Integer)) { pair.1 + pair.2 }",
                   UsedMultipleTimes "pair"
                 ),-}
                 ( "function withPair<a,b>(pair: (a,b)) { let (a,b) = pair; (a, a, b) }",
-                  UsedMultipleTimes "a"
+                  UsedMultipleTimes [(),()] "a"
                 )
               ]
         traverse_

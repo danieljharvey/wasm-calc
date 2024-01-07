@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Linearity.Error
   ( linearityErrorDiagnostic,
@@ -8,18 +8,18 @@ module Calc.Linearity.Error
   )
 where
 
-import Calc.SourceSpan
-import Calc.Types.Annotation
-import Calc.Types.Identifier
-import Data.Maybe (catMaybes)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import qualified Prettyprinter as PP
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.Identifier
+import           Data.Maybe                (catMaybes, mapMaybe)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data LinearityError ann
   = NotUsed ann Identifier
-  | UsedMultipleTimes Identifier
+  | UsedMultipleTimes [ann] Identifier
   deriving stock (Eq, Ord, Show)
 
 prettyPrint :: PP.Doc doc -> T.Text
@@ -65,12 +65,24 @@ linearityErrorDiagnostic input e =
                 ]
             )
             []
-        (UsedMultipleTimes ident) ->
+        (UsedMultipleTimes anns ident) ->
           Diag.Err
             Nothing
             ( prettyPrint $ "Identifier " <> PP.pretty ident <> " used multiple times."
             )
-            []
+            ( mapMaybe
+                (\ann ->  (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "Used here"
+                          )
+                      )
+                ) anns
+            )
             []
    in Diag.addReport diag report
 

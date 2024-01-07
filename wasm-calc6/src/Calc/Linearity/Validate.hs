@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -9,20 +9,20 @@ module Calc.Linearity.Validate
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad.State
-import Data.Foldable (traverse_)
-import qualified Data.Map as M
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad.State
+import           Data.Foldable         (traverse_)
+import qualified Data.Map              as M
+import           GHC.Natural
 
 validateModule :: Module (Type ann) -> Either (LinearityError ann) ()
 validateModule (Module {mdFunctions, mdExpr}) =
@@ -59,15 +59,15 @@ validate (LinearState {lsVars, lsUses}) =
                   then Right ()
                   else Left (NotUsed ann ident)
               1 -> Right ()
-              _ -> Left (UsedMultipleTimes ident)
+              _more -> Left (UsedMultipleTimes (error "we need to gather all uses here") ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
 
 -- | count uses of a given identifier
-countCompleteUses :: [(Identifier, Linearity)] -> Identifier -> Natural
+countCompleteUses :: [(Identifier, Linearity ann)] -> Identifier -> Natural
 countCompleteUses uses ident =
   foldr
     ( \(thisIdent, linearity) total -> case linearity of
-        Whole ->
+        Whole _ ->
           if thisIdent == ident then total + 1 else total
         _ -> total
     )
@@ -75,12 +75,12 @@ countCompleteUses uses ident =
     uses
 
 -- | count uses of a given identifier
-countPartialUses :: [(Identifier, Linearity)] -> Identifier -> Natural
+countPartialUses :: [(Identifier, Linearity ann)] -> Identifier -> Natural
 countPartialUses uses ident =
   foldr
     ( \(thisIdent, linearity) total -> case linearity of
-        Whole -> total
-        Slice _ ->
+        Whole _-> total
+        Slice _ _ ->
           if thisIdent == ident then total + 1 else total
     )
     0
@@ -101,24 +101,25 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
-recordUse :: (MonadState (LinearState ann) m) => Identifier -> m ()
-recordUse ident =
-  modify (\ls -> ls {lsUses = (ident, Whole) : lsUses ls})
+recordUse :: (MonadState (LinearState ann) m) => Identifier -> ann -> m ()
+recordUse ident ann =
+  modify (\ls -> ls {lsUses = (ident, Whole ann) : lsUses ls})
 
 recordContainerAccessUse ::
   (MonadState (LinearState ann) m) =>
   Natural ->
   Identifier ->
+  ann ->
   m ()
-recordContainerAccessUse index ident =
+recordContainerAccessUse index ident ann =
   modify
     ( \ls ->
         ls
-          { lsUses = (ident, Slice index) : lsUses ls
+          { lsUses = (ident, Slice ann index) : lsUses ls
           }
     )
 
@@ -129,7 +130,7 @@ addLetBinding ::
 addLetBinding (PVar ty ident) =
   let initialLinearity = case ty of
         TPrim {} -> LTPrimitive
-        _ -> LTBoxed
+        _        -> LTBoxed
    in modify
         ( \ls ->
             ls
@@ -149,11 +150,11 @@ decorateWithUses ::
   Expr (Type ann) ->
   m (Expr (Type ann))
 decorateWithUses (EVar ann ident) = do
-  recordUse ident
+  recordUse ident (getOuterTypeAnnotation ann)
   pure (EVar ann ident)
 decorateWithUses (EContainerAccess ann (EVar ann' ident) index) =
   do
-    recordContainerAccessUse index ident
+    recordContainerAccessUse index ident (getOuterTypeAnnotation ann')
     pure (EContainerAccess ann (EVar ann' ident) index)
 decorateWithUses (ELet ann pat expr rest) = do
   addLetBinding pat
