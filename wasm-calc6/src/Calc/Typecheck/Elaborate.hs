@@ -242,11 +242,11 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
-infer (ELet _ pat expr rest) = do
+infer (ELet ann pat expr rest) = do
   typedExpr <- infer expr
   typedPat <- checkPattern (getOuterAnnotation typedExpr) pat
   typedRest <- withVar pat (getOuterAnnotation typedExpr) (infer rest)
-  pure $ ELet (getOuterAnnotation typedRest) typedPat typedExpr typedRest
+  pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 infer (EIf ann predExpr thenExpr elseExpr) =
   inferIf ann predExpr thenExpr elseExpr
 infer (ETuple ann fstExpr restExpr) = do
@@ -274,7 +274,7 @@ infer (EApply ann fnName args) =
   inferApply ann fnName args
 infer (EVar ann var) = do
   ty <- lookupVar ann var
-  pure (EVar ty var)
+  pure (EVar (ty $> ann) var)
 infer (EInfix ann op a b) =
   inferInfix ann op a b
 

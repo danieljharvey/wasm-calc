@@ -1,7 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.Patterns (patternToPaths, typeFromPath, fromPath) where
 

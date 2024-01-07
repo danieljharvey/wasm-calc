@@ -57,7 +57,7 @@ patTupleParser = label "tuple" $
 
 patBoxParser :: Parser ParserPattern
 patBoxParser = label "box" $
-  withLocation (\loc inner -> PBox loc inner) $ do
+  withLocation PBox $ do
     _ <- stringLiteral "Box"
     _ <- stringLiteral "("
     inner <- patternParser

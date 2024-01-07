@@ -1,6 +1,6 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Calc.Linearity.Types
   ( Linearity (..),
@@ -9,9 +9,9 @@ module Calc.Linearity.Types
   )
 where
 
-import           Calc.Types.Identifier
-import qualified Data.Map              as M
-import           GHC.Natural
+import Calc.Types.Identifier
+import qualified Data.Map as M
+import GHC.Natural
 
 -- | Are we using the whole type or bits of it?
 -- this distinction will be gone once we can destructure types instead,
