@@ -217,7 +217,7 @@ inferApply ann fnName args = do
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
-checkPattern ty (PVar _ var) = pure (PVar ty var)
+checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
 checkPattern ty@(TContainer _ tyItems) (PBox _ a)
   | length tyItems == 1 =
       PBox ty <$> checkPattern (NE.head tyItems) a

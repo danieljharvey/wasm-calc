@@ -59,3 +59,41 @@ function makePair<a,b>(left: a, right: b) {
 
 makePair(Box(100.0),Box(200.0))
 ```
+
+## wasm-calc6
+
+- Linearity checker - boxed types must be used once
+
+```
+function usingBoxedValueTwiceWillFail(a: Box(Integer)) { (a,a) } 
+
+usingBoxedValueTwiceWillFail(Box(1)
+```
+
+```
+function notUsingValueWillFail(a: Box(Integer)) { True } 
+
+notUsingValueWillFail(Box(1)
+```
+
+```
+function usingPrimitiveTwiceIsFine(a: Integer) { a + a } 
+
+usingPrimitiveTwiceIsFine(123)
+```
+
+- Let bindings 
+
+```
+let a = 123;
+let b = a + 123;
+b + 100
+```
+
+- Destructuring
+
+```
+let (a,b) = (1,2); a + b
+```
+
+
