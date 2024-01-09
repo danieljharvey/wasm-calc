@@ -25,7 +25,6 @@ import           Calc.TypeUtils
 import           Control.Monad             (when, zipWithM)
 import           Control.Monad.Except
 import           Control.Monad.State
-import           Data.Foldable             (traverse_)
 import           Data.Functor
 import qualified Data.List                 as List
 import qualified Data.List.NonEmpty        as NE
@@ -37,10 +36,11 @@ elaborateModule ::
   Either (TypeError ann) (Module (Type ann))
 elaborateModule (Module {mdImports, mdFunctions, mdExpr}) =
   runTypecheckM (TypecheckEnv mempty mempty) $ do
-    traverse_
+    imports <- traverse
       ( \imp -> do
           elabImport <- elaborateImport imp
           storeFunction (impImportName elabImport) mempty (impAnn elabImport)
+          pure elabImport
       )
       mdImports
 
@@ -48,14 +48,17 @@ elaborateModule (Module {mdImports, mdFunctions, mdExpr}) =
       traverse
         ( \fn -> do
             elabFn <- elaborateFunction fn
-            storeFunction (fnFunctionName elabFn) (S.fromList $ fnGenerics fn) (fnAnn elabFn)
+            storeFunction (fnFunctionName elabFn)
+                  (S.fromList $ fnGenerics fn) (fnAnn elabFn)
             pure elabFn
         )
         mdFunctions
 
     elabExpr <- inferAndSubstitute mdExpr
 
-    pure $ Module {mdFunctions = fns, mdImports = mempty, mdExpr = elabExpr}
+    pure $ Module {mdFunctions = fns,
+      mdImports = imports,
+        mdExpr = elabExpr}
 
 elaborateImport :: Import ann -> TypecheckM ann (Import (Type ann))
 elaborateImport

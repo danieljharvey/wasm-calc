@@ -64,6 +64,7 @@
             cabal-install
             ghc
             pkgs.wasmtime
+            pkgs.wabt
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};

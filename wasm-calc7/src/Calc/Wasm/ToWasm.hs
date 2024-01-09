@@ -2,37 +2,52 @@
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import Calc.Types.Expr
-import Calc.Types.FunctionName
-import Calc.Types.Prim
-import Calc.Wasm.Allocator
-import Calc.Wasm.Types
-import Data.Maybe (catMaybes)
-import qualified Data.Text.Lazy as TL
-import GHC.Natural
+import           Calc.Types.Expr
+import           Calc.Types.FunctionName
+import           Calc.Types.Prim
+import           Calc.Utils
+import           Calc.Wasm.Allocator
+import           Calc.Wasm.Types
+import           Data.Maybe              (catMaybes)
+import qualified Data.Text.Lazy          as TL
+import           GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
 mapWithIndex f = fmap f . zip [0 ..]
 
 fromType :: WasmType -> Wasm.ValueType
-fromType I32 = Wasm.I32
-fromType I64 = Wasm.I64
-fromType F64 = Wasm.F64
+fromType I32     = Wasm.I32
+fromType I64     = Wasm.I64
+fromType F64     = Wasm.F64
 fromType Pointer = Wasm.I32
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
-fromFunction wfIndex (WasmFunction {wfExpr, wfArgs, wfLocals}) =
+fromFunction wfIndex (WasmFunction {wfPublic, wfExpr, wfArgs, wfLocals}) =
   let args = fromType <$> wfArgs
       locals = fromType <$> wfLocals
+      addVoid exp' = if wfPublic then exp' <> [Wasm.Drop] else exp'
    in Wasm.Function
         (fromIntegral $ wfIndex + 1)
         (locals <> args)
-        (toWasm wfExpr)
+        (addVoid $ toWasm wfExpr)
+
+fromImport :: Int -> WasmImport -> Wasm.Import
+fromImport wfIndex (WasmImport { wiExternalModule, wiExternalFunction }) =
+   Wasm.Import
+     (TL.fromStrict wiExternalModule)
+     (TL.fromStrict wiExternalFunction)
+     (Wasm.ImportFunc
+          (fromIntegral $ wfIndex + 1)
+      )
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
-typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
-  Wasm.FuncType (fromType <$> wfArgs) [fromType wfReturnType]
+typeFromFunction (WasmFunction {wfPublic, wfArgs, wfReturnType}) =
+  Wasm.FuncType (fromType <$> wfArgs) (if wfPublic then [] else [fromType wfReturnType])
+
+typeFromImport :: WasmImport -> Wasm.FuncType
+typeFromImport (WasmImport {wiArgs, wiReturnType}) =
+  Wasm.FuncType (fromType <$> wiArgs) [fromType wiReturnType]
 
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
 exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic = True}) =
@@ -40,20 +55,20 @@ exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
-bitsizeFromType I32 = Wasm.BS32
-bitsizeFromType I64 = Wasm.BS64
-bitsizeFromType F64 = Wasm.BS64
+bitsizeFromType I32     = Wasm.BS32
+bitsizeFromType I64     = Wasm.BS64
+bitsizeFromType F64     = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
 instructionFromOp :: WasmType -> Op -> Wasm.Instruction Natural
-instructionFromOp F64 OpAdd = Wasm.FBinOp (bitsizeFromType F64) Wasm.FAdd
+instructionFromOp F64 OpAdd      = Wasm.FBinOp (bitsizeFromType F64) Wasm.FAdd
 instructionFromOp F64 OpMultiply = Wasm.FBinOp (bitsizeFromType F64) Wasm.FMul
 instructionFromOp F64 OpSubtract = Wasm.FBinOp (bitsizeFromType F64) Wasm.FSub
-instructionFromOp F64 OpEquals = Wasm.FRelOp (bitsizeFromType F64) Wasm.FEq
-instructionFromOp ty OpAdd = Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
-instructionFromOp ty OpMultiply = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
-instructionFromOp ty OpSubtract = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
-instructionFromOp ty OpEquals = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
+instructionFromOp F64 OpEquals   = Wasm.FRelOp (bitsizeFromType F64) Wasm.FEq
+instructionFromOp ty OpAdd       = Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
+instructionFromOp ty OpMultiply  = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
+instructionFromOp ty OpSubtract  = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
+instructionFromOp ty OpEquals    = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
 
 toWasm :: WasmExpr -> [Wasm.Instruction Natural]
 toWasm (WPrim (PInt i)) =
@@ -81,9 +96,9 @@ toWasm (WAllocate i) =
 toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
         let storeInstruction = case ty of
-              F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
-              I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
-              I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
+              F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
+              I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
+              I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
               Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
          in [Wasm.GetLocal index] <> toWasm value <> [storeInstruction]
    in toWasm container
@@ -92,25 +107,27 @@ toWasm (WSet index container items) =
         <> [Wasm.GetLocal index]
 toWasm (WTupleAccess ty tup offset) =
   let loadInstruction = case ty of
-        F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
-        I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
-        I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
+        F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
+        I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
+        I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
         Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
    in toWasm tup <> [loadInstruction]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmFunctions}) =
+moduleToWasm (WasmModule {wmImports,wmFunctions}) =
   let functions = mapWithIndex (uncurry fromFunction) wmFunctions
-      types = typeFromFunction <$> wmFunctions
+      offset = length functions
+      imports = uncurry fromImport <$> zip [offset ..] wmImports
+      types = (typeFromFunction <$> wmFunctions) <> (typeFromImport <$> wmImports)
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
-   in moduleWithAllocator
+   in ltrace "module" $ moduleWithAllocator
         { Wasm.types = head (Wasm.types moduleWithAllocator) : types,
           Wasm.functions = head (Wasm.functions moduleWithAllocator) : functions,
           Wasm.tables = mempty,
           Wasm.elems = mempty,
           Wasm.datas = mempty,
           Wasm.start = Nothing,
-          Wasm.imports = mempty,
+          Wasm.imports = imports,
           Wasm.exports = exports
         }

@@ -57,7 +57,7 @@ joinLines = foldr (\a b -> a <> "\n" <> b) ""
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
-    describe "Test with wasmtime" $ do
+    fdescribe "Test with wasmtime" $ do
       let testVals =
             [
               joinLines

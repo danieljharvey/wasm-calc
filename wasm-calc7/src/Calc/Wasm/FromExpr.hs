@@ -73,13 +73,17 @@ lookupIdent ident = do
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   FunctionName ->
-  m FromExprFunc
+  m Natural
 lookupFunction functionName = do
   maybeFunc <- gets (M.lookup functionName . fesFunctions)
   case maybeFunc of
-    Just func -> pure func
-    Nothing  ->
-      throwError $ FunctionNotFound functionName
+    Just (FromExprFunc { fefIndex}) -> pure fefIndex
+    Nothing  -> do
+      maybeImport <- gets (M.lookup functionName . fesImports)
+      case maybeImport of
+        Just (FromExprImport { feiIndex }) -> pure feiIndex
+        Nothing ->
+          throwError $ FunctionNotFound functionName
 
 fromLet ::
   ( Show ann,
@@ -151,7 +155,7 @@ fromExpr (EIf _ predE thenE elseE) =
 fromExpr (EVar _ ident) =
   WVar <$> lookupIdent ident
 fromExpr (EApply _ funcName args) = do
-  (FromExprFunc {fefIndex}) <- lookupFunction funcName
+  fefIndex <- lookupFunction funcName
   WApply fefIndex
     <$> traverse fromExpr args
 fromExpr (ETuple ty a as) = do
@@ -181,12 +185,32 @@ fromExpr (EBox ty inner) = do
   index <- addLocal Nothing containerWasmType
   boxed index innerWasmType <$> fromExpr inner
 
+fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
+fromImport (Import {impReturnType, impExternalModule = Identifier wiExternalModule,
+    impExternalFunction = Identifier wiExternalFunction, impImportName,impArgs}) = do
+  args <-
+    traverse
+      ( \(ImportArg {iaName = ident, iaType}) -> do
+          wasmType <- scalarFromType iaType
+          pure (Just ident, wasmType)
+      )
+      impArgs
+
+  wiReturnType <- scalarFromType impReturnType
+
+  pure $ WasmImport {wiName=impImportName,
+        wiArgs = snd <$> args,
+                    wiExternalModule  ,
+                    wiExternalFunction , wiReturnType }
+
 fromFunction ::
   (Show ann) =>
   M.Map FunctionName FromExprFunc ->
+  M.Map FunctionName FromExprImport ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
-fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
+fromFunction funcMap importMap (Function {fnBody, fnArgs, fnFunctionName}) = do
+
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -200,7 +224,7 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
       (fromExpr fnBody)
       ( FromExprState
           { fesVars = args,
-            fesImports = mempty,
+            fesImports = importMap,
             fesFunctions = funcMap
           }
       )
@@ -218,7 +242,9 @@ fromFunction funcMap (Function {fnBody, fnArgs, fnFunctionName}) = do
       }
 
 -- take only the function info we need
-getFunctionMap :: [Function (Type ann)] -> Either FromWasmError (M.Map FunctionName FromExprFunc)
+getFunctionMap :: [Function (Type ann)] ->
+  Either FromWasmError
+    (M.Map FunctionName FromExprFunc)
 getFunctionMap mdFunctions =
   M.fromList
     <$> traverse
@@ -232,19 +258,36 @@ getFunctionMap mdFunctions =
       )
       (zip [0 ..] mdFunctions)
 
+-- take only the function info we need
+getImportMap :: Natural -> [Import (Type ann)] ->
+  Either FromWasmError
+    (M.Map FunctionName FromExprImport)
+getImportMap offset mdImports =
+  M.fromList
+    <$> traverse
+      ( \(i, Import {impImportName}) -> do
+          pure
+            ( impImportName,
+              FromExprImport {feiIndex = i + 1}
+            )
+      )
+      (zip [offset ..] mdImports)
+
+
 fromModule ::
   (Show ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule (Module {mdExpr, mdFunctions}) = do
+fromModule (Module {mdExpr, mdImports,mdFunctions}) = do
   funcMap <- getFunctionMap mdFunctions
+  importMap <- getImportMap (fromIntegral $ length funcMap) mdImports
 
   (expr, fes) <-
     runStateT
       (fromExpr mdExpr)
       ( FromExprState
           { fesVars = mempty,
-            fesImports = mempty,
+            fesImports = importMap,
             fesFunctions = funcMap
           }
       )
@@ -261,8 +304,12 @@ fromModule (Module {mdExpr, mdFunctions}) = do
             wfLocals = snd <$> fesVars fes
           }
 
-  wasmFunctions <- traverse (fromFunction funcMap) mdFunctions
+  wasmFunctions <- traverse (fromFunction funcMap importMap) mdFunctions
+
+  wasmImports <- traverse fromImport mdImports
+
   pure $
     WasmModule
-      { wmFunctions = mainFunction : wasmFunctions
+      { wmFunctions = mainFunction : wasmFunctions,
+        wmImports = wasmImports
       }
