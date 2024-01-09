@@ -69,6 +69,17 @@ test-wasm-calc6:
 run-wasm-calc6:
 	cabal run wasm-calc6
 
+# calculator 7
+
+.PHONY: test-wasm-calc7
+test-wasm-calc7:
+	cabal run wasm-calc7:tests
+
+.PHONY: run-wasm-calc7
+run-wasm-calc7:
+	cabal run wasm-calc7
+
+
 .PHONY: freeze
 freeze:
 	cabal freeze --enable-tests --enable-benchmarks
