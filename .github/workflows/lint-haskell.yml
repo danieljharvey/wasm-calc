@@ -15,14 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - uses: haskell-actions/run-ormolu@v14
-        with:
-          pattern: |
-            wasm-calc/**/*.hs
-            wasm-calc2/**/*.hs
-            wasm-calc3/**/*.hs
-            wasm-calc4/**/*.hs
-            wasm-calc5/**/*.hs
-            wasm-calc6/**/*.hs
 
   hlint:
     runs-on: ubuntu-latest
@@ -37,6 +29,5 @@ jobs:
       - name: "Run HLint"
         uses: rwe/actions-hlint-run@v2
         with:
-          path: '["wasm-calc/", "wasm-calc2/", "wasm-calc3/", "wasm-calc4/", "wasm-calc5/", "wasm-calc6/"]'
           fail-on: warning
 
