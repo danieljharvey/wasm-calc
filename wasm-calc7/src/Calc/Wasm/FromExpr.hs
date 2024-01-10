@@ -242,10 +242,10 @@ fromFunction funcMap importMap (Function {fnBody, fnArgs, fnFunctionName}) = do
       }
 
 -- take only the function info we need
-getFunctionMap :: [Function (Type ann)] ->
+getFunctionMap :: Natural -> [Function (Type ann)] ->
   Either FromWasmError
     (M.Map FunctionName FromExprFunc)
-getFunctionMap mdFunctions =
+getFunctionMap offset mdFunctions =
   M.fromList
     <$> traverse
       ( \(i, Function {fnFunctionName, fnArgs, fnBody}) -> do
@@ -256,13 +256,13 @@ getFunctionMap mdFunctions =
               FromExprFunc {fefIndex = i + 1, fefArgs, fefReturnType}
             )
       )
-      (zip [0 ..] mdFunctions)
+      (zip [offset ..] mdFunctions)
 
 -- take only the function info we need
-getImportMap :: Natural -> [Import (Type ann)] ->
+getImportMap :: [Import (Type ann)] ->
   Either FromWasmError
     (M.Map FunctionName FromExprImport)
-getImportMap offset mdImports =
+getImportMap mdImports =
   M.fromList
     <$> traverse
       ( \(i, Import {impImportName}) -> do
@@ -271,7 +271,7 @@ getImportMap offset mdImports =
               FromExprImport {feiIndex = i + 1}
             )
       )
-      (zip [offset ..] mdImports)
+      (zip [0 ..] mdImports)
 
 
 fromModule ::
@@ -279,8 +279,8 @@ fromModule ::
   Module (Type ann) ->
   Either FromWasmError WasmModule
 fromModule (Module {mdExpr, mdImports,mdFunctions}) = do
-  funcMap <- getFunctionMap mdFunctions
-  importMap <- getImportMap (fromIntegral $ length funcMap) mdImports
+  importMap <- getImportMap mdImports
+  funcMap <- getFunctionMap (fromIntegral $ length importMap) mdFunctions
 
   (expr, fes) <-
     runStateT

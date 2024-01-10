@@ -1,27 +1,27 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
-import Calc.ExprUtils
-import Calc.SourceSpan
-import Calc.TypeUtils
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HS
-import qualified Data.List as List
-import Data.Maybe (catMaybes, mapMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import GHC.Natural
-import qualified Prettyprinter as PP
+import           Calc.ExprUtils
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HS
+import qualified Data.List                 as List
+import           Data.Maybe                (catMaybes, mapMaybe)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import           GHC.Natural
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data TypeError ann
@@ -36,6 +36,7 @@ data TypeError ann
   | AccessingOutsideTupleBounds ann (Type ann) Natural
   | NonBoxedGenericValue ann (Type ann)
   | PatternMismatch (Type ann) (Pattern ann)
+  | CantBindVoidValue (Pattern ann)
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -274,6 +275,23 @@ typeErrorDiagnostic input e =
                 ]
             )
             [Diag.Note "Perhaps try wrapping the value in Box()"]
+        (CantBindVoidValue pat) ->
+          Diag.Err
+            Nothing
+            "Cannot bind a void value to a variable"
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      (getOuterPatternAnnotation pat)
+                    <*> pure
+                      ( Diag.This (prettyPrint "Instead bind this to `_`?")
+                      )
+                ]
+            )
+            [Diag.Note "Perhaps try wrapping the value in Box()"]
+
    in Diag.addReport diag report
 
 -- | becomes "a, b, c, d"

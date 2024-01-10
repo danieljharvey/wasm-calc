@@ -22,6 +22,7 @@ data WasmType
   | I64
   | F64
   | Pointer -- an I64 really
+  | Void
   deriving stock (Eq, Ord, Show)
 
 data WasmModule = WasmModule

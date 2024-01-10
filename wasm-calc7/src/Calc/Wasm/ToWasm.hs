@@ -8,28 +8,33 @@ import           Calc.Types.Prim
 import           Calc.Utils
 import           Calc.Wasm.Allocator
 import           Calc.Wasm.Types
-import           Data.Maybe              (catMaybes)
+import           Data.Maybe              (catMaybes, mapMaybe, maybeToList)
 import qualified Data.Text.Lazy          as TL
+import           Debug.Trace
 import           GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
 mapWithIndex f = fmap f . zip [0 ..]
 
-fromType :: WasmType -> Wasm.ValueType
-fromType I32     = Wasm.I32
-fromType I64     = Wasm.I64
-fromType F64     = Wasm.F64
-fromType Pointer = Wasm.I32
+-- | turn types into wasm types
+-- void won't have a type, hence the Maybe
+fromType :: WasmType -> Maybe Wasm.ValueType
+fromType I32     = Just Wasm.I32
+fromType I64     = Just Wasm.I64
+fromType F64     = Just Wasm.F64
+fromType Pointer = Just Wasm.I32
+fromType Void    = Nothing
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfPublic, wfExpr, wfArgs, wfLocals}) =
   let args = fromType <$> wfArgs
       locals = fromType <$> wfLocals
+      -- if return type is void then drop whatever value we would have had
       addVoid exp' = if wfPublic then exp' <> [Wasm.Drop] else exp'
    in Wasm.Function
         (fromIntegral $ wfIndex + 1)
-        (locals <> args)
+        (catMaybes $ locals <> args) -- we're dropping `Void` rather than erroring, perhaps this is bad
         (addVoid $ toWasm wfExpr)
 
 fromImport :: Int -> WasmImport -> Wasm.Import
@@ -42,12 +47,12 @@ fromImport wfIndex (WasmImport { wiExternalModule, wiExternalFunction }) =
       )
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
-typeFromFunction (WasmFunction {wfPublic, wfArgs, wfReturnType}) =
-  Wasm.FuncType (fromType <$> wfArgs) (if wfPublic then [] else [fromType wfReturnType])
+typeFromFunction (WasmFunction { wfPublic, wfArgs, wfReturnType}) =
+  Wasm.FuncType (mapMaybe fromType wfArgs) (if wfPublic then [] else maybeToList $ fromType wfReturnType)
 
 typeFromImport :: WasmImport -> Wasm.FuncType
 typeFromImport (WasmImport {wiArgs, wiReturnType}) =
-  Wasm.FuncType (fromType <$> wiArgs) [fromType wiReturnType]
+  Wasm.FuncType (mapMaybe fromType wiArgs) (maybeToList $ fromType wiReturnType)
 
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
 exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic = True}) =
@@ -55,6 +60,7 @@ exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
+bitsizeFromType Void    = error "bitsizeFromType Void"
 bitsizeFromType I32     = Wasm.BS32
 bitsizeFromType I64     = Wasm.BS64
 bitsizeFromType F64     = Wasm.BS64
@@ -100,6 +106,7 @@ toWasm (WSet index container items) =
               I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
               I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
               Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
+              Void    -> error "WSet Void"
          in [Wasm.GetLocal index] <> toWasm value <> [storeInstruction]
    in toWasm container
         <> [Wasm.SetLocal index]
@@ -111,15 +118,16 @@ toWasm (WTupleAccess ty tup offset) =
         I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
         I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
         Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
+        Void    -> error "WTupleAccess Void"
    in toWasm tup <> [loadInstruction]
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
 moduleToWasm (WasmModule {wmImports,wmFunctions}) =
-  let functions = mapWithIndex (uncurry fromFunction) wmFunctions
-      offset = length functions
-      imports = uncurry fromImport <$> zip [offset ..] wmImports
-      types = (typeFromFunction <$> wmFunctions) <> (typeFromImport <$> wmImports)
+  let imports = mapWithIndex (uncurry fromImport) wmImports
+      offset = traceShowId $ length imports
+      functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
+      types = (typeFromImport <$> wmImports) <> (typeFromFunction <$> wmFunctions)
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
    in ltrace "module" $ moduleWithAllocator
         { Wasm.types = head (Wasm.types moduleWithAllocator) : types,
@@ -127,7 +135,7 @@ moduleToWasm (WasmModule {wmImports,wmFunctions}) =
           Wasm.tables = mempty,
           Wasm.elems = mempty,
           Wasm.datas = mempty,
-          Wasm.start = Nothing,
+          Wasm.start = Just (Wasm.StartFunction $ fromIntegral offset),
           Wasm.imports = imports,
           Wasm.exports = exports
         }

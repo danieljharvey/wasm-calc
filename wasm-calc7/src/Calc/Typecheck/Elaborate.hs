@@ -267,6 +267,8 @@ inferApply ann fnName args = do
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
+checkPattern (TPrim _ TVoid) pat@(PVar _ _)
+  = throwError (CantBindVoidValue pat)
 checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
 checkPattern ty@(TContainer _ tyItems) (PBox _ a)
   | length tyItems == 1 =
