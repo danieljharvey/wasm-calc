@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DerivingStrategies    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,25 +11,23 @@ module Calc.Repl
   )
 where
 
-import Calc.Linearity
-  ( linearityErrorDiagnostic,
-    validateModule,
-  )
-import Calc.Parser
-import Calc.Parser.Types
-import Calc.Typecheck
-import Calc.Wasm.FromExpr
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
-import Calc.Wasm.Types
-import Control.Monad.IO.Class
-import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Void
-import qualified Error.Diagnose as Diag
-import Error.Diagnose.Compat.Megaparsec
-import qualified Language.Wasm.Interpreter as Wasm
-import System.Console.Haskeline
+import           Calc.Linearity                   (linearityErrorDiagnostic,
+                                                   validateModule)
+import           Calc.Parser
+import           Calc.Parser.Types
+import           Calc.Typecheck
+import           Calc.Wasm.FromExpr
+import           Calc.Wasm.Run
+import           Calc.Wasm.ToWasm
+import           Calc.Wasm.Types
+import           Control.Monad.IO.Class
+import           Data.Text                        (Text)
+import qualified Data.Text                        as T
+import           Data.Void
+import qualified Error.Diagnose                   as Diag
+import           Error.Diagnose.Compat.Megaparsec
+import qualified Language.Wasm.Interpreter        as Wasm
+import           System.Console.Haskeline
 
 instance HasHints Void msg where
   hints _ = mempty
@@ -73,7 +71,7 @@ repl = do
 runWasmModule :: WasmModule -> IO String
 runWasmModule mod' =
   do
-    maybeValues <- runWasm (moduleToWasm mod')
+    maybeValues <- runWasm "main" (moduleToWasm mod')
     case maybeValues of
       Just [Wasm.VI32 i] -> pure $ show i
       Just [Wasm.VI64 i] -> pure $ show i

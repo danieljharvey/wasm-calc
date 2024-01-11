@@ -15,6 +15,7 @@ import           Data.Hashable             (hash)
 import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
 import           Test.Hspec
 
 -- | compile module or spit out error
@@ -36,123 +37,129 @@ compile input =
 testWithInterpreter :: (T.Text, Wasm.Value) -> Spec
 testWithInterpreter (input, result) = it (show input) $ do
   let actualWasmModule = compile input
-  resp <- runWasm actualWasmModule
+  resp <- runWasm "test" actualWasmModule
   resp `shouldBe` Just [result]
 
 -- | output actual WASM files for testing
 -- later this will run them with `wasmtime` and see
 -- what is output to stdout etc
 -- for now we'll run them locally and cross our fingers
-writeTestFiles :: T.Text  -> Spec
-writeTestFiles input  = it (show input) $ do
+writeTestFiles :: T.Text -> Spec
+writeTestFiles input = it (show input) $ do
   let actualWasmModule = compile input
       inputHash = hash input
   -- write module to a file so we can run it with `wasmtime` etc
   liftIO (writeModule ("test/output/" <> show inputHash <> ".wasm") actualWasmModule)
   True `shouldBe` True
 
-joinLines :: [T.Text] -> T.Text
-joinLines = foldr (\a b -> a <> "\n" <> b) ""
-
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
     describe "Test with wasmtime" $ do
       let testVals =
-            [
-              joinLines
-                ["import console.log as consoleLog(number: Integer) -> Void",
-                  "let _ = consoleLog(42); 100"]
+            [ joinLines
+                [ "import console.log as consoleLog(number: Integer) -> Void",
+                  "function main() { let _ = consoleLog(42); 100 }"
+                ]
             ]
 
-      fdescribe "From module" $ do
+      xdescribe "From module" $ do
         traverse_ writeTestFiles testVals
 
-    -- | we need to find a way of testing these whilst making `main` return
+    -- \| we need to find a way of testing these whilst making `main` return
     -- nothing
-    xdescribe "Test with interpreter" $ do
+    fdescribe "Test with interpreter" $ do
+      let asTest str = "function test() { " <> str <> " }"
       let testVals =
-            [ ("42", Wasm.VI64 42),
-              ("(1 + 1)", Wasm.VI64 2),
-              ("1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
-              ("6 * 6", Wasm.VI64 36),
-              ("100 - 1", Wasm.VI64 99),
-              ("100.0 + 1.0", Wasm.VF64 101.0),
-              ("if False then 1 else 2", Wasm.VI64 2),
-              ("if 1 == 1 then 7 else 10", Wasm.VI64 7),
-              ("if 2 == 1 then True else False", Wasm.VI32 0),
-              ("let a = 100; a + 1", Wasm.VI64 101),
-              ( "let dog = 1; let cat = dog + 2; let hat = cat + 3; hat",
+            [ {-(asTest "42", Wasm.VI64 42),
+              (asTest "(1 + 1)", Wasm.VI64 2),
+              (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
+              (asTest "6 * 6", Wasm.VI64 36),
+              (asTest "100 - 1", Wasm.VI64 99),
+              (asTest "100.0 + 1.0", Wasm.VF64 101.0),
+              (asTest "if False then 1 else 2", Wasm.VI64 2),
+              (asTest "if 1 == 1 then 7 else 10", Wasm.VI64 7),
+              (asTest "if 2 == 1 then True else False", Wasm.VI32 0),
+              (asTest "let a = 100; a + 1", Wasm.VI64 101),
+              ( asTest "let dog = 1; let cat = dog + 2; let hat = cat + 3; hat",
                 Wasm.VI64 6
-              ),
+              ),-}
               ( joinLines
                   [ "function one() { 1 }",
                     "function two() { 2 }",
-                    "one() + two()"
+                    asTest "one() + two()"
                   ],
                 Wasm.VI64 3
               ),
-              ( "function increment(a: Integer) { a + 1 } increment(41)",
+              ( joinLines
+                  [ "function increment(a: Integer) { a + 1 }",
+                    asTest "increment(41)"
+                  ],
+                Wasm.VI64 42
+              ) {-,
+              ( joinLines
+                  [ "function sum(a: Integer, b: Integer) { a + b }",
+                    asTest "sum(20,22)"
+                  ],
                 Wasm.VI64 42
               ),
-              ( "function sum(a: Integer, b: Integer) { a + b } sum(20,22)",
-                Wasm.VI64 42
-              ),
-              ( "function inc(a: Integer) { a + 1 } inc(inc(inc(inc(0))))",
+              ( joinLines [
+                  "function inc(a: Integer) { a + 1 }",
+                  asTest "inc(inc(inc(inc(0))))"],
                 Wasm.VI64 4
               ),
-              ( "Box(100).1",
+              ( asTest "Box(100).1",
                 Wasm.VI64 100
               ),
-              ( "Box(Box(100)).1.1",
+              ( asTest "Box(Box(100)).1.1",
                 Wasm.VI64 100
               ),
-              ( "(10,True).2",
+              ( asTest "(10,True).2",
                 Wasm.VI32 1
               ),
               ( joinLines
                   [ "function swapIntAndBool(pair: (Integer, Boolean)) { (pair.2, pair.1) }",
                     "function fst(pair: (Boolean, Integer)) { pair.1 }",
-                    "fst(swapIntAndBool((1,True)))"
+                    asTest "fst(swapIntAndBool((1,True)))"
                   ],
                 Wasm.VI32 1
               ),
               ( joinLines
                   [ "function sumTuple(pair: (Float, Float)) { pair.1 + pair.2 }",
-                    "sumTuple((100.0,200.0))"
+                    asTest "sumTuple((100.0,200.0))"
                   ],
                 Wasm.VF64 300.0
               ),
               ( joinLines
                   [ "function fst(pair: (Integer,Integer)) { pair.1 }",
-                    "fst(((10,2),(3,4)).1)"
+                    asTest "fst(((10,2),(3,4)).1)"
                   ],
                 Wasm.VI64 10
               ),
               ( joinLines
                   [ "function fst<a,b>(pair: (a,b)) { Box(pair.1) }",
-                    "fst((10,2)).1"
+                    asTest "fst((10,2)).1"
                   ],
                 Wasm.VI64 10
               ),
               ( joinLines
                   [ "function pair<a,b>(left: a, right:b) { (left, right) }",
-                    "pair(Box(43),Box(42)).1.1"
+                    asTest "pair(Box(43),Box(42)).1.1"
                   ],
                 Wasm.VI64 43
               ),
               ( joinLines
                   [ "function pair<a,b>(left: a, right: b) { (left, right) }",
-                    "pair(Box(43),Box(42)).2.1"
+                    asTest "pair(Box(43),Box(42)).2.1"
                   ],
                 Wasm.VI64 42
               ),
-              ("let _ = 1; 2", Wasm.VI64 2),
-              ("let Box(a) = Box(42); a", Wasm.VI64 42),
-              ("let Box(a) = Box(1.23); let _ = a; 23", Wasm.VI64 23),
-              ("let (a,b) = (1,2); a + b", Wasm.VI64 3),
-              ("let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
-              ("let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6)
+              (asTest "let _ = 1; 2", Wasm.VI64 2),
+              (asTest "let Box(a) = Box(42); a", Wasm.VI64 42),
+              (asTest "let Box(a) = Box(1.23); let _ = a; 23", Wasm.VI64 23),
+              (asTest "let (a,b) = (1,2); a + b", Wasm.VI64 3),
+              (asTest "let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
+              (asTest "let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6) -}
             ]
 
       describe "From expressions" $ do

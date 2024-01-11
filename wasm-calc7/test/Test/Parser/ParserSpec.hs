@@ -2,16 +2,13 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import           Calc
-import           Data.Foldable      (traverse_)
-import           Data.Functor
+import Calc
+import Data.Foldable (traverse_)
+import Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text          as T
-import           Test.Helpers
-import           Test.Hspec
-
-joinLines :: [T.Text] -> T.Text
-joinLines = foldr (\a b -> a <> "\n" <> b) ""
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 spec :: Spec
 spec = do
@@ -30,14 +27,13 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
     describe "Module" $ do
       let strings =
-            [ ("42", Module {mdFunctions = [], mdImports = [], mdExpr = int 42}),
-              ( "function increment(a: Integer) { a + 1 } 42",
+            [ ( "function increment(a: Integer) { a + 1 }",
                 Module
                   { mdFunctions =
                       [ Function
@@ -54,11 +50,10 @@ spec = do
                             fnGenerics = mempty
                           }
                       ],
-                    mdImports = [],
-                    mdExpr = int 42
+                    mdImports = []
                   }
               ),
-              ( "function increment(a: Integer) { a + 1 } function decrement(a: Integer) { a - 1} 42",
+              ( "function increment(a: Integer) { a + 1 } function decrement(a: Integer) { a - 1}",
                 Module
                   { mdFunctions =
                       [ Function
@@ -88,13 +83,11 @@ spec = do
                             fnGenerics = mempty
                           }
                       ],
-                    mdImports = mempty,
-                    mdExpr = int 42
+                    mdImports = mempty
                   }
               ),
               ( joinLines
-                  [ "import maths.add as add(a: Integer, b:Integer) -> Integer",
-                    "log(100)"
+                  [ "import maths.add as add(a: Integer, b:Integer) -> Integer"
                   ],
                 Module
                   { mdFunctions = [],
@@ -110,8 +103,7 @@ spec = do
                             impExternalModule = "maths",
                             impExternalFunction = "add"
                           }
-                      ],
-                    mdExpr = EApply () "log" [int 100]
+                      ]
                   }
               )
             ]
@@ -120,7 +112,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -176,7 +168,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e         -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -190,7 +182,7 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e              -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -232,7 +224,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 

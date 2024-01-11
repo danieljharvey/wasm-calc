@@ -188,9 +188,13 @@ interpretTupleAccess wholeExpr@(EBox _ innerExpr) index = do
 interpretTupleAccess expr _ = throwError (AccessNonTuple expr)
 
 interpretModule ::
+  FunctionName ->
   Module ann ->
   InterpretM ann (Expr ann)
-interpretModule (Module {mdExpr, mdFunctions}) = do
+interpretModule entryFunctionName (Module {mdFunctions}) = do
   let fnMap = M.fromList $ (\fn -> (fnFunctionName fn, fn)) <$> mdFunctions
-  put (InterpreterState fnMap)
-  interpret mdExpr
+  case M.lookup entryFunctionName fnMap of
+    Just entryFunction -> do
+      put (InterpreterState (M.delete entryFunctionName fnMap))
+      interpret (fnBody entryFunction)
+    Nothing -> error $ "could not find entry function '" <> show entryFunctionName <> "'"

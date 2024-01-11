@@ -14,6 +14,6 @@ data Prim
   deriving stock (Eq, Ord, Show)
 
 instance PP.Pretty Prim where
-  pretty (PInt i)   = PP.pretty i
+  pretty (PInt i) = PP.pretty i
   pretty (PFloat f) = PP.pretty f
-  pretty (PBool b)  = PP.pretty b
+  pretty (PBool b) = PP.pretty b

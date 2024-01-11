@@ -29,20 +29,8 @@ getLinearityAnnotation (Whole ann) = ann
 getLinearityAnnotation (Slice ann _) = ann
 
 validateModule :: (Show ann) => Module (Type ann) -> Either (LinearityError ann) ()
-validateModule (Module {mdFunctions, mdExpr}) =
-  do
-    traverse_ validateFunction mdFunctions
-    validate (getExprUses mdExpr)
-
-getExprUses :: (Show ann) => Expr (Type ann) -> LinearState ann
-getExprUses expr =
-  execState
-    (decorateWithUses expr)
-    ( LinearState
-        { lsUses = mempty,
-          lsVars = mempty
-        }
-    )
+validateModule (Module {mdFunctions}) =
+  traverse_ validateFunction mdFunctions
 
 validateFunction :: (Show ann) => Function (Type ann) -> Either (LinearityError ann) ()
 validateFunction =

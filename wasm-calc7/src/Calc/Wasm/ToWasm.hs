@@ -1,5 +1,5 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
 import           Calc.Types.Expr
@@ -10,7 +10,6 @@ import           Calc.Wasm.Allocator
 import           Calc.Wasm.Types
 import           Data.Maybe              (catMaybes, mapMaybe, maybeToList)
 import qualified Data.Text.Lazy          as TL
-import           Debug.Trace
 import           GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
@@ -35,27 +34,28 @@ fromFunction wfIndex (WasmFunction {wfPublic, wfExpr, wfArgs, wfLocals}) =
    in Wasm.Function
         (fromIntegral $ wfIndex + 1)
         (catMaybes $ locals <> args) -- we're dropping `Void` rather than erroring, perhaps this is bad
-        (addVoid $ toWasm wfExpr)
+        (addVoid $ toWasm $ ltrace "wfExpr" wfExpr)
 
 fromImport :: Int -> WasmImport -> Wasm.Import
-fromImport wfIndex (WasmImport { wiExternalModule, wiExternalFunction }) =
-   Wasm.Import
-     (TL.fromStrict wiExternalModule)
-     (TL.fromStrict wiExternalFunction)
-     (Wasm.ImportFunc
-          (fromIntegral $ wfIndex + 1)
-      )
+fromImport wfIndex (WasmImport {wiExternalModule, wiExternalFunction}) =
+  Wasm.Import
+    (TL.fromStrict wiExternalModule)
+    (TL.fromStrict wiExternalFunction)
+    ( Wasm.ImportFunc
+        (fromIntegral $ wfIndex + 1)
+    )
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
-typeFromFunction (WasmFunction { wfPublic, wfArgs, wfReturnType}) =
+typeFromFunction (WasmFunction {wfPublic, wfArgs, wfReturnType}) =
   Wasm.FuncType (mapMaybe fromType wfArgs) (if wfPublic then [] else maybeToList $ fromType wfReturnType)
 
 typeFromImport :: WasmImport -> Wasm.FuncType
 typeFromImport (WasmImport {wiArgs, wiReturnType}) =
   Wasm.FuncType (mapMaybe fromType wiArgs) (maybeToList $ fromType wiReturnType)
 
+-- for now, export everything
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
-exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName, wfPublic = True}) =
+exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName }) | fnName == "test" =
   Just $ Wasm.Export (TL.fromStrict fnName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
 exportFromFunction _ _ = Nothing
 
@@ -123,19 +123,21 @@ toWasm (WTupleAccess ty tup offset) =
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmImports,wmFunctions}) =
+moduleToWasm (WasmModule {wmImports, wmFunctions}) =
   let imports = mapWithIndex (uncurry fromImport) wmImports
-      offset = traceShowId $ length imports
+      offset = length imports
       functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
-      types = (typeFromImport <$> wmImports) <> (typeFromFunction <$> wmFunctions)
+      importTypes = typeFromImport <$> wmImports
+      functionTypes = typeFromFunction <$> wmFunctions
       exports = catMaybes $ mapWithIndex (uncurry exportFromFunction) wmFunctions
-   in ltrace "module" $ moduleWithAllocator
-        { Wasm.types = head (Wasm.types moduleWithAllocator) : types,
-          Wasm.functions = head (Wasm.functions moduleWithAllocator) : functions,
-          Wasm.tables = mempty,
-          Wasm.elems = mempty,
-          Wasm.datas = mempty,
-          Wasm.start = Just (Wasm.StartFunction $ fromIntegral offset),
-          Wasm.imports = imports,
-          Wasm.exports = exports
-        }
+   in ltrace "module" $
+        moduleWithAllocator
+          { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
+            Wasm.functions = head (Wasm.functions moduleWithAllocator) : functions,
+            Wasm.tables = mempty,
+            Wasm.elems = mempty,
+            Wasm.datas = mempty,
+            Wasm.start = Nothing,
+            Wasm.imports = imports,
+            Wasm.exports = exports
+          }

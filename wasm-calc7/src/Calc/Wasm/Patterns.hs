@@ -1,16 +1,16 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Calc.Wasm.Patterns (patternToPaths, typeFromPath, fromPath) where
 
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.Helpers
-import           Calc.Wasm.Types
-import           Control.Monad.Except
-import qualified Data.List.NonEmpty   as NE
-import qualified Data.Map.Strict      as M
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.Helpers
+import Calc.Wasm.Types
+import Control.Monad.Except
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import GHC.Natural
 
 patternToPaths ::
   Pattern (Type ann) ->
@@ -48,4 +48,4 @@ fromPath wholeExprIndex (PathSelect ty index inner) = do
 
 typeFromPath :: Path ann -> Type ann
 typeFromPath (PathSelect _ _ inner) = typeFromPath inner
-typeFromPath (PathFetch ty)         = ty
+typeFromPath (PathFetch ty) = ty

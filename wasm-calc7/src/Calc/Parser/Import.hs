@@ -1,20 +1,20 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Parser.Import (importParser ) where
+module Calc.Parser.Import (importParser) where
 
-import           Calc.Parser.Identifier
-import           Calc.Parser.Shared
-import           Calc.Parser.Type
-import           Calc.Parser.Types
-import           Calc.Types.Annotation
-import           Calc.Types.Import
-import           Text.Megaparsec
+import Calc.Parser.Identifier
+import Calc.Parser.Shared
+import Calc.Parser.Type
+import Calc.Parser.Types
+import Calc.Types.Annotation
+import Calc.Types.Import
+import Text.Megaparsec
 
 importParser :: Parser (Import Annotation)
 importParser =
   withLocation
-    ( \impAnn (impExternalModule,impExternalFunction, impImportName, impArgs, impReturnType) ->
+    ( \impAnn (impExternalModule, impExternalFunction, impImportName, impArgs, impReturnType) ->
         Import {impAnn, impExternalModule, impExternalFunction, impArgs, impImportName, impReturnType}
     )
     innerParser
@@ -31,7 +31,7 @@ importParser =
       stringLiteral ")"
       stringLiteral "->"
       impReturnType <- typeParser
-      pure (impExternalModule,impExternalFunction, impName, args, impReturnType)
+      pure (impExternalModule, impExternalFunction, impName, args, impReturnType)
 
 argTypeParser :: Parser (ImportArg Annotation)
 argTypeParser = withLocation

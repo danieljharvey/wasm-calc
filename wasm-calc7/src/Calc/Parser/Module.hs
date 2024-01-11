@@ -1,6 +1,5 @@
 module Calc.Parser.Module (moduleParser) where
 
-import Calc.Parser.Expr
 import Calc.Parser.Function
 import Calc.Parser.Import
 import Calc.Parser.Types
@@ -12,5 +11,4 @@ moduleParser :: Parser (Module Annotation)
 moduleParser = do
   imports <- many importParser
   funcs <- many functionParser
-  expr <- exprParser
-  pure $ Module {mdFunctions = funcs, mdExpr = expr, mdImports = imports}
+  pure $ Module {mdFunctions = funcs, mdImports = imports}

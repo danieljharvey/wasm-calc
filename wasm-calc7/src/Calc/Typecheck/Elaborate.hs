@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies  #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,56 +9,59 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Substitute
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Import
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad             (when, zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Functor
-import qualified Data.List                 as List
-import qualified Data.List.NonEmpty        as NE
-import qualified Data.Set                  as S
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Import
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import Calc.Types.Type
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Functor
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
   Module ann ->
   Either (TypeError ann) (Module (Type ann))
-elaborateModule (Module {mdImports, mdFunctions, mdExpr}) =
+elaborateModule (Module {mdImports, mdFunctions}) =
   runTypecheckM (TypecheckEnv mempty mempty) $ do
-    imports <- traverse
-      ( \imp -> do
-          elabImport <- elaborateImport imp
-          storeFunction (impImportName elabImport) mempty (impAnn elabImport)
-          pure elabImport
-      )
-      mdImports
+    imports <-
+      traverse
+        ( \imp -> do
+            elabImport <- elaborateImport imp
+            storeFunction (impImportName elabImport) mempty (impAnn elabImport)
+            pure elabImport
+        )
+        mdImports
 
     fns <-
       traverse
         ( \fn -> do
             elabFn <- elaborateFunction fn
-            storeFunction (fnFunctionName elabFn)
-                  (S.fromList $ fnGenerics fn) (fnAnn elabFn)
+            storeFunction
+              (fnFunctionName elabFn)
+              (S.fromList $ fnGenerics fn)
+              (fnAnn elabFn)
             pure elabFn
         )
         mdFunctions
 
-    elabExpr <- inferAndSubstitute mdExpr
-
-    pure $ Module {mdFunctions = fns,
-      mdImports = imports,
-        mdExpr = elabExpr}
+    pure $
+      Module
+        { mdFunctions = fns,
+          mdImports = imports
+        }
 
 elaborateImport :: Import ann -> TypecheckM ann (Import (Type ann))
 elaborateImport
@@ -172,7 +175,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
@@ -227,7 +230,7 @@ checkApplyArg ty@(TUnificationVar {}) expr = do
   tyExpr <- infer expr
   case getOuterAnnotation tyExpr of
     p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
-    _other     -> check ty expr
+    _other -> check ty expr
 checkApplyArg ty expr = check ty expr
 
 -- | if our return type is polymorphic, our concrete type should not be a
@@ -267,8 +270,8 @@ inferApply ann fnName args = do
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
-checkPattern (TPrim _ TVoid) pat@(PVar _ _)
-  = throwError (CantBindVoidValue pat)
+checkPattern (TPrim _ TVoid) pat@(PVar _ _) =
+  throwError (CantBindVoidValue pat)
 checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
 checkPattern ty@(TContainer _ tyItems) (PBox _ a)
   | length tyItems == 1 =
@@ -331,8 +334,8 @@ infer (EInfix ann op a b) =
   inferInfix ann op a b
 
 typePrimFromPrim :: Prim -> TypePrim
-typePrimFromPrim (PInt _)   = TInt
-typePrimFromPrim (PBool _)  = TBool
+typePrimFromPrim (PInt _) = TInt
+typePrimFromPrim (PBool _) = TBool
 typePrimFromPrim (PFloat _) = TFloat
 
 typeFromPrim :: ann -> Prim -> Type ann

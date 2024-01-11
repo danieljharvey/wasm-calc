@@ -1,22 +1,24 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Control.Monad
-import           Data.Either         (isLeft)
-import           Data.Foldable       (traverse_)
-import qualified Data.List.NonEmpty  as NE
-import           Data.Text           (Text)
-import           Test.Helpers
-import           Test.Hspec
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Control.Monad
+import Data.Either (isLeft)
+import Data.Foldable (traverse_)
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import Data.Text (Text)
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -52,8 +54,15 @@ testSucceedingModule (input, md) =
     case parseModuleAndFormatError input of
       Left e -> error (show e)
       Right parsedMod ->
-        getOuterAnnotation . mdExpr <$> elaborateModule (void parsedMod)
+        getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
           `shouldBe` Right md
+
+-- | find function called 'main'
+getMainFunction :: Module ann -> Function ann
+getMainFunction (Module {mdFunctions}) =
+  case List.find (\fn -> fnFunctionName fn == "main") mdFunctions of
+    Just fn -> fn
+    Nothing -> error "Could not find 'main' function"
 
 testFailingModule :: Text -> Spec
 testFailingModule input =
@@ -86,23 +95,47 @@ spec = do
 
     describe "Module" $ do
       let succeeding =
-            [ ("function ignore() { 1 } 42", tyInt),
-              ( "function increment(a: Integer) { a + 1 } increment(41)",
+            [ ( joinLines
+                  [ "function ignore() { 1 }",
+                    "function main() { 42 }"
+                  ],
                 tyInt
               ),
-              ( "function inc(a: Integer) { a + 1 } function inc2(a: Integer) { inc(a) } inc2(41)",
+              ( joinLines
+                  [ "function increment(a: Integer) { a + 1 }",
+                    "function main() { increment(41) }"
+                  ],
                 tyInt
               ),
-              ( "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) } swapPair((True,1))",
+              ( joinLines
+                  [ "function inc(a: Integer) { a + 1 }",
+                    "function inc2(a: Integer) { inc(a) }",
+                    "function main() {inc2(41) }"
+                  ],
+                tyInt
+              ),
+              ( joinLines
+                  [ "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) }",
+                    "function main() { swapPair((True,1)) }"
+                  ],
                 tyContainer [tyInt, tyBool]
               ),
-              ( "function boxedId<a>(value: a) { value } boxedId(Box(1))",
+              ( joinLines
+                  [ "function boxedId<a>(value: a) { value }",
+                    "function main() {boxedId(Box(1)) }"
+                  ],
                 tyContainer [tyInt]
               ),
-              ( "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 } unboxedReturnFst((Box(1),Box(2)))",
+              ( joinLines
+                  [ "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 }",
+                    "function main() { unboxedReturnFst((Box(1),Box(2))) }"
+                  ],
                 tyContainer [tyInt]
               ),
-              ( "import maths.add as add(a: Integer, b: Integer) -> Integer add(1,2)",
+              ( joinLines
+                  [ "import maths.add as add(a: Integer, b: Integer) -> Integer",
+                    "function main() { add(1,2) }"
+                  ],
                 tyInt
               )
             ]
@@ -110,10 +143,22 @@ spec = do
         traverse_ testSucceedingModule succeeding
 
       let failing =
-            [ "function increment(b: Boolean) { a + 1 } increment(41)",
-              "function usesNonBoxedGeneric<a>(ohno: a) { ohno } usesNonBoxedGeneric(1)",
-              "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 } unboxedReturnFst((1,2))",
-              "import console.log as log(a: Integer) -> Void let a = log(1); a"
+            [ joinLines
+                [ "function increment(b: Boolean) { a + 1 }",
+                  "function main() { increment(41) }"
+                ],
+              joinLines
+                [ "function usesNonBoxedGeneric<a>(ohno: a) { ohno }",
+                  "function main() { usesNonBoxedGeneric(1) }"
+                ],
+              joinLines
+                [ "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 }",
+                  "function main() { unboxedReturnFst((1,2)) }"
+                ],
+              joinLines
+                [ "import console.log as log(a: Integer) -> Void",
+                  "function main() { let a = log(1); a }"
+                ]
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing

@@ -7,6 +7,7 @@ import Control.Monad (void)
 import Data.Foldable (traverse_)
 import Data.Functor (($>))
 import Data.Text (Text)
+import Test.Helpers
 import Test.Hspec
 
 -- | try parsing the input, exploding if it's invalid
@@ -34,7 +35,7 @@ testInterpretModule :: Text -> Either (InterpreterError ()) (Expr ())
 testInterpretModule =
   fmap void -- throw away the `Annotation`s and replace with `()`
     . runInterpreter -- unwrap the InterpretM monad
-    . interpretModule -- run the actual function
+    . interpretModule "test" -- run the actual function
     . unsafeParseModule -- parse the input (and explode if it's invalid)
 
 spec :: Spec
@@ -42,9 +43,19 @@ spec = do
   describe "InterpreterSpec" $ do
     describe "Modules" $ do
       let cases =
-            [ ("1 + 1", "2"),
-              ("function increment(a: Integer) { a + 1 } increment(-11)", "-10"),
-              ("function swap(pair: (Integer,Boolean)) { (pair.2, pair.1) } swap((1,True))", "(True, 1)")
+            [ ("function test() { 1 + 1 }", "2"),
+              ( joinLines
+                  [ "function increment(a: Integer) { a + 1 }",
+                    "function test() { increment(-11) }"
+                  ],
+                "-10"
+              ),
+              ( joinLines
+                  [ "function swap(pair: (Integer,Boolean)) { (pair.2, pair.1) }",
+                    "function test() {swap((1,True)) }"
+                  ],
+                "(True, 1)"
+              )
             ]
       traverse_
         ( \(input, expect) ->

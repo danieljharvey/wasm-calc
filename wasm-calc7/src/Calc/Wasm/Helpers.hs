@@ -1,18 +1,18 @@
 module Calc.Wasm.Helpers (boxed, memorySizeForType, getOffsetList, scalarFromType, memorySize) where
 
-import           Calc.Types.Type
-import           Calc.Wasm.Types
+import Calc.Types.Type
+import Calc.Wasm.Types
 import qualified Data.List.NonEmpty as NE
-import           Data.Monoid
-import           GHC.Natural
+import Data.Monoid
+import GHC.Natural
 
 -- our memory is bits of i32s
 memorySize :: WasmType -> Natural
-memorySize I32     = 8
-memorySize I64     = 16
-memorySize F64     = 16
+memorySize I32 = 8
+memorySize I64 = 16
+memorySize F64 = 16
 memorySize Pointer = memorySize I32
-memorySize Void    = 0
+memorySize Void = 0
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TInt) = pure I64
@@ -66,7 +66,6 @@ memorySizeForType (TPrim _ TBool) =
   memorySize I32
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
-
 memorySizeForType (TContainer _ as) =
   getSum (foldMap (Sum . memorySizeForType) as)
 memorySizeForType (TFunction {}) =

@@ -1,7 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.Helpers
-  ( int,
+  ( joinLines,
+    int,
     bool,
     float,
     box,
@@ -18,6 +20,10 @@ where
 import Calc
 import qualified Data.List.NonEmpty as NE
 import Data.String
+import qualified Data.Text as T
+
+joinLines :: [T.Text] -> T.Text
+joinLines = foldr (\a b -> a <> "\n" <> b) ""
 
 int :: (Monoid ann) => Integer -> Expr ann
 int = EPrim mempty . PInt

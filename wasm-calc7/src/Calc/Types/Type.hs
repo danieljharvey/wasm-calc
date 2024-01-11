@@ -1,22 +1,22 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Type (Type (..), TypePrim (..)) where
 
-import           Calc.Types.TypeVar
+import Calc.Types.TypeVar
 import qualified Data.List.NonEmpty as NE
-import           GHC.Natural
-import qualified Prettyprinter      as PP
+import GHC.Natural
+import qualified Prettyprinter as PP
 
 data TypePrim = TBool | TInt | TFloat | TVoid
   deriving stock (Eq, Ord, Show)
 
 instance PP.Pretty TypePrim where
-  pretty TBool  = "Boolean"
-  pretty TInt   = "Integer"
+  pretty TBool = "Boolean"
+  pretty TInt = "Integer"
   pretty TFloat = "Float"
-  pretty TVoid  = "Void"
+  pretty TVoid = "Void"
 
 -- | resolved types
 data Type ann
