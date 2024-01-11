@@ -2,21 +2,21 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -30,7 +30,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -97,69 +97,69 @@ spec = do
                   ],
                 Wasm.VI64 42
               ) {-,
-              ( joinLines
-                  [ "function sum(a: Integer, b: Integer) { a + b }",
-                    asTest "sum(20,22)"
-                  ],
-                Wasm.VI64 42
-              ),
-              ( joinLines [
-                  "function inc(a: Integer) { a + 1 }",
-                  asTest "inc(inc(inc(inc(0))))"],
-                Wasm.VI64 4
-              ),
-              ( asTest "Box(100).1",
-                Wasm.VI64 100
-              ),
-              ( asTest "Box(Box(100)).1.1",
-                Wasm.VI64 100
-              ),
-              ( asTest "(10,True).2",
-                Wasm.VI32 1
-              ),
-              ( joinLines
-                  [ "function swapIntAndBool(pair: (Integer, Boolean)) { (pair.2, pair.1) }",
-                    "function fst(pair: (Boolean, Integer)) { pair.1 }",
-                    asTest "fst(swapIntAndBool((1,True)))"
-                  ],
-                Wasm.VI32 1
-              ),
-              ( joinLines
-                  [ "function sumTuple(pair: (Float, Float)) { pair.1 + pair.2 }",
-                    asTest "sumTuple((100.0,200.0))"
-                  ],
-                Wasm.VF64 300.0
-              ),
-              ( joinLines
-                  [ "function fst(pair: (Integer,Integer)) { pair.1 }",
-                    asTest "fst(((10,2),(3,4)).1)"
-                  ],
-                Wasm.VI64 10
-              ),
-              ( joinLines
-                  [ "function fst<a,b>(pair: (a,b)) { Box(pair.1) }",
-                    asTest "fst((10,2)).1"
-                  ],
-                Wasm.VI64 10
-              ),
-              ( joinLines
-                  [ "function pair<a,b>(left: a, right:b) { (left, right) }",
-                    asTest "pair(Box(43),Box(42)).1.1"
-                  ],
-                Wasm.VI64 43
-              ),
-              ( joinLines
-                  [ "function pair<a,b>(left: a, right: b) { (left, right) }",
-                    asTest "pair(Box(43),Box(42)).2.1"
-                  ],
-                Wasm.VI64 42
-              ),
-              (asTest "let _ = 1; 2", Wasm.VI64 2),
-              (asTest "let Box(a) = Box(42); a", Wasm.VI64 42),
-              (asTest "let Box(a) = Box(1.23); let _ = a; 23", Wasm.VI64 23),
-              (asTest "let (a,b) = (1,2); a + b", Wasm.VI64 3),
-              (asTest "let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
-              (asTest "let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6) -}
+                ( joinLines
+                    [ "function sum(a: Integer, b: Integer) { a + b }",
+                      asTest "sum(20,22)"
+                    ],
+                  Wasm.VI64 42
+                ),
+                ( joinLines [
+                    "function inc(a: Integer) { a + 1 }",
+                    asTest "inc(inc(inc(inc(0))))"],
+                  Wasm.VI64 4
+                ),
+                ( asTest "Box(100).1",
+                  Wasm.VI64 100
+                ),
+                ( asTest "Box(Box(100)).1.1",
+                  Wasm.VI64 100
+                ),
+                ( asTest "(10,True).2",
+                  Wasm.VI32 1
+                ),
+                ( joinLines
+                    [ "function swapIntAndBool(pair: (Integer, Boolean)) { (pair.2, pair.1) }",
+                      "function fst(pair: (Boolean, Integer)) { pair.1 }",
+                      asTest "fst(swapIntAndBool((1,True)))"
+                    ],
+                  Wasm.VI32 1
+                ),
+                ( joinLines
+                    [ "function sumTuple(pair: (Float, Float)) { pair.1 + pair.2 }",
+                      asTest "sumTuple((100.0,200.0))"
+                    ],
+                  Wasm.VF64 300.0
+                ),
+                ( joinLines
+                    [ "function fst(pair: (Integer,Integer)) { pair.1 }",
+                      asTest "fst(((10,2),(3,4)).1)"
+                    ],
+                  Wasm.VI64 10
+                ),
+                ( joinLines
+                    [ "function fst<a,b>(pair: (a,b)) { Box(pair.1) }",
+                      asTest "fst((10,2)).1"
+                    ],
+                  Wasm.VI64 10
+                ),
+                ( joinLines
+                    [ "function pair<a,b>(left: a, right:b) { (left, right) }",
+                      asTest "pair(Box(43),Box(42)).1.1"
+                    ],
+                  Wasm.VI64 43
+                ),
+                ( joinLines
+                    [ "function pair<a,b>(left: a, right: b) { (left, right) }",
+                      asTest "pair(Box(43),Box(42)).2.1"
+                    ],
+                  Wasm.VI64 42
+                ),
+                (asTest "let _ = 1; 2", Wasm.VI64 2),
+                (asTest "let Box(a) = Box(42); a", Wasm.VI64 42),
+                (asTest "let Box(a) = Box(1.23); let _ = a; 23", Wasm.VI64 23),
+                (asTest "let (a,b) = (1,2); a + b", Wasm.VI64 3),
+                (asTest "let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
+                (asTest "let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6) -}
             ]
 
       describe "From expressions" $ do

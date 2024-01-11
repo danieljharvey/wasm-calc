@@ -2,9 +2,9 @@
 
 module Calc.Wasm.Run (runWasm) where
 
-import           Calc.Utils
-import qualified Data.Text.Lazy            as TL
-import qualified Language.Wasm             as Wasm
+import Calc.Utils
+import qualified Data.Text.Lazy as TL
+import qualified Language.Wasm as Wasm
 import qualified Language.Wasm.Interpreter as Wasm
 
 runWasm :: TL.Text -> Wasm.Module -> IO (Maybe [Wasm.Value])
