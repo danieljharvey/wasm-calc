@@ -1,33 +1,33 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.Helpers
-import Calc.Wasm.Patterns
-import Calc.Wasm.Types
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.Helpers
+import           Calc.Wasm.Patterns
+import           Calc.Wasm.Types
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List            as List
+import qualified Data.List.NonEmpty   as NE
+import qualified Data.Map.Strict      as M
+import           GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesImports :: M.Map FunctionName FromExprImport,
-    fesVars :: [(Maybe Identifier, WasmType)]
+    fesImports   :: M.Map FunctionName FromExprImport,
+    fesVars      :: [(Maybe Identifier, WasmType)]
   }
 
 data FromExprFunc = FromExprFunc
-  { fefIndex :: Natural,
-    fefArgs :: [WasmType],
+  { fefIndex      :: Natural,
+    fefArgs       :: [WasmType],
     fefReturnType :: WasmType
   }
 
@@ -68,7 +68,7 @@ lookupIdent ident = do
       )
   case maybeNat of
     Just (nat, _) -> pure nat
-    Nothing -> throwError $ IdentifierNotFound ident
+    Nothing       -> throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -97,7 +97,9 @@ fromLet ::
 fromLet pat expr rest = do
   let paths = patternToPaths pat id
   if null paths
-    then WSequence <$> fromExpr expr <*> fromExpr rest
+    then do
+      wasmTy <- liftEither $ scalarFromType (getOuterPatternAnnotation pat)
+      WSequence wasmTy <$> fromExpr expr <*> fromExpr rest
     else do
       -- get type of the main expr
       wasmType <- liftEither (scalarFromType (getOuterAnnotation expr))
@@ -283,7 +285,7 @@ getImportMap mdImports =
       ( \(i, Import {impImportName}) -> do
           pure
             ( impImportName,
-              FromExprImport {feiIndex = i + 1}
+              FromExprImport {feiIndex = i }
             )
       )
       (zip [0 ..] mdImports)
@@ -294,7 +296,7 @@ fromModule ::
   Either FromWasmError WasmModule
 fromModule (Module {mdImports, mdFunctions}) = do
   importMap <- getImportMap mdImports
-  funcMap <- getFunctionMap (fromIntegral $ length importMap) mdFunctions
+  funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
 
   wasmFunctions <- traverse (fromFunction funcMap importMap) mdFunctions
 

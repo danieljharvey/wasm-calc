@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Helpers
@@ -17,13 +17,13 @@ module Test.Helpers
   )
 where
 
-import Calc
+import           Calc
 import qualified Data.List.NonEmpty as NE
-import Data.String
-import qualified Data.Text as T
+import           Data.String
+import qualified Data.Text          as T
 
 joinLines :: [T.Text] -> T.Text
-joinLines = foldr (\a b -> a <> "\n" <> b) ""
+joinLines = T.intercalate "\n"
 
 int :: (Monoid ann) => Integer -> Expr ann
 int = EPrim mempty . PInt

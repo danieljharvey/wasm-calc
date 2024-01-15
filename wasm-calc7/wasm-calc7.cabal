@@ -120,8 +120,10 @@ test-suite wasm-calc7-tests
   hs-source-dirs:   test
   hs-source-dirs:   src
   build-depends:
-    , hspec       >=2.8.3 && <3
-    , hspec-core  >=2.8.3 && <3
+    , aeson
+    , hspec          >=2.8.3 && <3
+    , hspec-core     >=2.8.3 && <3
+    , typed-process
 
   main-is:          Main.hs
   default-language: Haskell2010
@@ -130,6 +132,7 @@ test-suite wasm-calc7-tests
     Test.Interpreter.InterpreterSpec
     Test.Linearity.LinearitySpec
     Test.Parser.ParserSpec
+    Test.RunNode
     Test.Typecheck.TypecheckSpec
     Test.Wasm.WasmSpec
 

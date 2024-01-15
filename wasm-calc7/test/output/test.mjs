@@ -1,22 +1,18 @@
 import fs from "fs/promises";
 
-const filename = "./test.wasm" // "./-4597904435544001656.wasm"
+const filename = process.argv[2];
 const wasmBytes = await fs.readFile(filename);
 
 async function go() {
 
   const imports = {
-    console : {
-      log : a => console.log(a, "horse"),
-    },
+    console : {log : console.log},
   };
 
   const {instance} = await WebAssembly.instantiate(wasmBytes, imports);
-  const {main} = instance.exports;
+  const {test} = instance.exports;
 
-  console.log(main)
-
-  return main()
+  return test()
 }
 
-go().then(console.log)
+go()

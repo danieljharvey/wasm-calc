@@ -10,12 +10,12 @@ module Calc.Wasm.Types
   )
 where
 
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Prim
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Prim
+import qualified Data.Text             as T
+import           GHC.Natural
 
 data WasmType
   = I32
@@ -29,25 +29,25 @@ data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports :: [WasmImport]
+    wmImports   :: [WasmImport]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmFunction = WasmFunction
-  { wfName :: FunctionName,
-    wfExpr :: WasmExpr,
-    wfPublic :: Bool,
-    wfArgs :: [WasmType],
+  { wfName       :: FunctionName,
+    wfExpr       :: WasmExpr,
+    wfPublic     :: Bool,
+    wfArgs       :: [WasmType],
     wfReturnType :: WasmType,
-    wfLocals :: [WasmType]
+    wfLocals     :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmImport = WasmImport
-  { wiName :: FunctionName,
-    wiArgs :: [WasmType],
-    wiReturnType :: WasmType,
-    wiExternalModule :: T.Text,
+  { wiName             :: FunctionName,
+    wiArgs             :: [WasmType],
+    wiReturnType       :: WasmType,
+    wiExternalModule   :: T.Text,
     wiExternalFunction :: T.Text
   }
   deriving stock (Eq, Ord, Show)
@@ -56,7 +56,7 @@ data WasmExpr
   = WPrim Prim
   | WInfix WasmType Op WasmExpr WasmExpr
   | WLet Natural WasmExpr WasmExpr
-  | WSequence WasmExpr WasmExpr -- do firsr, return second
+  | WSequence WasmType WasmExpr WasmExpr -- first type, do first, return second
   | WIf WasmExpr WasmExpr WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]

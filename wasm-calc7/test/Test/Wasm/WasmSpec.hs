@@ -2,21 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Wasm
-import Calc.Wasm.FromExpr
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Wasm
+import           Calc.Wasm.FromExpr
+import           Calc.Wasm.Run
+import           Calc.Wasm.ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -30,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e -> error (show e)
+              Left e        -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -44,34 +45,44 @@ testWithInterpreter (input, result) = it (show input) $ do
 -- later this will run them with `wasmtime` and see
 -- what is output to stdout etc
 -- for now we'll run them locally and cross our fingers
-writeTestFiles :: T.Text -> Spec
-writeTestFiles input = it (show input) $ do
+testWithNode :: (T.Text,T.Text) -> Spec
+testWithNode (input, result) = it (show input) $ do
   let actualWasmModule = compile input
       inputHash = hash input
+      wasmFilename = "test/output/" <> show inputHash <> ".wasm"
   -- write module to a file so we can run it with `wasmtime` etc
-  liftIO (writeModule ("test/output/" <> show inputHash <> ".wasm") actualWasmModule)
-  True `shouldBe` True
+  liftIO (writeModule wasmFilename actualWasmModule)
+  -- run node js, get output
+  (success,output) <- runScriptFromFile wasmFilename "test/output/test.mjs"
+  -- check it succeeded
+  success `shouldBe` True
+  output `shouldBe` T.unpack result
 
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
     describe "Test with wasmtime" $ do
       let testVals =
-            [ joinLines
+            [ (joinLines
                 [ "import console.log as consoleLog(number: Integer) -> Void",
-                  "function main() { let _ = consoleLog(42); 100 }"
-                ]
+                  "function test() { let _ = consoleLog(42); 100 }"
+                ], "42n"),
+                (joinLines
+                [ "import console.log as consoleLog(number: Integer) -> Void",
+                  "function test() { let _ = consoleLog(42); let _ = consoleLog(42); 100 }"
+                ], joinLines ["42n","42n"])
+
             ]
 
-      xdescribe "From module" $ do
-        traverse_ writeTestFiles testVals
+      describe "From module" $ do
+        traverse_ testWithNode testVals
 
     -- \| we need to find a way of testing these whilst making `main` return
     -- nothing
-    fdescribe "Test with interpreter" $ do
+    describe "Test with interpreter" $ do
       let asTest str = "function test() { " <> str <> " }"
       let testVals =
-            [ {-(asTest "42", Wasm.VI64 42),
+            [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -83,7 +94,7 @@ spec = do
               (asTest "let a = 100; a + 1", Wasm.VI64 101),
               ( asTest "let dog = 1; let cat = dog + 2; let hat = cat + 3; hat",
                 Wasm.VI64 6
-              ),-}
+              ),
               ( joinLines
                   [ "function one() { 1 }",
                     "function two() { 2 }",
@@ -96,7 +107,7 @@ spec = do
                     asTest "increment(41)"
                   ],
                 Wasm.VI64 42
-              ) {-,
+              ) ,
                 ( joinLines
                     [ "function sum(a: Integer, b: Integer) { a + b }",
                       asTest "sum(20,22)"
@@ -110,7 +121,7 @@ spec = do
                 ),
                 ( asTest "Box(100).1",
                   Wasm.VI64 100
-                ),
+                ) ,
                 ( asTest "Box(Box(100)).1.1",
                   Wasm.VI64 100
                 ),
@@ -159,7 +170,7 @@ spec = do
                 (asTest "let Box(a) = Box(1.23); let _ = a; 23", Wasm.VI64 23),
                 (asTest "let (a,b) = (1,2); a + b", Wasm.VI64 3),
                 (asTest "let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
-                (asTest "let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6) -}
+                (asTest "let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6)
             ]
 
       describe "From expressions" $ do
