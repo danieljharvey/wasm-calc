@@ -64,11 +64,11 @@ spec = do
     describe "Test with wasmtime" $ do
       let testVals =
             [ (joinLines
-                [ "import console.log as consoleLog(number: Integer) -> Void",
+                [ "import console.log as consoleLog(number: Int64) -> Void",
                   "function test() { let _ = consoleLog(42); 100 }"
                 ], "42n"),
                 (joinLines
-                [ "import console.log as consoleLog(number: Integer) -> Void",
+                [ "import console.log as consoleLog(number: Int64) -> Void",
                   "function test() { let _ = consoleLog(42); let _ = consoleLog(42); 100 }"
                 ], joinLines ["42n","42n"])
 
@@ -103,19 +103,19 @@ spec = do
                 Wasm.VI64 3
               ),
               ( joinLines
-                  [ "function increment(a: Integer) { a + 1 }",
+                  [ "function increment(a: Int64) { a + 1 }",
                     asTest "increment(41)"
                   ],
                 Wasm.VI64 42
               ) ,
                 ( joinLines
-                    [ "function sum(a: Integer, b: Integer) { a + b }",
+                    [ "function sum(a: Int64, b: Int64) { a + b }",
                       asTest "sum(20,22)"
                     ],
                   Wasm.VI64 42
                 ),
                 ( joinLines [
-                    "function inc(a: Integer) { a + 1 }",
+                    "function inc(a: Int64) { a + 1 }",
                     asTest "inc(inc(inc(inc(0))))"],
                   Wasm.VI64 4
                 ),
@@ -129,8 +129,8 @@ spec = do
                   Wasm.VI32 1
                 ),
                 ( joinLines
-                    [ "function swapIntAndBool(pair: (Integer, Boolean)) { (pair.2, pair.1) }",
-                      "function fst(pair: (Boolean, Integer)) { pair.1 }",
+                    [ "function swapIntAndBool(pair: (Int64, Boolean)) { (pair.2, pair.1) }",
+                      "function fst(pair: (Boolean, Int64)) { pair.1 }",
                       asTest "fst(swapIntAndBool((1,True)))"
                     ],
                   Wasm.VI32 1
@@ -142,7 +142,7 @@ spec = do
                   Wasm.VF64 300.0
                 ),
                 ( joinLines
-                    [ "function fst(pair: (Integer,Integer)) { pair.1 }",
+                    [ "function fst(pair: (Int64,Int64)) { pair.1 }",
                       asTest "fst(((10,2),(3,4)).1)"
                     ],
                   Wasm.VI64 10

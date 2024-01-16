@@ -2,13 +2,13 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import Calc
-import Data.Foldable (traverse_)
-import Data.Functor
+import           Calc
+import           Data.Foldable      (traverse_)
+import           Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 spec :: Spec
 spec = do
@@ -16,9 +16,9 @@ spec = do
     describe "Type" $ do
       let strings =
             [ ("Boolean", tyBool),
-              ("Integer", tyInt),
+              ("Int64", tyInt64),
               ("Void", TPrim () TVoid),
-              ("(Boolean, Boolean, Integer)", tyContainer [tyBool, tyBool, tyInt]),
+              ("(Boolean, Boolean, Int64)", tyContainer [tyBool, tyBool, tyInt64]),
               ("a", tyVar "a"),
               ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
               ("Box(a)", tyContainer [tyVar "a"])
@@ -27,13 +27,13 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
     describe "Module" $ do
       let strings =
-            [ ( "function increment(a: Integer) { a + 1 }",
+            [ ( "function increment(a: Int64) { a + 1 }",
                 Module
                   { mdFunctions =
                       [ Function
@@ -41,7 +41,7 @@ spec = do
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
-                                    faType = TPrim () TInt,
+                                    faType = tyInt64,
                                     faAnn = ()
                                   }
                               ],
@@ -53,7 +53,7 @@ spec = do
                     mdImports = []
                   }
               ),
-              ( "function increment(a: Integer) { a + 1 } function decrement(a: Integer) { a - 1}",
+              ( "function increment(a: Int64) { a + 1 } function decrement(a: Int64) { a - 1}",
                 Module
                   { mdFunctions =
                       [ Function
@@ -61,7 +61,7 @@ spec = do
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
-                                    faType = TPrim () TInt,
+                                    faType = tyInt64,
                                     faAnn = ()
                                   }
                               ],
@@ -74,7 +74,7 @@ spec = do
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
-                                    faType = TPrim () TInt,
+                                    faType = tyInt64,
                                     faAnn = ()
                                   }
                               ],
@@ -87,7 +87,7 @@ spec = do
                   }
               ),
               ( joinLines
-                  [ "import maths.add as add(a: Integer, b:Integer) -> Integer"
+                  [ "import maths.add as add(a: Int64, b:Int64) -> Int64"
                   ],
                 Module
                   { mdFunctions = [],
@@ -95,11 +95,11 @@ spec = do
                       [ Import
                           { impAnn = (),
                             impArgs =
-                              [ ImportArg {iaAnn = (), iaName = "a", iaType = tyInt},
-                                ImportArg {iaAnn = (), iaName = "b", iaType = tyInt}
+                              [ ImportArg {iaAnn = (), iaName = "a", iaType = tyInt64},
+                                ImportArg {iaAnn = (), iaName = "b", iaType = tyInt64}
                               ],
                             impImportName = "add",
-                            impReturnType = tyInt,
+                            impReturnType = tyInt64,
                             impExternalModule = "maths",
                             impExternalFunction = "add"
                           }
@@ -112,7 +112,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -127,18 +127,18 @@ spec = do
                     fnGenerics = mempty
                   }
               ),
-              ( "function sum (a: Integer, b: Integer) { a + b }",
+              ( "function sum (a: Int64, b: Int64) { a + b }",
                 Function
                   { fnAnn = (),
                     fnArgs =
                       [ FunctionArg
                           { faName = "a",
-                            faType = TPrim () TInt,
+                            faType = tyInt64,
                             faAnn = ()
                           },
                         FunctionArg
                           { faName = "b",
-                            faType = TPrim () TInt,
+                            faType = tyInt64,
                             faAnn = ()
                           }
                       ],
@@ -168,7 +168,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e -> error (T.unpack e)
+              Left e         -> error (T.unpack e)
         )
         strings
 
@@ -182,13 +182,13 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e -> error (T.unpack e)
+              Left e              -> error (T.unpack e)
         )
         strings
 
     describe "Expr" $ do
       let strings =
-            [ ("-1", int (-1)),
+            [ ("-1", int (fromIntegral (-1 :: Integer))),
               ("1 + 2", EInfix () OpAdd (int 1) (int 2)),
               ("True", EPrim () (PBool True)),
               ("False", EPrim () (PBool False)),
@@ -224,7 +224,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -235,6 +235,6 @@ spec = do
             ( EInfix
                 (Location 0 7)
                 OpAdd
-                (EPrim (Location 0 2) (PInt 20))
-                (EPrim (Location 5 7) (PInt 22))
+                (EPrim (Location 0 2) (PInt64 20))
+                (EPrim (Location 5 7) (PInt64 22))
             )

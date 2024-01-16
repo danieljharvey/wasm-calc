@@ -9,8 +9,8 @@ module Test.Helpers
     box,
     var,
     tuple,
-    tyInt,
-    tyFloat,
+    tyInt64,
+    tyFloat64,
     tyBool,
     tyContainer,
     tyVar,
@@ -21,15 +21,16 @@ import           Calc
 import qualified Data.List.NonEmpty as NE
 import           Data.String
 import qualified Data.Text          as T
+import           Data.Word
 
 joinLines :: [T.Text] -> T.Text
 joinLines = T.intercalate "\n"
 
-int :: (Monoid ann) => Integer -> Expr ann
-int = EPrim mempty . PInt
+int :: (Monoid ann) => Word32 -> Expr ann
+int = EPrim mempty . PInt32
 
-float :: (Monoid ann) => Float -> Expr ann
-float = EPrim mempty . PFloat
+float :: (Monoid ann) => Double -> Expr ann
+float = EPrim mempty . PFloat64
 
 bool :: (Monoid ann) => Bool -> Expr ann
 bool = EPrim mempty . PBool
@@ -45,11 +46,11 @@ tuple = \case
   (a : b : rest) -> ETuple mempty a (b NE.:| rest)
   _ -> error "not enough items for tuple"
 
-tyInt :: (Monoid ann) => Type ann
-tyInt = TPrim mempty TInt
+tyInt64 :: (Monoid ann) => Type ann
+tyInt64 = TPrim mempty TInt64
 
-tyFloat :: (Monoid ann) => Type ann
-tyFloat = TPrim mempty TFloat
+tyFloat64 :: (Monoid ann) => Type ann
+tyFloat64 = TPrim mempty TFloat64
 
 tyBool :: (Monoid ann) => Type ann
 tyBool = TPrim mempty TBool

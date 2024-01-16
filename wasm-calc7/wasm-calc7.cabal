@@ -54,7 +54,6 @@ common shared
   other-modules:
     Calc
     Calc.ExprUtils
-    Calc.Interpreter
     Calc.Linearity
     Calc.Linearity.Error
     Calc.Linearity.Types
@@ -129,7 +128,6 @@ test-suite wasm-calc7-tests
   default-language: Haskell2010
   other-modules:
     Test.Helpers
-    Test.Interpreter.InterpreterSpec
     Test.Linearity.LinearitySpec
     Test.Parser.ParserSpec
     Test.RunNode

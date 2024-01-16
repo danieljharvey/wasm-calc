@@ -21,6 +21,7 @@ mapWithIndex f = fmap f . zip [0 ..]
 fromType :: WasmType -> Maybe Wasm.ValueType
 fromType I32     = Just Wasm.I32
 fromType I64     = Just Wasm.I64
+fromType F32     = Just Wasm.F32
 fromType F64     = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
 fromType Void    = Nothing
@@ -61,6 +62,7 @@ bitsizeFromType :: WasmType -> Wasm.BitSize
 bitsizeFromType Void    = error "bitsizeFromType Void"
 bitsizeFromType I32     = Wasm.BS32
 bitsizeFromType I64     = Wasm.BS64
+bitsizeFromType F32     = Wasm.BS32
 bitsizeFromType F64     = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
@@ -75,10 +77,14 @@ instructionFromOp ty OpSubtract  = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
 instructionFromOp ty OpEquals    = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
 
 toWasm :: WasmExpr -> [Wasm.Instruction Natural]
-toWasm (WPrim (PInt i)) =
-  [Wasm.I64Const $ fromIntegral i]
-toWasm (WPrim (PFloat f)) =
-  [Wasm.F64Const $ realToFrac f]
+toWasm (WPrim (PInt32 i)) =
+  [Wasm.I32Const i]
+toWasm (WPrim (PInt64 i)) =
+  [Wasm.I64Const i]
+toWasm (WPrim (PFloat32 f)) =
+  [Wasm.F32Const f]
+toWasm (WPrim (PFloat64 f)) =
+  [Wasm.F64Const f]
 toWasm (WPrim (PBool True)) =
   [Wasm.I32Const 1]
 toWasm (WPrim (PBool False)) =
@@ -102,6 +108,7 @@ toWasm (WAllocate i) =
 toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
         let storeInstruction = case ty of
+              F32     -> Wasm.F32Store (Wasm.MemArg offset 0)
               F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
               I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
               I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
@@ -114,6 +121,7 @@ toWasm (WSet index container items) =
         <> [Wasm.GetLocal index]
 toWasm (WTupleAccess ty tup offset) =
   let loadInstruction = case ty of
+        F32     -> Wasm.F32Load (Wasm.MemArg offset 0)
         F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
         I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
         I32     -> Wasm.I32Load (Wasm.MemArg offset 0)

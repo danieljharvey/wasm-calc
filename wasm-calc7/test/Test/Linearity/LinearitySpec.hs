@@ -2,15 +2,15 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad   (void)
+import           Data.Either     (isRight)
+import           Data.Foldable   (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Text       as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -20,7 +20,7 @@ spec = do
   describe "LinearitySpec" $ do
     describe "getFunctionUses" $ do
       let strings =
-            [ ( "function sum (a: Integer, b: Integer) { a + b }",
+            [ ( "function sum (a: Int64, b: Int64) { a + b }",
                 LinearState
                   { lsVars =
                       M.fromList [("a", (LTPrimitive, ())), ("b", (LTPrimitive, ()))],
@@ -71,10 +71,10 @@ spec = do
     describe "validateFunction" $ do
       describe "expected successes" $ do
         let success =
-              [ "function sum (a: Integer, b: Integer) { a + b }",
+              [ "function sum (a: Int64, b: Int64) { a + b }",
                 "function pair<a,b>(a: a, b: b) { (a,b) }",
                 "function main() { let a = 1; let b = Box(a); b! }",
-                "function addPair(pair: (Integer,Integer)) { let (a,b) = pair; a + b }",
+                "function addPair(pair: (Int64,Int64)) { let (a,b) = pair; a + b }",
                 "function fst<a,b>(pair: (a,b)) { let (a,_) = pair; Box(a) }",
                 "function main() { let _ = 1; 2 }"
               ]
@@ -94,13 +94,13 @@ spec = do
               [ ( "function dontUseA<a,b>(a: a, b: b) { b }",
                   NotUsed () "a"
                 ),
-                ( "function dontUsePrimA(a: Integer, b: Integer) { b }",
+                ( "function dontUsePrimA(a: Int64, b: Int64) { b }",
                   NotUsed () "a"
                 ),
                 ( "function dup<a>(a: a) { (a,a)}",
                   UsedMultipleTimes [(), ()] "a"
                 ),
-                {-( "function twice(pair: (Integer, Integer)) { pair.1 + pair.2 }",
+                {-( "function twice(pair: (Int64, Int64)) { pair.1 + pair.2 }",
                   UsedMultipleTimes "pair"
                 ),-}
                 ( "function withPair<a,b>(pair: (a,b)) { let (a,b) = pair; (a, a, b) }",

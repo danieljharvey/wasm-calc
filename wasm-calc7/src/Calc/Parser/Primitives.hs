@@ -3,29 +3,37 @@
 module Calc.Parser.Primitives
   ( primExprParser,
     primParser,
-    intParser,
+    word64Parser,
+    naturalParser
   )
 where
 
-import Calc.Parser.Shared
-import Calc.Parser.Types
-import Calc.Types.Expr
-import Calc.Types.Prim
-import Control.Applicative
-import Data.Functor (($>))
-import Text.Megaparsec (try)
+import           Calc.Parser.Shared
+import           Calc.Parser.Types
+import           Calc.Types.Expr
+import           Calc.Types.Prim
+import           Control.Applicative
+import           Data.Functor               (($>))
+import           Data.Word
+import           GHC.Natural
+import           Text.Megaparsec            (try)
 import qualified Text.Megaparsec.Char.Lexer as L
 
 ----
 
-intParser :: Parser Integer
-intParser =
+word64Parser :: Parser Word64
+word64Parser =
   L.signed (pure ()) L.decimal
 
 ---
 
-floatParser :: Parser Float
-floatParser =
+naturalParser :: Parser Natural
+naturalParser = L.decimal
+
+---
+
+doubleParser :: Parser Double
+doubleParser =
   L.signed (pure ()) L.float
 
 ---
@@ -48,16 +56,13 @@ primExprParser :: Parser ParserExpr
 primExprParser =
   myLexeme $
     addLocation $
-      try (EPrim mempty . PFloat <$> floatParser)
-        <|> EPrim mempty . PInt <$> intParser
-        <|> EPrim mempty <$> truePrimParser
-        <|> EPrim mempty <$> falsePrimParser
+      EPrim mempty <$> primParser
 
 ----
 
 primParser :: Parser Prim
 primParser =
-  try (PFloat <$> floatParser)
-    <|> PInt <$> intParser
+  try (PFloat64 <$> doubleParser)
+    <|> PInt64 <$> word64Parser
     <|> truePrimParser
     <|> falsePrimParser

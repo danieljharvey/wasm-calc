@@ -7,15 +7,15 @@ module Calc.Parser.Identifier
   )
 where
 
-import Calc.Parser.Shared
-import Calc.Parser.Types
-import Calc.Types
-import Control.Monad
-import qualified Data.Char as Char
-import Data.Set (Set)
-import qualified Data.Set as S
-import Data.Text (Text)
-import Text.Megaparsec
+import           Calc.Parser.Shared
+import           Calc.Parser.Types
+import           Calc.Types
+import           Control.Monad
+import qualified Data.Char          as Char
+import           Data.Set           (Set)
+import qualified Data.Set           as S
+import           Data.Text          (Text)
+import           Text.Megaparsec
 
 protectedNames :: Set Text
 protectedNames =
@@ -35,10 +35,11 @@ filterProtectedNames tx =
 protectedTypeNames :: Set Text
 protectedTypeNames =
   S.fromList
-    [ "Integer",
-      "Float",
+    [ "Int32",
+      "Int64",
+      "Float32",
+      "Float64",
       "Boolean",
-      "Unit",
       "Box"
     ]
 

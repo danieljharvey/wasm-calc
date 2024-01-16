@@ -1,32 +1,32 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
-import Calc.ExprUtils
-import Calc.SourceSpan
-import Calc.TypeUtils
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HS
-import qualified Data.List as List
-import Data.Maybe (catMaybes, mapMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import GHC.Natural
-import qualified Prettyprinter as PP
+import           Calc.ExprUtils
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HS
+import qualified Data.List                 as List
+import           Data.Maybe                (catMaybes, mapMaybe)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import           GHC.Natural
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data TypeError ann
   = PredicateIsNotBoolean ann (Type ann)
-  | InfixTypeMismatch Op [(Type ann, Type ann)]
+  | InfixTypeMismatch Op (Type ann) (Type ann)
   | TypeMismatch (Type ann) (Type ann)
   | VarNotFound ann Identifier (HashSet Identifier)
   | FunctionNotFound ann FunctionName (HashSet FunctionName)
@@ -179,7 +179,7 @@ typeErrorDiagnostic input e =
                 ]
             )
             ["These two values should be of the same type"]
-        (InfixTypeMismatch _op pairs) ->
+        (InfixTypeMismatch _op a b) ->
           let makeThis (expect, actual) =
                 (,)
                   <$> positionFromAnnotation
@@ -192,7 +192,7 @@ typeErrorDiagnostic input e =
            in Diag.Err
                 Nothing
                 "Type mismatch for infix operator"
-                ( List.nub (mapMaybe makeThis pairs)
+                ( List.nub (mapMaybe makeThis [(a,b)])
                 )
                 []
         (AccessingNonTuple ann ty) ->

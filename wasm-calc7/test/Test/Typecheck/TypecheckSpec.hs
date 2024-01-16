@@ -1,24 +1,24 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either         (isLeft)
+import           Data.Foldable       (traverse_)
+import qualified Data.List           as List
+import qualified Data.List.NonEmpty  as NE
+import           Data.Text           (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -78,7 +78,7 @@ spec = do
   describe "TypecheckSpec" $ do
     describe "Function" $ do
       let succeeding =
-            [ ("function one () { 1 }", TFunction () [] tyInt),
+            [ ("function one () { 1 }", TFunction () [] tyInt64),
               ( "function not (bool: Boolean) { if bool then False else True }",
                 TFunction () [tyBool] tyBool
               ),
@@ -99,44 +99,44 @@ spec = do
                   [ "function ignore() { 1 }",
                     "function main() { 42 }"
                   ],
-                tyInt
+                tyInt64
               ),
               ( joinLines
-                  [ "function increment(a: Integer) { a + 1 }",
+                  [ "function increment(a: Int64) { a + 1 }",
                     "function main() { increment(41) }"
                   ],
-                tyInt
+                tyInt64
               ),
               ( joinLines
-                  [ "function inc(a: Integer) { a + 1 }",
-                    "function inc2(a: Integer) { inc(a) }",
+                  [ "function inc(a: Int64) { a + 1 }",
+                    "function inc2(a: Int64) { inc(a) }",
                     "function main() {inc2(41) }"
                   ],
-                tyInt
+                tyInt64
               ),
               ( joinLines
                   [ "function swapPair<a,b>(pair: (a,b)) { (pair.2, pair.1) }",
                     "function main() { swapPair((True,1)) }"
                   ],
-                tyContainer [tyInt, tyBool]
+                tyContainer [tyInt64, tyBool]
               ),
               ( joinLines
                   [ "function boxedId<a>(value: a) { value }",
                     "function main() {boxedId(Box(1)) }"
                   ],
-                tyContainer [tyInt]
+                tyContainer [tyInt64]
               ),
               ( joinLines
                   [ "function unboxedReturnFst<a,b>(pair: (a,b)) { pair.1 }",
                     "function main() { unboxedReturnFst((Box(1),Box(2))) }"
                   ],
-                tyContainer [tyInt]
+                tyContainer [tyInt64]
               ),
               ( joinLines
-                  [ "import maths.add as add(a: Integer, b: Integer) -> Integer",
+                  [ "import maths.add as add(a: Int64, b: Int64) -> Int64",
                     "function main() { add(1,2) }"
                   ],
-                tyInt
+                tyInt64
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -156,7 +156,7 @@ spec = do
                   "function main() { unboxedReturnFst((1,2)) }"
                 ],
               joinLines
-                [ "import console.log as log(a: Integer) -> Void",
+                [ "import console.log as log(a: Int64) -> Void",
                   "function main() { let a = log(1); a }"
                 ]
             ]
@@ -165,38 +165,38 @@ spec = do
 
     describe "Expr" $ do
       let succeeding =
-            [ ("42", "Integer"),
+            [ ("42", "Int64"),
               ("True", "Boolean"),
-              ("1 + 1", "Integer"),
-              ("6 * 9", "Integer"),
-              ("1 - 10", "Integer"),
+              ("1 + 1", "Int64"),
+              ("6 * 9", "Int64"),
+              ("1 - 10", "Int64"),
               ("2 == 2", "Boolean"),
-              ("1.0 + 2.0", "Float"),
-              ("10.0 * 10.0", "Float"),
-              ("if True then 1 else 2", "Integer"),
+              ("1.0 + 2.0", "Float64"),
+              ("10.0 * 10.0", "Float64"),
+              ("if True then 1 else 2", "Int64"),
               ("if False then True else False", "Boolean"),
-              ("(1,2,True)", "(Integer,Integer,Boolean)"),
-              ("(1,2,3).2", "Integer"),
-              ("Box(1)", "Box(Integer)"),
-              ("Box(1).1", "Integer"),
-              ("let a = 100; a", "Integer"),
-              ("let (a,b) = (1,2); a + b", "Integer")
+              ("(1,2,True)", "(Int64,Int64,Boolean)"),
+              ("(1,2,3).2", "Int64"),
+              ("Box(1)", "Box(Int64)"),
+              ("Box(1).1", "Int64"),
+              ("let a = 100; a", "Int64"),
+              ("let (a,b) = (1,2); a + b", "Int64")
             ]
 
       describe "Successfully typechecking expressions" $ do
         traverse_ testTypecheck succeeding
 
       let failing =
-            [ ("if 1 then 1 else 2", PredicateIsNotBoolean () tyInt),
-              ("if True then 1 else True", TypeMismatch tyInt tyBool),
-              ("1 + 1.0", InfixTypeMismatch OpAdd [(tyInt, tyFloat)]),
-              ("1 + True", InfixTypeMismatch OpAdd [(tyInt, tyBool)]),
-              ("True + False", InfixTypeMismatch OpAdd [(tyInt, tyBool), (tyInt, tyBool)]),
-              ("1 * False", InfixTypeMismatch OpMultiply [(TPrim () TInt, TPrim () TBool)]),
-              ("True - 1", InfixTypeMismatch OpSubtract [(TPrim () TInt, TPrim () TBool)]),
+            [ ("if 1 then 1 else 2", PredicateIsNotBoolean () tyInt64),
+              ("if True then 1 else True", TypeMismatch tyInt64 tyBool),
+              ("1 + 1.0", InfixTypeMismatch OpAdd tyInt64 tyFloat64),
+              ("1 + True", InfixTypeMismatch OpAdd tyInt64 tyBool),
+              ("True + False", InfixTypeMismatch OpAdd tyBool tyBool),
+              ("1 * False", InfixTypeMismatch OpMultiply tyInt64 tyBool),
+              ("True - 1", InfixTypeMismatch OpSubtract tyBool tyInt64 ),
               ( "let (a,b) = 1; a + b",
                 PatternMismatch
-                  tyInt
+                  tyInt64
                   ( PTuple
                       ()
                       (PVar () "a")
@@ -205,7 +205,7 @@ spec = do
               ),
               ( "let (a,b,c) = (1,2); a + b",
                 PatternMismatch
-                  (tyContainer [tyInt, tyInt])
+                  (tyContainer [tyInt64, tyInt64])
                   ( PTuple
                       ()
                       (PVar () "a")
