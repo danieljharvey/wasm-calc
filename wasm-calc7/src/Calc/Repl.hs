@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DerivingStrategies    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,25 +11,23 @@ module Calc.Repl
   )
 where
 
-import Calc.Linearity
-  ( linearityErrorDiagnostic,
-    validateModule,
-  )
-import Calc.Parser
-import Calc.Parser.Types
-import Calc.Typecheck
-import Calc.Wasm.FromExpr
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
-import Calc.Wasm.Types
-import Control.Monad.IO.Class
-import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Void
-import qualified Error.Diagnose as Diag
-import Error.Diagnose.Compat.Megaparsec
-import qualified Language.Wasm.Interpreter as Wasm
-import System.Console.Haskeline
+import           Calc.Linearity                   (linearityErrorDiagnostic,
+                                                   validateModule)
+import           Calc.Parser
+import           Calc.Parser.Types
+import           Calc.Typecheck
+import           Calc.Wasm.FromExpr
+import           Calc.Wasm.Run
+import           Calc.Wasm.ToWasm
+import           Calc.Wasm.Types
+import           Control.Monad.IO.Class
+import           Data.Text                        (Text)
+import qualified Data.Text                        as T
+import           Data.Void
+import qualified Error.Diagnose                   as Diag
+import           Error.Diagnose.Compat.Megaparsec
+import qualified Language.Wasm.Interpreter        as Wasm
+import           System.Console.Haskeline
 
 instance HasHints Void msg where
   hints _ = mempty
@@ -47,7 +45,7 @@ repl = do
         Nothing -> return ()
         Just ":quit" -> return ()
         Just input -> do
-          case parseModule (T.pack input) of
+          case parseModule (wrapInputInFunction $ T.pack input) of
             Left bundle -> do
               printDiagnostic (fromErrorBundle bundle input)
               loop
@@ -69,6 +67,13 @@ repl = do
                         resp <- liftIO $ runWasmModule wasmMod
                         liftIO $ putStrLn resp
                         loop
+
+-- if input does not include `function`, wrap it in
+-- `function main() { <input> }`
+wrapInputInFunction :: Text -> Text
+wrapInputInFunction input = if T.isInfixOf "function" input
+                                then input
+                                else "function main() { " <> input <> " } "
 
 runWasmModule :: WasmModule -> IO String
 runWasmModule mod' =

@@ -27,7 +27,7 @@ fromType Pointer = Just Wasm.I32
 fromType Void    = Nothing
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
-fromFunction wfIndex (WasmFunction { wfExpr, wfArgs, wfLocals}) =
+fromFunction wfIndex (WasmFunction {wfExpr, wfArgs, wfLocals}) =
   let args = fromType <$> wfArgs
       locals = fromType <$> wfLocals
    in Wasm.Function
@@ -40,12 +40,13 @@ fromImport wfIndex (WasmImport {wiExternalModule, wiExternalFunction}) =
   Wasm.Import
     (TL.fromStrict wiExternalModule)
     (TL.fromStrict wiExternalFunction)
-    ( Wasm.ImportFunc $ fromIntegral wfIndex )
+    (Wasm.ImportFunc $ fromIntegral wfIndex)
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
 typeFromFunction (WasmFunction {wfPublic, wfArgs, wfReturnType}) =
-  Wasm.FuncType (mapMaybe fromType wfArgs)
-      (if wfPublic then [] else maybeToList $ fromType wfReturnType)
+  Wasm.FuncType
+    (mapMaybe fromType wfArgs)
+    (if wfPublic then [] else maybeToList $ fromType wfReturnType)
 
 typeFromImport :: WasmImport -> Wasm.FuncType
 typeFromImport (WasmImport {wiArgs, wiReturnType}) =
@@ -54,7 +55,7 @@ typeFromImport (WasmImport {wiArgs, wiReturnType}) =
 -- for now, export everything
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
 exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName})
-  | fnName == "test" =
+  | fnName == "test" || fnName == "main" =
       Just $ Wasm.Export (TL.fromStrict fnName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
 exportFromFunction _ _ = Nothing
 
@@ -101,7 +102,7 @@ toWasm (WIf predExpr thenExpr elseExpr) =
   toWasm thenExpr <> toWasm elseExpr <> toWasm predExpr <> [Wasm.Select]
 toWasm (WVar i) = [Wasm.GetLocal i]
 toWasm (WApply fnIndex args) =
-  foldMap toWasm args <> [Wasm.Call fnIndex ]
+  foldMap toWasm args <> [Wasm.Call fnIndex]
 toWasm (WAllocate i) =
   [Wasm.I32Const (fromIntegral i), Wasm.Call 0]
 -- we need to store the return value so we can refer to it in multiple places
@@ -130,9 +131,9 @@ toWasm (WTupleAccess ty tup offset) =
    in toWasm tup <> [loadInstruction]
 
 allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function
-allocatorFunction offset mod'
-  = let (Wasm.Function _ a b) = head (Wasm.functions mod')
-    in Wasm.Function offset a b
+allocatorFunction offset mod' =
+  let (Wasm.Function _ a b) = head (Wasm.functions mod')
+   in Wasm.Function offset a b
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
@@ -143,14 +144,13 @@ moduleToWasm (WasmModule {wmImports, wmFunctions}) =
       importTypes = typeFromImport <$> wmImports
       functionTypes = typeFromFunction <$> wmFunctions
       exports = mapMaybe (uncurry exportFromFunction) (zip [offset ..] wmFunctions)
-   in
-        moduleWithAllocator
-          { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
-            Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
-            Wasm.tables = mempty,
-            Wasm.elems = mempty,
-            Wasm.datas = mempty,
-            Wasm.start = Nothing,
-            Wasm.imports = imports,
-            Wasm.exports = exports
-          }
+   in moduleWithAllocator
+        { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
+          Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
+          Wasm.tables = mempty,
+          Wasm.elems = mempty,
+          Wasm.datas = mempty,
+          Wasm.start = Nothing,
+          Wasm.imports = imports,
+          Wasm.exports = exports
+        }

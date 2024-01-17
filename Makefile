@@ -77,7 +77,7 @@ test-wasm-calc7:
 
 .PHONY: run-wasm-calc7
 run-wasm-calc7:
-	cabal run wasm-calc7
+	cabal run wasm-calc7 -- repl
 
 
 .PHONY: freeze

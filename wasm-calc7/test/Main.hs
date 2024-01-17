@@ -1,6 +1,6 @@
 module Main (main) where
 
-import           Test.Hspec
+import Test.Hspec
 import qualified Test.Linearity.LinearitySpec
 import qualified Test.Parser.ParserSpec
 import qualified Test.Typecheck.TypecheckSpec

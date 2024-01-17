@@ -2,18 +2,18 @@
 
 module Calc.Parser.Expr (exprParser) where
 
-import           Calc.Parser.Identifier
-import           Calc.Parser.Pattern
-import           Calc.Parser.Primitives
-import           Calc.Parser.Shared
-import           Calc.Parser.Types
-import           Calc.Types.Annotation
-import           Calc.Types.Expr
-import           Control.Monad.Combinators.Expr
-import           Data.Foldable                  (foldl')
-import qualified Data.List.NonEmpty             as NE
-import qualified Data.Text                      as T
-import           Text.Megaparsec
+import Calc.Parser.Identifier
+import Calc.Parser.Pattern
+import Calc.Parser.Primitives
+import Calc.Parser.Shared
+import Calc.Parser.Types
+import Calc.Types.Annotation
+import Calc.Types.Expr
+import Control.Monad.Combinators.Expr
+import Data.Foldable (foldl')
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
+import Text.Megaparsec
 
 exprParser :: Parser (Expr Annotation)
 exprParser = addLocation (makeExprParser exprPart table) <?> "expression"
@@ -80,7 +80,7 @@ tupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepBy1 exprParser (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _       -> fail "Expected at least two items in a tuple"
+      _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 
@@ -102,8 +102,7 @@ unboxParser =
 
 containerAccessParser :: Parser (Expr Annotation)
 containerAccessParser =
-  let
-      tupParser :: Parser (Expr Annotation)
+  let tupParser :: Parser (Expr Annotation)
       tupParser =
         try tupleParser
           <|> try applyParser
@@ -113,7 +112,10 @@ containerAccessParser =
         addLocation $ do
           tup <- tupParser
           _ <- stringLiteral "."
-          accesses <- sepBy1 naturalParser (stringLiteral ".")
+          accesses <-
+            sepBy1
+              (myLexeme naturalParser)
+              (stringLiteral ".")
           pure $
             foldl'
               ( EContainerAccess mempty

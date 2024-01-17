@@ -1,21 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.RunNode
-  (
-    runScriptFromFile,
+  ( runScriptFromFile,
     lbsToString,
     withCache,
   )
 where
 
-import           Control.Exception
-import           Control.Monad.IO.Class
-import qualified Data.Aeson             as JSON
-import qualified Data.ByteString.Lazy   as LBS
-import qualified Data.Text              as T
-import           Data.Text.Encoding     (decodeUtf8)
-import           System.Exit
-import           System.Process.Typed
+import Control.Exception
+import Control.Monad.IO.Class
+import qualified Data.Aeson as JSON
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
+import Data.Text.Encoding (decodeUtf8)
+import System.Exit
+import System.Process.Typed
 
 runProcessFromFile :: (MonadIO m) => String -> [String] -> String -> m (Bool, String)
 runProcessFromFile binaryName args filename = do
@@ -35,7 +34,7 @@ runScriptFromFile path arg = runProcessFromFile "node" [arg] path
 
 exitCodeToBool :: ExitCode -> Bool
 exitCodeToBool ExitSuccess = True
-exitCodeToBool _           = False
+exitCodeToBool _ = False
 
 cacheResult :: (MonadIO m, JSON.ToJSON a) => String -> a -> m ()
 cacheResult filename result = do

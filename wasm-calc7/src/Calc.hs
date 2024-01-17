@@ -7,8 +7,8 @@ module Calc
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.Repl
-import           Calc.Types
-import           Calc.Wasm
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.Repl
+import Calc.Types
+import Calc.Wasm

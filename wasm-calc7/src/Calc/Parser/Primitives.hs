@@ -4,19 +4,19 @@ module Calc.Parser.Primitives
   ( primExprParser,
     primParser,
     word64Parser,
-    naturalParser
+    naturalParser,
   )
 where
 
-import           Calc.Parser.Shared
-import           Calc.Parser.Types
-import           Calc.Types.Expr
-import           Calc.Types.Prim
-import           Control.Applicative
-import           Data.Functor               (($>))
-import           Data.Word
-import           GHC.Natural
-import           Text.Megaparsec            (try)
+import Calc.Parser.Shared
+import Calc.Parser.Types
+import Calc.Types.Expr
+import Calc.Types.Prim
+import Control.Applicative
+import Data.Functor (($>))
+import Data.Word
+import GHC.Natural
+import Text.Megaparsec (try)
 import qualified Text.Megaparsec.Char.Lexer as L
 
 ----

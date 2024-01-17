@@ -150,6 +150,7 @@ executable wasm-calc7
     , haskeline
     , megaparsec
     , mtl
+    , optparse-applicative
     , parser-combinators
     , prettyprinter
     , process
