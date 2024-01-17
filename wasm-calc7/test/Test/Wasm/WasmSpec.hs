@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -56,37 +56,9 @@ testWithNode (input, result) = it (show input) $ do
   -- check it succeeded
   success `shouldBe` True
 
--- | output static wasm file for testing with browser
-testManually :: T.Text -> Spec
-testManually input = it (show input) $ do
-  let actualWasmModule = compile input
-      wasmFilename = "test/output/draw.wasm"
-  -- write module to a file so we can run it with `wasmtime` etc
-  liftIO (writeModule wasmFilename actualWasmModule)
-  True `shouldBe` True
-
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
-    describe "Test manually" $ do
-      let testVals =
-            [ joinLines
-                [ "import imports.draw as draw(x: Int64, y: Int64, r: Int64, g: Int64, b: Int64) -> Void",
-                  "function test(index: Int64) {",
-                  "let r = index * 2;",
-                  "let g = 255 - r;",
-                  "let b = r * 2;",
-                  "let _ = draw(index * 2, index * 3,r,g,b);",
-                  "let _ = draw(index * 3, index * 2,r,g,b);",
-                  "let _ = draw(index, index * 3,r,g,b);",
-                  "draw(index * 2, index * 3,r,g,b)",
-                  "}"
-                ]
-            ]
-
-      describe "From module" $ do
-        traverse_ testManually testVals
-
     describe "Test with node" $ do
       let testVals =
             [ ( joinLines

@@ -53,6 +53,7 @@ common shared
 
   other-modules:
     Calc
+    Calc.Build
     Calc.ExprUtils
     Calc.Linearity
     Calc.Linearity.Error
@@ -86,6 +87,7 @@ common shared
     Calc.Types.Identifier
     Calc.Types.Import
     Calc.Types.Module
+    Calc.Types.Op
     Calc.Types.Pattern
     Calc.Types.Prim
     Calc.Types.Type

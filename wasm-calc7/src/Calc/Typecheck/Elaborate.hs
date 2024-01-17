@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DerivingStrategies  #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,26 +9,27 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import Calc.ExprUtils
-import Calc.TypeUtils
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Substitute
-import Calc.Typecheck.Types
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Import
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Prim
-import Calc.Types.Type
-import Control.Monad (when, zipWithM)
-import Control.Monad.Except
-import Control.Monad.State
-import Data.Functor
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Substitute
+import           Calc.Typecheck.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Import
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Prim
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad             (when, zipWithM)
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Functor
+import qualified Data.List                 as List
+import qualified Data.List.NonEmpty        as NE
+import qualified Data.Set                  as S
 
 elaborateModule ::
   forall ann.
@@ -175,18 +176,19 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
 
-inferInfix ::
+-- | any infix which is basically `a -> a -> Bool`
+inferComparisonOperator ::
   ann ->
   Op ->
   Expr ann ->
   Expr ann ->
   TypecheckM ann (Expr (Type ann))
-inferInfix ann OpEquals a b = do
+inferComparisonOperator ann op a b = do
   elabA <- infer a
   elabB <- infer b
   ty <- case (getOuterAnnotation elabA, getOuterAnnotation elabB) of
@@ -197,7 +199,24 @@ inferInfix ann OpEquals a b = do
     (otherA, otherB) ->
       -- otherwise, error!
       throwError (TypeMismatch otherA otherB)
-  pure (EInfix ty OpEquals elabA elabB)
+  pure (EInfix ty op elabA elabB)
+
+inferInfix ::
+  ann ->
+  Op ->
+  Expr ann ->
+  Expr ann ->
+  TypecheckM ann (Expr (Type ann))
+inferInfix ann OpEquals a b =
+  inferComparisonOperator ann OpEquals a b
+inferInfix ann OpGreaterThan a b =
+  inferComparisonOperator ann OpGreaterThan a b
+inferInfix ann OpGreaterThanOrEqualTo a b =
+  inferComparisonOperator ann OpGreaterThanOrEqualTo a b
+inferInfix ann OpLessThan a b =
+  inferComparisonOperator ann OpLessThan a b
+inferInfix ann OpLessThanOrEqualTo a b =
+  inferComparisonOperator ann OpLessThanOrEqualTo a b
 inferInfix ann op a b = do
   elabA <- infer a
   elabB <- infer b
@@ -225,7 +244,7 @@ checkApplyArg ty@(TUnificationVar {}) expr = do
   tyExpr <- infer expr
   case getOuterAnnotation tyExpr of
     p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
-    _other -> check ty expr
+    _other     -> check ty expr
 checkApplyArg ty expr = check ty expr
 
 -- | if our return type is polymorphic, our concrete type should not be a
@@ -329,9 +348,9 @@ infer (EInfix ann op a b) =
   inferInfix ann op a b
 
 typePrimFromPrim :: Prim -> TypePrim
-typePrimFromPrim (PBool _) = TBool
-typePrimFromPrim (PInt32 _) = TInt32
-typePrimFromPrim (PInt64 _) = TInt64
+typePrimFromPrim (PBool _)    = TBool
+typePrimFromPrim (PInt32 _)   = TInt32
+typePrimFromPrim (PInt64 _)   = TInt64
 typePrimFromPrim (PFloat32 _) = TFloat32
 typePrimFromPrim (PFloat64 _) = TFloat64
 

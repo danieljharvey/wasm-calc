@@ -3,8 +3,8 @@
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import           Calc.Types.Expr
 import           Calc.Types.FunctionName
+import           Calc.Types.Op
 import           Calc.Types.Prim
 import           Calc.Wasm.Allocator
 import           Calc.Wasm.Types
@@ -67,15 +67,48 @@ bitsizeFromType F32     = Wasm.BS32
 bitsizeFromType F64     = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
+typeIsFloat :: WasmType -> Bool
+typeIsFloat F32 = True
+typeIsFloat F64 = True
+typeIsFloat _   = False
+
 instructionFromOp :: WasmType -> Op -> Wasm.Instruction Natural
-instructionFromOp F64 OpAdd      = Wasm.FBinOp (bitsizeFromType F64) Wasm.FAdd
-instructionFromOp F64 OpMultiply = Wasm.FBinOp (bitsizeFromType F64) Wasm.FMul
-instructionFromOp F64 OpSubtract = Wasm.FBinOp (bitsizeFromType F64) Wasm.FSub
-instructionFromOp F64 OpEquals   = Wasm.FRelOp (bitsizeFromType F64) Wasm.FEq
-instructionFromOp ty OpAdd       = Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
-instructionFromOp ty OpMultiply  = Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
-instructionFromOp ty OpSubtract  = Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
-instructionFromOp ty OpEquals    = Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
+instructionFromOp ty OpAdd =
+  if typeIsFloat ty
+    then Wasm.FBinOp (bitsizeFromType ty) Wasm.FAdd
+    else Wasm.IBinOp (bitsizeFromType ty) Wasm.IAdd
+instructionFromOp ty OpMultiply =
+  if typeIsFloat ty
+    then Wasm.FBinOp (bitsizeFromType ty) Wasm.FMul
+    else Wasm.IBinOp (bitsizeFromType ty) Wasm.IMul
+instructionFromOp ty OpSubtract =
+  if typeIsFloat ty
+    then Wasm.FBinOp (bitsizeFromType ty) Wasm.FSub
+    else Wasm.IBinOp (bitsizeFromType ty) Wasm.ISub
+instructionFromOp ty OpEquals =
+  if typeIsFloat ty
+    then Wasm.FRelOp (bitsizeFromType ty) Wasm.FEq
+    else Wasm.IRelOp (bitsizeFromType ty) Wasm.IEq
+instructionFromOp ty OpGreaterThan =
+  if typeIsFloat ty
+    then Wasm.FRelOp (bitsizeFromType ty) Wasm.FGt
+    else Wasm.IRelOp (bitsizeFromType ty) Wasm.IGtS
+instructionFromOp ty OpGreaterThanOrEqualTo =
+  if typeIsFloat ty
+    then Wasm.FRelOp (bitsizeFromType ty) Wasm.FGe
+    else Wasm.IRelOp (bitsizeFromType ty) Wasm.IGeS
+instructionFromOp ty OpLessThan =
+  if typeIsFloat ty
+    then Wasm.FRelOp (bitsizeFromType ty) Wasm.FLt
+    else Wasm.IRelOp (bitsizeFromType ty) Wasm.ILtS
+instructionFromOp ty OpLessThanOrEqualTo =
+  if typeIsFloat ty
+    then Wasm.FRelOp (bitsizeFromType ty) Wasm.FLe
+    else Wasm.IRelOp (bitsizeFromType ty) Wasm.ILeS
+
+
+
+
 
 toWasm :: WasmExpr -> [Wasm.Instruction Natural]
 toWasm (WPrim (PInt32 i)) =

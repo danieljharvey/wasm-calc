@@ -8,9 +8,9 @@ import Calc.ExprUtils
 import Calc.SourceSpan
 import Calc.TypeUtils
 import Calc.Types.Annotation
-import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
+import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Type
 import Data.HashSet (HashSet)

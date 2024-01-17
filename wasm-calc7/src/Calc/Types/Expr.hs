@@ -2,10 +2,11 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Types.Expr (Expr (..), Op (..)) where
+module Calc.Types.Expr (Expr (..)) where
 
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
+import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
 import qualified Data.List.NonEmpty as NE
@@ -59,17 +60,3 @@ instance PP.Pretty (Expr ann) where
     PP.pretty tup <> "." <> PP.pretty nat
   pretty (EBox _ inner) =
     "Box(" <> PP.pretty inner <> ")"
-
-data Op
-  = OpAdd
-  | OpMultiply
-  | OpSubtract
-  | OpEquals
-  deriving stock (Eq, Ord, Show)
-
--- how to print `Op` values
-instance PP.Pretty Op where
-  pretty OpAdd = "+"
-  pretty OpMultiply = "*"
-  pretty OpSubtract = "-"
-  pretty OpEquals = "=="

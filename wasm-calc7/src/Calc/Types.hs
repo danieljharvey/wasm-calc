@@ -1,5 +1,6 @@
 module Calc.Types
   ( module Calc.Types.Annotation,
+    module Calc.Types.Op,
     module Calc.Types.Identifier,
     module Calc.Types.Import,
     module Calc.Types.Expr,
@@ -18,6 +19,7 @@ import Calc.Types.Function
 import Calc.Types.Identifier
 import Calc.Types.Import
 import Calc.Types.Module
+import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type

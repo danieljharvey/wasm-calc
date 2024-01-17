@@ -10,9 +10,9 @@ module Calc.Wasm.Types
   )
 where
 
-import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Identifier
+import Calc.Types.Op
 import Calc.Types.Prim
 import qualified Data.Text as T
 import GHC.Natural
