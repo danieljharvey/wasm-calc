@@ -43,10 +43,10 @@ fromImport wfIndex (WasmImport {wiExternalModule, wiExternalFunction}) =
     (Wasm.ImportFunc $ fromIntegral wfIndex)
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
-typeFromFunction (WasmFunction {wfPublic, wfArgs, wfReturnType}) =
+typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
   Wasm.FuncType
     (mapMaybe fromType wfArgs)
-    (if wfPublic then [] else maybeToList $ fromType wfReturnType)
+    (maybeToList $ fromType wfReturnType)
 
 typeFromImport :: WasmImport -> Wasm.FuncType
 typeFromImport (WasmImport {wiArgs, wiReturnType}) =
@@ -54,9 +54,8 @@ typeFromImport (WasmImport {wiArgs, wiReturnType}) =
 
 -- for now, export everything
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
-exportFromFunction wfIndex (WasmFunction {wfName = FunctionName fnName})
-  | fnName == "test" || fnName == "main" =
-      Just $ Wasm.Export (TL.fromStrict fnName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
+exportFromFunction wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic = True}) =
+  Just $ Wasm.Export (TL.fromStrict wfName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize

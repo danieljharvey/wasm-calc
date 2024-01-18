@@ -9,7 +9,7 @@ function max(ceiling: Int64, value: Int64) {
   if value < ceiling then value else ceiling
 }
 
-function test(index: Int64) {
+export function test(index: Int64) {
   let r = max(255,index * 2);
   let g = min(0, 255 - r);
   let b = max(255, r * 3);

@@ -111,7 +111,7 @@ inferAndSubstitute expr = do
 elaborateFunction ::
   Function ann ->
   TypecheckM ann (Function (Type ann))
-elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody}) = do
+elaborateFunction (Function {fnPublic, fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody}) = do
   exprA <-
     withFunctionEnv
       fnArgs
@@ -137,7 +137,8 @@ elaborateFunction (Function {fnAnn, fnArgs, fnGenerics, fnFunctionName, fnBody})
           fnGenerics,
           fnArgs = argsA,
           fnFunctionName = fnFunctionName,
-          fnBody = exprA
+          fnBody = exprA,
+          fnPublic = fnPublic
         }
     )
 

@@ -221,7 +221,7 @@ fromFunction ::
   M.Map FunctionName FromExprImport ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
-fromFunction funcMap importMap (Function {fnBody, fnArgs, fnFunctionName}) = do
+fromFunction funcMap importMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -246,7 +246,7 @@ fromFunction funcMap importMap (Function {fnBody, fnArgs, fnFunctionName}) = do
     WasmFunction
       { wfName = fnFunctionName,
         wfExpr = expr,
-        wfPublic = False,
+        wfPublic = fnPublic,
         wfArgs = snd <$> args,
         wfReturnType = retType,
         wfLocals = snd <$> fesVars fes

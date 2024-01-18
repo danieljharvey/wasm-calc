@@ -63,13 +63,13 @@ spec = do
       let testVals =
             [ ( joinLines
                   [ "import console.log as consoleLog(number: Int64) -> Void",
-                    "function test() { let _ = consoleLog(42); 100 }"
+                    "export function test() { let _ = consoleLog(42); 100 }"
                   ],
                 "42n"
               ),
               ( joinLines
                   [ "import console.log as consoleLog(number: Int64) -> Void",
-                    "function test() { let _ = consoleLog(42); let _ = consoleLog(42); 100 }"
+                    "export function test() { let _ = consoleLog(42); let _ = consoleLog(42); 100 }"
                   ],
                 joinLines ["42n", "42n"]
               )
@@ -81,7 +81,7 @@ spec = do
     -- \| we need to find a way of testing these whilst making `main` return
     -- nothing
     describe "Test with interpreter" $ do
-      let asTest str = "function test() { " <> str <> " }"
+      let asTest str = "export function test() { " <> str <> " }"
       let testVals =
             [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
@@ -167,12 +167,24 @@ spec = do
                   ],
                 Wasm.VI64 42
               ),
-              (asTest "let _ = 1; 2", Wasm.VI64 2),
-              (asTest "let Box(a) = Box(42); a", Wasm.VI64 42),
-              (asTest "let Box(a) = Box(1.23); let _ = a; 23", Wasm.VI64 23),
-              (asTest "let (a,b) = (1,2); a + b", Wasm.VI64 3),
-              (asTest "let Box(Box(a)) = Box(Box(101)); a", Wasm.VI64 101),
-              (asTest "let (a, (b,c)) = (1, (2,3)); a + b + c", Wasm.VI64 6)
+              ( asTest "let _ = 1; 2",
+                Wasm.VI64 2
+              ),
+              ( asTest "let Box(a) = Box(42); a",
+                Wasm.VI64 42
+              ),
+              ( asTest "let Box(a) = Box(1.23); let _ = a; 23",
+                Wasm.VI64 23
+              ),
+              ( asTest "let (a,b) = (1,2); a + b",
+                Wasm.VI64 3
+              ),
+              ( asTest "let Box(Box(a)) = Box(Box(101)); a",
+                Wasm.VI64 101
+              ),
+              ( asTest "let (a, (b,c)) = (1, (2,3)); a + b + c",
+                Wasm.VI64 6
+              )
             ]
 
       describe "From expressions" $ do

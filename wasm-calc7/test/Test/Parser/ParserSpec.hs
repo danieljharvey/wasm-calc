@@ -33,11 +33,12 @@ spec = do
 
     describe "Module" $ do
       let strings =
-            [ ( "function increment(a: Int64) { a + 1 }",
+            [ ( "export function increment(a: Int64) { a + 1 }",
                 Module
                   { mdFunctions =
                       [ Function
-                          { fnAnn = (),
+                          { fnPublic = True,
+                            fnAnn = (),
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
@@ -57,7 +58,8 @@ spec = do
                 Module
                   { mdFunctions =
                       [ Function
-                          { fnAnn = (),
+                          { fnPublic = False,
+                            fnAnn = (),
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
@@ -70,7 +72,8 @@ spec = do
                             fnGenerics = mempty
                           },
                         Function
-                          { fnAnn = (),
+                          { fnPublic = False,
+                            fnAnn = (),
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
@@ -120,7 +123,8 @@ spec = do
       let strings =
             [ ( "function one() { 1 }",
                 Function
-                  { fnAnn = (),
+                  { fnPublic = False,
+                    fnAnn = (),
                     fnArgs = [],
                     fnFunctionName = "one",
                     fnBody = int 1,
@@ -129,7 +133,8 @@ spec = do
               ),
               ( "function sum (a: Int64, b: Int64) { a + b }",
                 Function
-                  { fnAnn = (),
+                  { fnPublic = False,
+                    fnAnn = (),
                     fnArgs =
                       [ FunctionArg
                           { faName = "a",
@@ -149,7 +154,8 @@ spec = do
               ),
               ( "function pair<a,b>(a: a, b: b) { (a,b) }",
                 Function
-                  { fnAnn = (),
+                  { fnPublic = False,
+                    fnAnn = (),
                     fnArgs =
                       [ FunctionArg
                           { faName = "a",

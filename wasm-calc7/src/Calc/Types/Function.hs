@@ -29,7 +29,8 @@ data Function ann = Function
     fnGenerics :: [TypeVar],
     fnArgs :: [FunctionArg ann],
     fnFunctionName :: FunctionName,
-    fnBody :: Expr ann
+    fnBody :: Expr ann,
+    fnPublic :: Bool
   }
   deriving stock (Eq, Ord, Show, Functor)
 
