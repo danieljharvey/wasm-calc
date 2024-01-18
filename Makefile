@@ -79,9 +79,9 @@ test-wasm-calc7:
 run-wasm-calc7:
 	cabal run wasm-calc7 -- repl
 
-.PHONY: run-build-drawing-test-wasm-calc7
-run-build-drawring-test-wasm-calc7:
-	cabal run wasm-calc7 -- build wasm-calc7/test/output/draw.calc > wasm-calc7/test/output/draw.wasm
+.PHONY: run-build-drawing-demo-7
+run-build-drawing-demo-7:
+	cabal run wasm-calc7 -- build wasm-calc7/demo/draw.calc > wasm-calc7/demo/draw.wasm
 
 .PHONY: freeze
 freeze:

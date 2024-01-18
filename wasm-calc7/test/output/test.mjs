@@ -1,3 +1,4 @@
+// this file is used in tests to check imports work correctly
 import fs from "fs/promises";
 
 const filename = process.argv[2];

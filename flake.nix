@@ -63,8 +63,8 @@
             cabal-fmt
             cabal-install
             ghc
-            pkgs.wasmtime
-            pkgs.wabt
+            pkgs.nodejs
+            pkgs.watchexec
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};
