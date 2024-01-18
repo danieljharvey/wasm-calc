@@ -63,8 +63,10 @@
             cabal-fmt
             cabal-install
             ghc
+            # test tooling
             pkgs.nodejs
             pkgs.watchexec
+            pkgs.nodePackages_latest.serve
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};

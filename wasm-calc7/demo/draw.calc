@@ -12,7 +12,7 @@ function max(ceiling: Int64, value: Int64) {
 function test(index: Int64) {
   let r = max(255,index * 2);
   let g = min(0, 255 - r);
-  let b = max(255, r * 2);
+  let b = max(255, r * 3);
   let _ = draw(index * 2, index * 3,r,g,b);
   let _ = draw(100 - index, index * 3,b,g,r);
   let _ = draw(10 + index * 3, 50 - index * 2,g,r,b);
