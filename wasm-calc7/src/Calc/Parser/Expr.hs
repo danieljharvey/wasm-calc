@@ -2,36 +2,73 @@
 
 module Calc.Parser.Expr (exprParser) where
 
-import Calc.Parser.Identifier
-import Calc.Parser.Pattern
-import Calc.Parser.Primitives
-import Calc.Parser.Shared
-import Calc.Parser.Types
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Calc.Types.Op
-import Control.Monad.Combinators.Expr
-import Data.Foldable (foldl')
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Text.Megaparsec
+import           Calc.Parser.Identifier
+import           Calc.Parser.Pattern
+import           Calc.Parser.Primitives
+import           Calc.Parser.Shared
+import           Calc.Parser.Types
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Control.Monad.Combinators.Expr
+import           Data.Foldable                  (foldl')
+import qualified Data.List.NonEmpty             as NE
+import qualified Data.Text                      as T
+import           Text.Megaparsec
+
 
 exprParser :: Parser (Expr Annotation)
-exprParser = addLocation (makeExprParser exprPart table) <?> "expression"
+exprParser = addLocation (makeExprParser exprParserInternal table) <?> "expression"
 
+-- | expression, include lets
+exprParserInternal :: Parser (Expr Annotation)
+exprParserInternal = do
+  parts <- try (some functionPartParser) <|> pure mempty
+  expr <- exprPart
+  pure $ foldr (\part accumulatedExpr -> case part of
+                         LetPart ann pat body -> ELet ann pat body accumulatedExpr
+                         DiscardPart ann body -> ELet ann (PWildcard ann) body accumulatedExpr
+        ) expr parts
+
+-- | we should use this rather than `exprParser` internally to stop recursion
+-- death
+-- it contains everything except `let` bindings
 exprPart :: Parser (Expr Annotation)
 exprPart =
   try unboxParser
     <|> try containerAccessParser
     <|> try tupleParser
     <|> boxParser
-    <|> letParser
-    <|> inBrackets (addLocation exprParser)
+    <|> inBrackets (addLocation exprPart)
     <|> primExprParser
     <|> ifParser
     <|> try applyParser
-    <|> varParser
+    <|> try varParser
     <?> "term"
+
+data LetPart ann
+  = LetPart ann (Pattern ann) (Expr ann)
+  | DiscardPart ann (Expr ann)
+
+functionPartParser :: Parser (LetPart Annotation)
+functionPartParser = do
+  part <- letPartParser <|> try discardPartParser
+  stringLiteral ";"
+  pure part
+
+letPartParser :: Parser (LetPart Annotation)
+letPartParser = do
+  label "let" $ withLocation (\loc (pat,expr) -> LetPart loc pat expr) $ do
+    _ <- stringLiteral "let"
+    pat <- patternParser
+    _ <- stringLiteral "="
+    (,) pat <$> exprPart
+
+discardPartParser :: Parser (LetPart Annotation)
+discardPartParser = label "discard" $ withLocation DiscardPart $ do
+  applyParser
+
 
 table :: [[Operator Parser (Expr Annotation)]]
 table =
@@ -60,16 +97,8 @@ ifParser = label "if" $ addLocation $ do
   EIf mempty predExpr thenExpr <$> exprParser
 
 varParser :: Parser (Expr Annotation)
-varParser = label "var" $ addLocation $ EVar mempty <$> identifierParser
-
-letParser :: Parser (Expr Annotation)
-letParser = label "let" $ addLocation $ do
-  _ <- stringLiteral "let"
-  pat <- patternParser
-  _ <- stringLiteral "="
-  expr <- exprParser
-  _ <- stringLiteral ";"
-  ELet mempty pat expr <$> exprParser
+varParser = label "var"
+  $ addLocation $ EVar mempty <$> identifierParser
 
 applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do
@@ -86,7 +115,7 @@ tupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepBy1 exprParser (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _ -> fail "Expected at least two items in a tuple"
+      _       -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 

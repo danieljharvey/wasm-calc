@@ -7,15 +7,15 @@ module Calc.Parser.Identifier
   )
 where
 
-import Calc.Parser.Shared
-import Calc.Parser.Types
-import Calc.Types
-import Control.Monad
-import qualified Data.Char as Char
-import Data.Set (Set)
-import qualified Data.Set as S
-import Data.Text (Text)
-import Text.Megaparsec
+import           Calc.Parser.Shared
+import           Calc.Parser.Types
+import           Calc.Types
+import           Control.Monad
+import qualified Data.Char          as Char
+import           Data.Set           (Set)
+import qualified Data.Set           as S
+import           Data.Text          (Text)
+import           Text.Megaparsec
 
 protectedNames :: Set Text
 protectedNames =
@@ -23,7 +23,8 @@ protectedNames =
     [ "if",
       "then",
       "else",
-      "function"
+      "function",
+      "let"
     ]
 
 filterProtectedNames :: Text -> Maybe Text

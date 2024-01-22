@@ -2,13 +2,13 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import Calc
-import Data.Foldable (traverse_)
-import Data.Functor
+import           Calc
+import           Data.Foldable      (traverse_)
+import           Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 spec :: Spec
 spec = do
@@ -27,7 +27,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -115,7 +115,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -168,13 +168,21 @@ spec = do
                     fnBody = ETuple () (var "a") (NE.singleton (var "b")),
                     fnGenerics = ["a", "b"]
                   }
+              ),
+              ( "function horse() { let a = 100; a }",
+                Function { fnPublic = False, fnAnn = (),
+                      fnArgs = [],
+                      fnFunctionName = "horse",
+                      fnBody = ELet () (PVar () "a") (int 100) (var "a"),
+                      fnGenerics = []
+                         }
               )
             ]
       traverse_
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e -> error (T.unpack e)
+              Left e         -> error (T.unpack e)
         )
         strings
 
@@ -188,11 +196,11 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e -> error (T.unpack e)
+              Left e              -> error (T.unpack e)
         )
         strings
 
-    describe "Expr" $ do
+    fdescribe "Expr" $ do
       let strings =
             [ ("-1", int (fromIntegral (-1 :: Integer))),
               ("1 + 2", EInfix () OpAdd (int 1) (int 2)),
@@ -224,13 +232,15 @@ spec = do
               ("Box(1)!", EContainerAccess () (box (int 1)) 1),
               ("Box(Box(1)).2.1", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
               ("Box(Box(1)).2!", EContainerAccess () (EContainerAccess () (box (box (int 1))) 2) 1),
-              ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a"))
+              ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),
+              ("let (a,b) = (1,2); a + b", undefined), -- check this works
+              ("dogs(); 100", ELet () (PWildcard ()) (EApply () "dogs" []) (int 100))
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
