@@ -4,6 +4,7 @@ module Test.RunNode
   ( runScriptFromFile,
     lbsToString,
     withCache,
+    getGitRoot,
   )
 where
 
@@ -14,12 +15,17 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
 import System.Exit
-import System.Process.Typed
+import qualified System.Process.Typed as Process
 
-runProcessFromFile :: (MonadIO m) => String -> [String] -> String -> m (Bool, String)
-runProcessFromFile binaryName args filename = do
-  let allArgs = args <> [filename]
-  result <- liftIO $ try $ readProcess (proc binaryName allArgs)
+getGitRoot :: (MonadIO m) => m (Bool, String)
+getGitRoot = do
+  let binaryName = "git"
+      args = ["rev-parse", "--show-toplevel"]
+  runProcess binaryName args
+
+runProcess :: (MonadIO m) => String -> [String] -> m (Bool, String)
+runProcess binaryName args = do
+  result <- liftIO $ try $ Process.readProcess (Process.proc binaryName args)
   case result of
     Right (ExitSuccess, success, _) ->
       pure (exitCodeToBool ExitSuccess, binNewline success)
@@ -30,7 +36,7 @@ runProcessFromFile binaryName args filename = do
 -- | Pass a filepath to a JS file for Node to execute.
 -- Required as ES modules don't work with the `-p` flag
 runScriptFromFile :: (MonadIO m) => String -> String -> m (Bool, String)
-runScriptFromFile path arg = runProcessFromFile "node" [arg] path
+runScriptFromFile path arg = runProcess "node" [arg, path]
 
 exitCodeToBool :: ExitCode -> Bool
 exitCodeToBool ExitSuccess = True

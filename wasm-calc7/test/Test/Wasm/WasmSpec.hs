@@ -45,13 +45,16 @@ testWithInterpreter (input, result) = it (show input) $ do
 -- test them with node
 testWithNode :: (T.Text, T.Text) -> Spec
 testWithNode (input, result) = it (show input) $ do
+  -- get git root folder, explode it if it fails somehow
+  (True, gitRoot) <- getGitRoot
   let actualWasmModule = compile input
       inputHash = hash input
-      wasmFilename = "test/output/" <> show inputHash <> ".wasm"
+      wasmFilename = gitRoot <> "/wasm-calc7/test/output/" <> show inputHash <> ".wasm"
+      jsFilename = gitRoot <> "/wasm-calc7/test/output/test.mjs"
   -- write module to a file so we can run it with `wasmtime` etc
   liftIO (writeModule wasmFilename actualWasmModule)
   -- run node js, get output
-  (success, output) <- runScriptFromFile wasmFilename "test/output/test.mjs"
+  (success, output) <- runScriptFromFile wasmFilename jsFilename
   output `shouldBe` T.unpack result
   -- check it succeeded
   success `shouldBe` True
