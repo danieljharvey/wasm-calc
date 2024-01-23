@@ -1,0 +1,167 @@
+cabal-version:      2.4
+name:               wasm-calc7
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             Daniel Harvey
+maintainer:         danieljamesharvey@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files:
+  CHANGELOG.md
+  static/runtime.c
+
+common shared
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N -Wall -Werror
+    -Wno-unticked-promoted-constructors -Wcompat
+    -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wredundant-constraints -Wmissing-deriving-strategies
+
+  build-depends:
+    , base
+    , bytestring
+    , containers
+    , diagnose
+    , directory
+    , file-embed
+    , hashable
+    , haskeline
+    , megaparsec
+    , mtl
+    , parser-combinators
+    , pretty-simple
+    , prettyprinter
+    , process
+    , string-conversions
+    , text
+    , unix
+    , unordered-containers
+    , wasm
+
+  other-modules:
+    Calc
+    Calc.Build
+    Calc.ExprUtils
+    Calc.Linearity
+    Calc.Linearity.Error
+    Calc.Linearity.Types
+    Calc.Linearity.Validate
+    Calc.Parser
+    Calc.Parser.Expr
+    Calc.Parser.Function
+    Calc.Parser.Identifier
+    Calc.Parser.Import
+    Calc.Parser.Module
+    Calc.Parser.Pattern
+    Calc.Parser.Primitives
+    Calc.Parser.Shared
+    Calc.Parser.Type
+    Calc.Parser.Types
+    Calc.PrettyPrint
+    Calc.Repl
+    Calc.SourceSpan
+    Calc.Typecheck
+    Calc.Typecheck.Elaborate
+    Calc.Typecheck.Error
+    Calc.Typecheck.Generalise
+    Calc.Typecheck.Helpers
+    Calc.Typecheck.Substitute
+    Calc.Typecheck.Types
+    Calc.Types
+    Calc.Types.Annotation
+    Calc.Types.Expr
+    Calc.Types.Function
+    Calc.Types.FunctionName
+    Calc.Types.Identifier
+    Calc.Types.Import
+    Calc.Types.Module
+    Calc.Types.Op
+    Calc.Types.Pattern
+    Calc.Types.Prim
+    Calc.Types.Type
+    Calc.Types.TypeVar
+    Calc.TypeUtils
+    Calc.Utils
+    Calc.Wasm
+    Calc.Wasm.Allocator
+    Calc.Wasm.FromExpr
+    Calc.Wasm.Helpers
+    Calc.Wasm.Patterns
+    Calc.Wasm.Run
+    Calc.Wasm.ToWasm
+    Calc.Wasm.Types
+    Calc.Wasm.WriteModule
+
+library
+  import:           shared
+
+  -- Modules included in this executable, other than Main.
+  -- other-modules:
+
+  -- LANGUAGE extensions used by modules in this package.
+  -- other-extensions:
+  hs-source-dirs:   src
+  default-language: Haskell2010
+
+test-suite wasm-calc7-tests
+  import:           shared
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  hs-source-dirs:   src
+  build-depends:
+    , aeson
+    , hspec          >=2.8.3 && <3
+    , hspec-core     >=2.8.3 && <3
+    , typed-process
+
+  main-is:          Main.hs
+  default-language: Haskell2010
+  other-modules:
+    Test.Helpers
+    Test.Linearity.LinearitySpec
+    Test.Parser.ParserSpec
+    Test.PrettyPrint.PrettyPrintSpec
+    Test.RunNode
+    Test.Typecheck.TypecheckSpec
+    Test.Wasm.WasmSpec
+
+executable wasm-calc7
+  import:           shared
+  main-is:          Main.hs
+  hs-source-dirs:   app
+  hs-source-dirs:   src
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    , base
+    , containers
+    , diagnose
+    , directory
+    , file-embed
+    , hashable
+    , haskeline
+    , megaparsec
+    , mtl
+    , optparse-applicative
+    , parser-combinators
+    , prettyprinter
+    , process
+    , string-conversions
+    , text
+    , unix
+    , unordered-containers
+    , wasm-calc7
+
+  default-language: Haskell2010
