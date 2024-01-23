@@ -1,15 +1,16 @@
 module Main where
 
 import qualified Calc
-import Control.Applicative
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Control.Applicative
+import           Data.Text           (Text)
+import qualified Data.Text           as T
 import qualified Options.Applicative as Opt
-import System.IO
+import           System.IO
 
 data AppAction
   = Repl
   | Build Text -- given an input path, turn it into a Wasm module or explode with an error
+  | Format Text -- given an input path, format and write new file
 
 parseAppAction :: Opt.Parser AppAction
 parseAppAction =
@@ -25,6 +26,12 @@ parseAppAction =
           ( Opt.info
               (Build <$> filePathParse)
               (Opt.progDesc "Given a file path, either compile it into a wasm module or return an error")
+          )
+        <> Opt.command
+          "format"
+          ( Opt.info
+              (Format <$> filePathParse)
+              (Opt.progDesc "Given a file path, parse and save a formatted file")
           )
     )
 
@@ -53,5 +60,6 @@ main = do
       helpfulPreferences
       (Opt.info (optionsParse <**> Opt.helper) Opt.fullDesc)
   case action of
-    Repl -> Calc.repl
-    Build filePath -> Calc.build (T.unpack filePath)
+    Repl            -> Calc.repl
+    Build filePath  -> Calc.build (T.unpack filePath)
+    Format filePath -> Calc.prettyPrint (T.unpack filePath)

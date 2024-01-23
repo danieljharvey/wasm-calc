@@ -70,6 +70,7 @@ common shared
     Calc.Parser.Shared
     Calc.Parser.Type
     Calc.Parser.Types
+    Calc.PrettyPrint
     Calc.Repl
     Calc.SourceSpan
     Calc.Typecheck
@@ -132,6 +133,7 @@ test-suite wasm-calc7-tests
     Test.Helpers
     Test.Linearity.LinearitySpec
     Test.Parser.ParserSpec
+    Test.PrettyPrint.PrettyPrintSpec
     Test.RunNode
     Test.Typecheck.TypecheckSpec
     Test.Wasm.WasmSpec

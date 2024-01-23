@@ -1,5 +1,6 @@
 HS_FILES = $(shell git ls-files '*.hs' | grep -v 'vendored/')
 CABAL_FILES = $(shell git ls-files '*.cabal' | grep -v 'vendored/')
+STATIC_FILES_7 = "./wasm-calc7/test/static/"
 
 .PHONY: update
 update:
@@ -82,6 +83,12 @@ run-wasm-calc7:
 .PHONY: run-build-drawing-demo-7
 run-build-drawing-demo-7:
 	cabal run wasm-calc7 -- build wasm-calc7/demo/draw.calc > wasm-calc7/demo/draw.wasm
+
+.PHONY: format-all-files-7
+format-all-files-7:
+	find $(STATIC_FILES_7) -maxdepth 1 -type f -exec cabal run wasm-calc7 -- format {} \;
+
+# end of calcs
 
 .PHONY: freeze
 freeze:
