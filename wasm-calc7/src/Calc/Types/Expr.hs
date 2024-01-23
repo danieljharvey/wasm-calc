@@ -64,7 +64,10 @@ instance PP.Pretty (Expr ann) where
       )
   pretty (EVar _ ident) = PP.pretty ident
   pretty (EApply _ fn args) =
-    PP.pretty fn <> "(" <> PP.cat pArgs <> ")"
+    PP.pretty fn
+      <> "("
+      <> PP.group (PP.line' <> indentMulti 2 (PP.cat pArgs) <> PP.line')
+      <> ")"
     where
       pArgs = PP.punctuate ", " (PP.pretty <$> args)
   pretty (ETuple _ a as) =

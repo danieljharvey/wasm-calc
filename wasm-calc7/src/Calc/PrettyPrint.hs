@@ -8,11 +8,14 @@
 
 module Calc.PrettyPrint
   ( prettyPrint,
+    format,
   )
 where
 
 import Calc.Parser
 import Calc.Parser.Types
+import Calc.Types.Module
+import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -40,9 +43,16 @@ doPrettyPrint filePath = do
         printDiagnostic (fromErrorBundle bundle input)
         >> pure (ExitFailure 1)
     Right parsedModule -> do
-      let prettyModule = renderWithWidth 60 (PP.pretty parsedModule)
-      liftIO (T.writeFile filePath prettyModule)
+      format filePath (T.pack input) parsedModule
       pure ExitSuccess
+
+-- format the file, and if it's changed, save it
+format :: (MonadIO m) => FilePath -> Text -> Module ann -> m ()
+format filePath originalInput parsedModule = do
+  let printed = renderWithWidth 60 (PP.pretty parsedModule)
+  when (printed /= originalInput) $
+    liftIO $
+      T.writeFile filePath printed
 
 renderWithWidth :: Int -> PP.Doc ann -> T.Text
 renderWithWidth w doc = PP.renderStrict (PP.layoutPretty layoutOptions (PP.unAnnotate doc))

@@ -17,6 +17,7 @@ import Calc.Linearity
   )
 import Calc.Parser
 import Calc.Parser.Types
+import Calc.PrettyPrint (format)
 import Calc.Typecheck
 import Calc.Wasm.FromExpr
 import Calc.Wasm.ToWasm
@@ -24,13 +25,9 @@ import Calc.Wasm.WriteModule
 import Control.Monad.IO.Class
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Void
 import qualified Error.Diagnose as Diag
 import Error.Diagnose.Compat.Megaparsec
 import System.Exit
-
-instance HasHints Void msg where
-  hints _ = mempty
 
 build :: FilePath -> IO ()
 build filePath =
@@ -44,7 +41,7 @@ doBuild filePath = do
       do
         printDiagnostic (fromErrorBundle bundle input)
         >> pure (ExitFailure 1)
-    Right expr -> case elaborateModule expr of
+    Right parsedModule -> case elaborateModule parsedModule of
       Left typeErr -> do
         printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
           >> pure (ExitFailure 1)
@@ -59,6 +56,7 @@ doBuild filePath = do
                 liftIO (print fromWasmError)
                   >> pure (ExitFailure 1)
               Right wasmMod -> do
+                format filePath (T.pack input) parsedModule
                 -- print module to stdout
                 liftIO $ printModule (moduleToWasm wasmMod)
                 pure ExitSuccess
