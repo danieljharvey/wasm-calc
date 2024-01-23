@@ -19,11 +19,9 @@ function drawBounded(
 ) { 
   let maxWidth = 400; 
   let maxHeight = 300; 
-  draw(clamp(0, maxWidth, x), 
-  clamp(0, maxHeight, y), 
-  r, 
-  g, 
-  b)
+  draw(
+    clamp(0, maxWidth, x), clamp(0, maxHeight, y), r, g, b
+  )
 }
 
 export function test(index: Int64) { 
