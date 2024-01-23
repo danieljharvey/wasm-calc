@@ -42,7 +42,7 @@ doPrettyPrint filePath = do
         printDiagnostic (fromErrorBundle bundle input)
         >> pure (ExitFailure 1)
     Right parsedModule -> do
-      let prettyModule = renderWithWidth 40 (PP.pretty parsedModule)
+      let prettyModule = renderWithWidth 60 (PP.pretty parsedModule)
       liftIO (T.writeFile filePath prettyModule)
       pure ExitSuccess
 

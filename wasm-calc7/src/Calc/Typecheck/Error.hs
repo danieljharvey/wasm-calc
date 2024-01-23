@@ -1,27 +1,27 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
-import Calc.ExprUtils
-import Calc.SourceSpan
-import Calc.TypeUtils
-import Calc.Types.Annotation
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HS
-import qualified Data.List as List
-import Data.Maybe (catMaybes, mapMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import GHC.Natural
-import qualified Prettyprinter as PP
+import           Calc.ExprUtils
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HS
+import qualified Data.List                 as List
+import           Data.Maybe                (catMaybes, mapMaybe)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import           GHC.Natural
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data TypeError ann
@@ -53,7 +53,7 @@ positionFromAnnotation path input ann =
    in toPos <$> sourceSpan input ann
 
 prettyPrint :: PP.Doc doc -> Text
-prettyPrint = renderWithWidth 40
+prettyPrint = renderWithWidth 60
 
 typeErrorDiagnostic ::
   Text ->
