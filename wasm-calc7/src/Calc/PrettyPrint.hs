@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,20 +11,18 @@ module Calc.PrettyPrint
   )
 where
 
-import           Calc.Parser
-import qualified Prettyprinter                    as PP
-import qualified Prettyprinter.Render.Text        as PP
-
-
-import           Calc.Parser.Types
-import           Control.Monad.IO.Class
-import           Data.Text                        (Text)
-import qualified Data.Text                        as T
-import qualified Data.Text.IO                     as T
-import           Data.Void
-import qualified Error.Diagnose                   as Diag
-import           Error.Diagnose.Compat.Megaparsec
-import           System.Exit
+import Calc.Parser
+import Calc.Parser.Types
+import Control.Monad.IO.Class
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import Data.Void
+import qualified Error.Diagnose as Diag
+import Error.Diagnose.Compat.Megaparsec
+import qualified Prettyprinter as PP
+import qualified Prettyprinter.Render.Text as PP
+import System.Exit
 
 instance HasHints Void msg where
   hints _ = mempty
@@ -50,7 +48,6 @@ renderWithWidth :: Int -> PP.Doc ann -> T.Text
 renderWithWidth w doc = PP.renderStrict (PP.layoutPretty layoutOptions (PP.unAnnotate doc))
   where
     layoutOptions = PP.LayoutOptions {PP.layoutPageWidth = PP.AvailablePerLine w 1}
-
 
 printDiagnostic :: (MonadIO m) => Diag.Diagnostic Text -> m ()
 printDiagnostic =

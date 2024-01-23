@@ -5,15 +5,14 @@ module Calc
     module Calc.ExprUtils,
     module Calc.Repl,
     module Calc.Wasm,
-
-    module Calc.PrettyPrint
+    module Calc.PrettyPrint,
   )
 where
 
-import           Calc.Build
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.PrettyPrint
-import           Calc.Repl
-import           Calc.Types
-import           Calc.Wasm
+import Calc.Build
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.PrettyPrint
+import Calc.Repl
+import Calc.Types
+import Calc.Wasm

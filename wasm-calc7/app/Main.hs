@@ -1,11 +1,11 @@
 module Main where
 
 import qualified Calc
-import           Control.Applicative
-import           Data.Text           (Text)
-import qualified Data.Text           as T
+import Control.Applicative
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Options.Applicative as Opt
-import           System.IO
+import System.IO
 
 data AppAction
   = Repl
@@ -60,6 +60,6 @@ main = do
       helpfulPreferences
       (Opt.info (optionsParse <**> Opt.helper) Opt.fullDesc)
   case action of
-    Repl            -> Calc.repl
-    Build filePath  -> Calc.build (T.unpack filePath)
+    Repl -> Calc.repl
+    Build filePath -> Calc.build (T.unpack filePath)
     Format filePath -> Calc.prettyPrint (T.unpack filePath)

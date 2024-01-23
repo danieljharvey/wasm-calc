@@ -1,23 +1,23 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | test evaluating and running tests for a module
 module Test.PrettyPrint.PrettyPrintSpec (spec) where
 
-import qualified Calc.Parser               as Parse
-import           Calc.Types.Module
-import           Data.Bifunctor            (second)
-import           Data.FileEmbed
-import           Data.Foldable             (traverse_)
-import           Data.Functor
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import qualified Data.Text.Encoding        as T
-import qualified Prettyprinter             as PP
+import qualified Calc.Parser as Parse
+import Calc.Types.Module
+import Data.Bifunctor (second)
+import Data.FileEmbed
+import Data.Foldable (traverse_)
+import Data.Functor
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
-import           Test.Hspec
+import Test.Hspec
 
 renderWithWidth :: Int -> PP.Doc ann -> T.Text
 renderWithWidth w doc = PP.renderStrict (PP.layoutPretty layoutOptions (PP.unAnnotate doc))
@@ -33,7 +33,7 @@ testInputs =
 parseModule :: Text -> Module ()
 parseModule input =
   case Parse.parseModuleAndFormatError input of
-    Left e      -> error (show e)
+    Left e -> error (show e)
     Right parts -> parts $> ()
 
 spec :: Spec
