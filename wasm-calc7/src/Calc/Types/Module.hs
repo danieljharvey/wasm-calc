@@ -16,6 +16,5 @@ data Module ann = Module
 
 instance PP.Pretty (Module ann) where
   pretty (Module {mdFunctions, mdImports}) =
-    let imports = PP.punctuate PP.line (PP.pretty <$> mdImports)
-        functions = PP.punctuate PP.line (PP.pretty <$> mdFunctions)
-     in PP.cat imports <> PP.line <> PP.cat functions
+    let parts = (PP.pretty <$> mdImports) <> (PP.pretty <$> mdFunctions)
+     in PP.cat (PP.punctuate PP.line parts)

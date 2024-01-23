@@ -29,7 +29,7 @@ data Expr ann
 -- when on multilines, indent by `i`, if not then nothing
 indentMulti :: Integer -> PP.Doc style -> PP.Doc style
 indentMulti i doc =
-  PP.group (PP.flatAlt (PP.indent (fromIntegral i) doc) doc)
+  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
 
 -- | this instance defines how to nicely print `Expr`
 instance PP.Pretty (Expr ann) where
@@ -51,9 +51,20 @@ instance PP.Pretty (Expr ann) where
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
   pretty (EIf _ predExpr thenExpr elseExpr) =
-    "if" <+> PP.pretty predExpr <+> "then" <+> indentMulti 2 (PP.pretty thenExpr) <+> "else" <+> indentMulti 2 (PP.pretty elseExpr)
+    PP.group
+      ( "if"
+          <+> PP.pretty predExpr
+          <+> "then"
+          <> PP.line
+          <> indentMulti 2 (PP.pretty thenExpr)
+          <> PP.line
+          <> "else"
+          <> PP.line
+          <> indentMulti 2 (PP.pretty elseExpr)
+      )
   pretty (EVar _ ident) = PP.pretty ident
-  pretty (EApply _ fn args) = PP.pretty fn <> "(" <> PP.cat pArgs <> ")"
+  pretty (EApply _ fn args) =
+    PP.pretty fn <> "(" <> PP.cat pArgs <> ")"
     where
       pArgs = PP.punctuate ", " (PP.pretty <$> args)
   pretty (ETuple _ a as) =

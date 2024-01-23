@@ -20,6 +20,9 @@ indentMulti :: Integer -> PP.Doc style -> PP.Doc style
 indentMulti i doc =
   PP.flatAlt (PP.indent (fromIntegral i) doc) doc
 
+newlines :: PP.Doc style -> PP.Doc style
+newlines a = PP.line' <> a <> PP.line'
+
 data Import ann = Import
   { impAnn :: ann,
     impArgs :: [ImportArg ann],
@@ -37,14 +40,17 @@ instance PP.Pretty (Import ann) where
       <> "."
       <> PP.pretty impExternalFunction
       <+> "as"
-      <> PP.line
-      <> indentMulti
-        2
-        ( PP.pretty impImportName
-            <> "("
-            <> PP.cat (PP.punctuate ", " (PP.pretty <$> impArgs))
-            <> ")"
-        )
+      <+> ( PP.pretty impImportName
+              <> PP.group
+                ( "("
+                    <> newlines
+                      ( indentMulti
+                          2
+                          (PP.cat (PP.punctuate ", " (PP.pretty <$> impArgs)))
+                      )
+                )
+              <> ")"
+          )
       <+> "->"
       <+> PP.pretty impReturnType
 

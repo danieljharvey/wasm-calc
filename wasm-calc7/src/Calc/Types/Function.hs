@@ -25,7 +25,10 @@ import qualified Prettyprinter as PP
 -- when on multilines, indent by `i`, if not then nothing
 indentMulti :: Integer -> PP.Doc style -> PP.Doc style
 indentMulti i doc =
-  PP.group (PP.flatAlt (PP.indent (fromIntegral i) doc) doc)
+  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
+
+newlines :: PP.Doc style -> PP.Doc style
+newlines a = PP.line' <> a <> PP.line'
 
 newtype ArgumentName = ArgumentName Text
   deriving newtype (Eq, Ord, Show)
@@ -52,14 +55,18 @@ instance PP.Pretty (Function ann) where
      in prettyExport
           <> "function"
           <+> ( PP.pretty fnFunctionName
-                  <> "("
-                  <> indentMulti 2 (PP.cat (PP.punctuate ", " (PP.pretty <$> fnArgs)))
+                  <> PP.group
+                    ( "("
+                        <> newlines
+                          ( indentMulti
+                              2
+                              (PP.cat (PP.punctuate ", " (PP.pretty <$> fnArgs)))
+                          )
+                    )
                   <> ")"
               )
           <+> "{"
-          <> PP.line
-          <+> indentMulti 2 (PP.pretty fnBody)
-          <+> PP.line
+          <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
           <> "}"
 
 data FunctionArg ann = FunctionArg {faAnn :: ann, faName :: ArgumentName, faType :: Type ann}
