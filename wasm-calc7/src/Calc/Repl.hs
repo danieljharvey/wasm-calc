@@ -76,7 +76,7 @@ wrapInputInFunction :: Text -> Text
 wrapInputInFunction input =
   if T.isInfixOf "function" input
     then input
-    else "function main() { " <> input <> " } "
+    else "export function main() { " <> input <> " } "
 
 runWasmModule :: WasmModule -> IO String
 runWasmModule mod' =
