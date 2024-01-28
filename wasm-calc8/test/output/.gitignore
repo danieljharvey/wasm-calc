@@ -1,0 +1,3 @@
+# tests output .wasm files in this folder, we don't want them in version
+# control
+*.wasm
