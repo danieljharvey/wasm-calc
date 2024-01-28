@@ -8,7 +8,7 @@ update:
 
 .PHONY: build
 build:
-	cabal build all -j4
+	cabal build all -j4 --enable-tests
 
 # calculator 1
 
