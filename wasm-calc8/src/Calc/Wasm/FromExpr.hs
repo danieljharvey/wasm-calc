@@ -1,33 +1,33 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.Helpers
-import           Calc.Wasm.Patterns
-import           Calc.Wasm.Types
-import           Control.Monad        (void)
-import           Control.Monad.Except
-import           Control.Monad.State
-import qualified Data.List            as List
-import qualified Data.List.NonEmpty   as NE
-import qualified Data.Map.Strict      as M
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.Helpers
+import Calc.Wasm.Patterns
+import Calc.Wasm.Types
+import Control.Monad (void)
+import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesImports   :: M.Map FunctionName FromExprImport,
-    fesVars      :: [(Maybe Identifier, WasmType)]
+    fesImports :: M.Map FunctionName FromExprImport,
+    fesVars :: [(Maybe Identifier, WasmType)]
   }
 
 data FromExprFunc = FromExprFunc
-  { fefIndex      :: Natural,
-    fefArgs       :: [WasmType],
+  { fefIndex :: Natural,
+    fefArgs :: [WasmType],
     fefReturnType :: WasmType
   }
 
@@ -68,7 +68,7 @@ lookupIdent ident = do
       )
   case maybeNat of
     Just (nat, _) -> pure nat
-    Nothing       -> throwError $ IdentifierNotFound ident
+    Nothing -> throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -140,16 +140,13 @@ fromLet pat expr rest = do
 fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim
 fromPrim _ (PFloat32 f) = pure $ WPFloat32 f
 fromPrim _ (PFloat64 f) = pure $ WPFloat64 f
-fromPrim _ (PBool b)    = pure $ WPBool b
-fromPrim _ (PInt32 i)   = pure $ WPInt32 i
-fromPrim _ (PInt64 i)   = pure $ WPInt64 i
+fromPrim _ (PBool b) = pure $ WPBool b
 fromPrim (TPrim _ TInt32) (PIntLit i) =
   pure (WPInt32 (fromIntegral i))
 fromPrim (TPrim _ TInt64) (PIntLit i) =
   pure (WPInt64 (fromIntegral i))
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
-
 
 fromExpr ::
   ( MonadError FromWasmError m,

@@ -1,19 +1,19 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Function (functionParser, functionNameParser) where
 
-import           Calc.Parser.Expr
-import           Calc.Parser.Identifier
-import           Calc.Parser.Shared
-import           Calc.Parser.Type
-import           Calc.Parser.Types
-import           Calc.Types.Annotation
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.TypeVar
-import           Data.Functor           (($>))
-import           Text.Megaparsec
+import Calc.Parser.Expr
+import Calc.Parser.Identifier
+import Calc.Parser.Shared
+import Calc.Parser.Type
+import Calc.Parser.Types
+import Calc.Types.Annotation
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.TypeVar
+import Data.Functor (($>))
+import Text.Megaparsec
 
 argumentNameParser :: Parser ArgumentName
 argumentNameParser = do
@@ -28,8 +28,15 @@ functionParser :: Parser (Function Annotation)
 functionParser =
   withLocation
     ( \fnAnn (fnPublic, fnFunctionName, fnGenerics, fnArgs, fnReturnType, fnBody) ->
-        Function {fnPublic, fnAnn, fnArgs, fnGenerics,
-            fnFunctionName, fnReturnType, fnBody}
+        Function
+          { fnPublic,
+            fnAnn,
+            fnArgs,
+            fnGenerics,
+            fnFunctionName,
+            fnReturnType,
+            fnBody
+          }
     )
     innerParser
   where
@@ -46,7 +53,7 @@ functionParser =
       stringLiteral "{"
       expr <- exprParser
       stringLiteral "}"
-      pure (public, fnName, generics, args, returnType, expr )
+      pure (public, fnName, generics, args, returnType, expr)
 
 genericsParser :: Parser [TypeVar]
 genericsParser = do

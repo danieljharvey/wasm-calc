@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies  #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,27 +9,27 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Substitute
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Import
-import           Calc.Types.Module
-import           Calc.Types.Op
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad             (when, zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Functor
-import qualified Data.List                 as List
-import qualified Data.List.NonEmpty        as NE
-import qualified Data.Set                  as S
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Import
+import Calc.Types.Module
+import Calc.Types.Op
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import Calc.Types.Type
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Functor
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
@@ -145,9 +145,19 @@ elaborateFunction (Function {fnPublic, fnAnn, fnArgs, fnGenerics, fnReturnType, 
     )
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
+check ty (EApply ann fn args) =
+  checkApply (Just ty) ann fn args
+check ty (EInfix ann op a b) =
+  checkInfix (Just ty) ann op a b
+check ty (ETuple ann fstExpr restExpr) =
+  checkTuple (Just ty) ann fstExpr restExpr
 check (TPrim ann tyPrim) (EPrim _ (PIntLit i)) = do
   let ty = TPrim ann tyPrim
   pure $ EPrim ty (PIntLit i)
+check (TContainer tyAnn tyItems) (EBox _ inner) | length tyItems == 1 = do
+  typedInner <- check (NE.head tyItems) inner
+  let ty = TContainer tyAnn (NE.singleton (getOuterAnnotation typedInner))
+  pure $ EBox ty typedInner
 check ty expr = do
   exprA <- infer expr
   unifiedTy <- unify ty (getOuterAnnotation exprA)
@@ -182,7 +192,7 @@ inferIf ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType -> throwError (PredicateIsNotBoolean ann otherType)
   thenA <- infer thenExpr
   elseA <- check (getOuterAnnotation thenA) elseExpr
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
@@ -207,38 +217,42 @@ inferComparisonOperator ann op a b = do
       throwError (TypeMismatch otherA otherB)
   pure (EInfix ty op elabA elabB)
 
-inferInfix ::
+checkInfix ::
+  Maybe (Type ann) ->
   ann ->
   Op ->
   Expr ann ->
   Expr ann ->
   TypecheckM ann (Expr (Type ann))
-inferInfix ann OpEquals a b =
+checkInfix _ ann OpEquals a b =
   inferComparisonOperator ann OpEquals a b
-inferInfix ann OpGreaterThan a b =
+checkInfix _ ann OpGreaterThan a b =
   inferComparisonOperator ann OpGreaterThan a b
-inferInfix ann OpGreaterThanOrEqualTo a b =
+checkInfix _ ann OpGreaterThanOrEqualTo a b =
   inferComparisonOperator ann OpGreaterThanOrEqualTo a b
-inferInfix ann OpLessThan a b =
+checkInfix _ ann OpLessThan a b =
   inferComparisonOperator ann OpLessThan a b
-inferInfix ann OpLessThanOrEqualTo a b =
+checkInfix _ ann OpLessThanOrEqualTo a b =
   inferComparisonOperator ann OpLessThanOrEqualTo a b
-inferInfix ann op a b = do
+checkInfix (Just ty) ann op a b = do
+  elabA <- check ty a
+  elabB <- check ty b
+  pure (EInfix (ty $> ann) op elabA elabB)
+checkInfix Nothing ann op a b = do
   elabA <- infer a
   elabB <- infer b
-  -- all the other infix operators need to be Int -> Int -> Int
   ty <- case (getOuterAnnotation elabA, getOuterAnnotation elabB) of
     (TPrim _ TInt32, TPrim _ TInt32) ->
       -- if the types are the same, then great! it's an int32!
       pure (TPrim ann TInt32)
     (TPrim _ TInt64, TPrim _ TInt64) ->
-      -- if the types are the same, then great! it's an int!
+      -- if the types are the same, then great! it's an int64!
       pure (TPrim ann TInt64)
     (TPrim _ TFloat32, TPrim _ TFloat32) ->
-      -- if the types are the same, then great! it's a float!
+      -- if the types are the same, then great! it's a float32!
       pure (TPrim ann TFloat32)
     (TPrim _ TFloat64, TPrim _ TFloat64) ->
-      -- if the types are the same, then great! it's a float!
+      -- if the types are the same, then great! it's a float64!
       pure (TPrim ann TFloat64)
     (otherA, otherB) -> throwError (InfixTypeMismatch op otherA otherB)
   pure (EInfix ty op elabA elabB)
@@ -247,10 +261,10 @@ inferInfix ann op a b = do
 -- generic argument
 checkApplyArg :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 checkApplyArg ty@(TUnificationVar {}) expr = do
-  tyExpr <- infer expr
+  tyExpr <- check ty expr
   case getOuterAnnotation tyExpr of
     p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
-    _other     -> check ty expr
+    _other -> pure tyExpr
 checkApplyArg ty expr = check ty expr
 
 -- | if our return type is polymorphic, our concrete type should not be a
@@ -260,31 +274,48 @@ checkReturnType (TUnificationVar {}) p@(TPrim ann _) =
   throwError (NonBoxedGenericValue ann p)
 checkReturnType _ ty = pure ty
 
-inferApply ::
+checkApply ::
+  Maybe (Type ann) ->
   ann ->
   FunctionName ->
   [Expr ann] ->
   TypecheckM ann (Expr (Type ann))
-inferApply ann fnName args = do
+checkApply maybeTy ann fnName args = do
   fn <- lookupFunction ann fnName
   (ty, elabArgs) <- case fn of
-    TFunction _ tArgs tReturn -> do
+    TFunction _ fnArgs fnReturn -> do
       when
-        (length args /= length tArgs)
+        (length args /= length fnArgs)
         ( throwError $
             FunctionArgumentLengthMismatch
               ann
-              (length tArgs)
+              (length fnArgs)
               (length args)
         )
-      elabArgs <- zipWithM checkApplyArg tArgs args -- check each arg against type
+
+      -- what do we learn about args from return type?
+      _ <- case maybeTy of
+        Just ty -> void (unify ty fnReturn)
+        Nothing -> pure ()
+
       unified <- gets tcsUnified
+
+      -- what have we learned?
+      let substitutedArgs = substitute unified <$> fnArgs
+
+      elabArgs <- zipWithM checkApplyArg substitutedArgs args -- check each arg against type
+
+      -- did we learn yet more?
+      moreUnified <- gets tcsUnified
+
       actualTyReturn <-
         checkReturnType
-          tReturn
-          (substitute unified tReturn)
+          fnReturn
+          (substitute moreUnified fnReturn)
       pure (actualTyReturn, elabArgs)
-    _ -> throwError $ NonFunctionTypeFound ann fn
+    _ ->
+      throwError $
+        NonFunctionTypeFound ann fn
 
   pure (EApply (ty $> ann) fnName elabArgs)
 
@@ -305,6 +336,38 @@ checkPattern ty@(TContainer _ tyItems) pat@(PTuple _ p ps) = do
   pure (PTuple ty pHead (NE.fromList pTail))
 checkPattern ty pat = throwError $ PatternMismatch ty pat
 
+checkTuple ::
+  Maybe (Type ann) ->
+  ann ->
+  Expr ann ->
+  NE.NonEmpty (Expr ann) ->
+  TypecheckM ann (Expr (Type ann))
+checkTuple (Just (TContainer _ tyItems)) ann fstExpr restExpr = do
+  let tyFirst = NE.head tyItems
+      tyRest = NE.fromList (NE.tail tyItems)
+  typedFst <- check tyFirst fstExpr
+  typedRest <- NE.fromList <$> zipWithM check (NE.toList tyRest) (NE.toList restExpr)
+  let typ =
+        TContainer
+          ann
+          ( NE.cons
+              (getOuterAnnotation typedFst)
+              (getOuterAnnotation <$> typedRest)
+          )
+  pure $ ETuple typ typedFst typedRest
+checkTuple Nothing ann fstExpr restExpr = do
+  typedFst <- infer fstExpr
+  typedRest <- traverse infer restExpr
+  let typ =
+        TContainer
+          ann
+          ( NE.cons
+              (getOuterAnnotation typedFst)
+              (getOuterAnnotation <$> typedRest)
+          )
+  pure $ ETuple typ typedFst typedRest
+checkTuple _ _ _ _ = error "tuple mess"
+
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
@@ -313,9 +376,9 @@ infer (EPrim ann prim) =
   case typeFromPrim ann prim of
     Just ty -> pure (EPrim ty prim)
     Nothing -> case prim of
-                 -- ints default to Int64
-                 PIntLit _ -> pure (EPrim (TPrim ann TInt64) prim)
-                 _         -> error "don't know what int type to use"
+      -- ints default to Int64
+      PIntLit _ -> pure (EPrim (TPrim ann TInt64) prim)
+      _ -> error "don't know what int type to use"
 infer (EBox ann inner) = do
   typedInner <- infer inner
   pure $
@@ -332,17 +395,8 @@ infer (ELet ann pat expr rest) = do
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 infer (EIf ann predExpr thenExpr elseExpr) =
   inferIf ann predExpr thenExpr elseExpr
-infer (ETuple ann fstExpr restExpr) = do
-  typedFst <- infer fstExpr
-  typedRest <- traverse infer restExpr
-  let typ =
-        TContainer
-          ann
-          ( NE.cons
-              (getOuterAnnotation typedFst)
-              (getOuterAnnotation <$> typedRest)
-          )
-  pure $ ETuple typ typedFst typedRest
+infer (ETuple ann fstExpr restExpr) =
+  checkTuple Nothing ann fstExpr restExpr
 infer (EContainerAccess ann tup index) = do
   tyTup <- infer tup
   case getOuterAnnotation tyTup of
@@ -354,18 +408,16 @@ infer (EContainerAccess ann tup index) = do
             Nothing -> throwError $ AccessingOutsideTupleBounds ann (getOuterAnnotation tyTup) index
     otherTy -> throwError $ AccessingNonTuple ann otherTy
 infer (EApply ann fnName args) =
-  inferApply ann fnName args
+  checkApply Nothing ann fnName args
 infer (EVar ann var) = do
   ty <- lookupVar ann var
   pure (EVar (ty $> ann) var)
 infer (EInfix ann op a b) =
-  inferInfix ann op a b
+  checkInfix Nothing ann op a b
 
 typePrimFromPrim :: Prim -> Maybe TypePrim
-typePrimFromPrim (PBool _)    = pure TBool
-typePrimFromPrim (PIntLit _)  = Nothing
-typePrimFromPrim (PInt32 _)   = pure TInt32
-typePrimFromPrim (PInt64 _)   = pure TInt64
+typePrimFromPrim (PBool _) = pure TBool
+typePrimFromPrim (PIntLit _) = Nothing
 typePrimFromPrim (PFloat32 _) = pure TFloat32
 typePrimFromPrim (PFloat64 _) = pure TFloat64
 

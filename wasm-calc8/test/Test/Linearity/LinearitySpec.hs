@@ -20,32 +20,32 @@ spec = do
   describe "LinearitySpec" $ do
     describe "getFunctionUses" $ do
       let strings =
-            [ ( "function sum (a: Int64, b: Int64) { a + b }",
+            [ ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 LinearState
                   { lsVars =
                       M.fromList [("a", (LTPrimitive, ())), ("b", (LTPrimitive, ()))],
                     lsUses = [("b", Whole ()), ("a", Whole ())]
                   }
               ),
-              ( "function pair<a,b>(a: a, b: b) { (a,b) }",
+              ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
                 LinearState
                   { lsVars = M.fromList [("a", (LTBoxed, ())), ("b", (LTBoxed, ()))],
                     lsUses = [("b", Whole ()), ("a", Whole ())]
                   }
               ),
-              ( "function dontUseA<a,b>(a: a, b: b) { b }",
+              ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                 LinearState
                   { lsVars = M.fromList [("a", (LTBoxed, ())), ("b", (LTBoxed, ()))],
                     lsUses = [("b", Whole ())]
                   }
               ),
-              ( "function dup<a>(a: a) { (a,a)}",
+              ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                 LinearState
                   { lsVars = M.fromList [("a", (LTBoxed, ()))],
                     lsUses = [("a", Whole ()), ("a", Whole ())]
                   }
               ),
-              ( "function main() { let a = 1; let b = Box(a); b! }",
+              ( "function main() -> Int64 { let a = 1; let b = Box(a); b! }",
                 LinearState
                   { lsVars =
                       M.fromList
@@ -71,12 +71,12 @@ spec = do
     describe "validateFunction" $ do
       describe "expected successes" $ do
         let success =
-              [ "function sum (a: Int64, b: Int64) { a + b }",
-                "function pair<a,b>(a: a, b: b) { (a,b) }",
-                "function main() { let a = 1; let b = Box(a); b! }",
-                "function addPair(pair: (Int64,Int64)) { let (a,b) = pair; a + b }",
-                "function fst<a,b>(pair: (a,b)) { let (a,_) = pair; Box(a) }",
-                "function main() { let _ = 1; 2 }"
+              [ "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
+                "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
+                "function main() -> Int64 { let a = 1; let b = Box(a); b! }",
+                "function addPair(pair: (Int64,Int64)) -> Int64 { let (a,b) = pair; a + b }",
+                "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a,_) = pair; Box(a) }",
+                "function main() -> Int64 { let _ = 1; 2 }"
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do
@@ -91,19 +91,19 @@ spec = do
           success
       describe "expected failures" $ do
         let failures =
-              [ ( "function dontUseA<a,b>(a: a, b: b) { b }",
+              [ ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                   NotUsed () "a"
                 ),
-                ( "function dontUsePrimA(a: Int64, b: Int64) { b }",
+                ( "function dontUsePrimA(a: Int64, b: Int64) -> Int64 { b }",
                   NotUsed () "a"
                 ),
-                ( "function dup<a>(a: a) { (a,a)}",
+                ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                   UsedMultipleTimes [(), ()] "a"
                 ),
                 {-( "function twice(pair: (Int64, Int64)) { pair.1 + pair.2 }",
                   UsedMultipleTimes "pair"
                 ),-}
-                ( "function withPair<a,b>(pair: (a,b)) { let (a,b) = pair; (a, a, b) }",
+                ( "function withPair<a,b>(pair: (a,b)) -> (a,a,b) { let (a,b) = pair; (a, a, b) }",
                   UsedMultipleTimes [(), ()] "a"
                 )
               ]

@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -81,8 +81,6 @@ spec = do
       describe "From module" $ do
         traverse_ testWithNode testVals
 
-    -- \| we need to find a way of testing these whilst making `main` return
-    -- nothing
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
@@ -91,10 +89,14 @@ spec = do
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
               (asTest "100 - 1", Wasm.VI64 99),
-              (asTest "100.0 + 1.0", Wasm.VF64 101.0),
+              ( "export function test() -> Float64 { 100.0 + 1.0 }",
+                Wasm.VF64 101.0
+              ),
               (asTest "if False then 1 else 2", Wasm.VI64 2),
               (asTest "if 1 == 1 then 7 else 10", Wasm.VI64 7),
-              (asTest "if 2 == 1 then True else False", Wasm.VI32 0),
+              ( "export function test() -> Boolean { if 2 == 1 then True else False }",
+                Wasm.VI32 0
+              ),
               (asTest "let a = 100; a + 1", Wasm.VI64 101),
               ( asTest "let dog = 1; let cat = dog + 2; let hat = cat + 3; hat",
                 Wasm.VI64 6
@@ -130,19 +132,19 @@ spec = do
               ( asTest "Box(Box(100)).1.1",
                 Wasm.VI64 100
               ),
-              ( asTest "(10,True).2",
+              ( "export function test() -> Boolean { (10,True).2 }",
                 Wasm.VI32 1
               ),
               ( joinLines
                   [ "function swapIntAndBool(pair: (Int64, Boolean)) -> (Boolean, Int64) { (pair.2, pair.1) }",
                     "function fst(pair: (Boolean, Int64)) -> Boolean { pair.1 }",
-                    asTest "fst(swapIntAndBool((1,True)))"
+                    "export function test() -> Boolean { fst(swapIntAndBool((1,True))) }"
                   ],
                 Wasm.VI32 1
               ),
               ( joinLines
                   [ "function sumTuple(pair: (Float64, Float64)) -> Float64 { pair.1 + pair.2 }",
-                    asTest "sumTuple((100.0,200.0))"
+                    "export function test() -> Float64 { sumTuple((100.0,200.0)) }"
                   ],
                 Wasm.VF64 300.0
               ),

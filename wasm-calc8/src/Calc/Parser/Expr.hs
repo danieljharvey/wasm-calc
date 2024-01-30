@@ -6,6 +6,7 @@ import Calc.Parser.Identifier
 import Calc.Parser.Pattern
 import Calc.Parser.Primitives
 import Calc.Parser.Shared
+import Calc.Parser.Type
 import Calc.Parser.Types
 import Calc.Types.Annotation
 import Calc.Types.Expr
@@ -39,6 +40,7 @@ exprParserInternal =
   let parser = do
         try unboxParser
           <|> try containerAccessParser
+          <|> try annotationParser
           <|> try tupleParser
           <|> boxParser
           <|> inBrackets (addLocation exprParserInternal)
@@ -88,6 +90,15 @@ table =
 
 binary :: T.Text -> (a -> a -> a) -> Operator Parser a
 binary name f = InfixL (f <$ stringLiteral name)
+
+annotationParser :: Parser (Expr Annotation)
+annotationParser = label "annotation" $ addLocation $ do
+  stringLiteral "("
+  expr <- exprParserInternal
+  stringLiteral ":"
+  ty <- typeParser
+  stringLiteral ")"
+  pure (EAnn mempty ty expr)
 
 ifParser :: Parser (Expr Annotation)
 ifParser = label "if" $ addLocation $ do

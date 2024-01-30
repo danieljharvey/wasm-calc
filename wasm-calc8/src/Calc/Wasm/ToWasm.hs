@@ -1,15 +1,15 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import           Calc.Types.FunctionName
-import           Calc.Types.Op
-import           Calc.Wasm.Allocator
-import           Calc.Wasm.Types
-import           Data.Maybe              (catMaybes, mapMaybe, maybeToList)
-import qualified Data.Text.Lazy          as TL
-import           GHC.Natural
+import Calc.Types.FunctionName
+import Calc.Types.Op
+import Calc.Wasm.Allocator
+import Calc.Wasm.Types
+import Data.Maybe (catMaybes, mapMaybe, maybeToList)
+import qualified Data.Text.Lazy as TL
+import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
@@ -18,12 +18,12 @@ mapWithIndex f = fmap f . zip [0 ..]
 -- | turn types into wasm types
 -- void won't have a type, hence the Maybe
 fromType :: WasmType -> Maybe Wasm.ValueType
-fromType I32     = Just Wasm.I32
-fromType I64     = Just Wasm.I64
-fromType F32     = Just Wasm.F32
-fromType F64     = Just Wasm.F64
+fromType I32 = Just Wasm.I32
+fromType I64 = Just Wasm.I64
+fromType F32 = Just Wasm.F32
+fromType F64 = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
-fromType Void    = Nothing
+fromType Void = Nothing
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfExpr, wfArgs, wfLocals}) =
@@ -58,17 +58,17 @@ exportFromFunction wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
-bitsizeFromType Void    = error "bitsizeFromType Void"
-bitsizeFromType I32     = Wasm.BS32
-bitsizeFromType I64     = Wasm.BS64
-bitsizeFromType F32     = Wasm.BS32
-bitsizeFromType F64     = Wasm.BS64
+bitsizeFromType Void = error "bitsizeFromType Void"
+bitsizeFromType I32 = Wasm.BS32
+bitsizeFromType I64 = Wasm.BS64
+bitsizeFromType F32 = Wasm.BS32
+bitsizeFromType F64 = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
 typeIsFloat :: WasmType -> Bool
 typeIsFloat F32 = True
 typeIsFloat F64 = True
-typeIsFloat _   = False
+typeIsFloat _ = False
 
 instructionFromOp :: WasmType -> Op -> Wasm.Instruction Natural
 instructionFromOp ty OpAdd =
@@ -136,12 +136,12 @@ toWasm (WAllocate i) =
 toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
         let storeInstruction = case ty of
-              F32     -> Wasm.F32Store (Wasm.MemArg offset 0)
-              F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
-              I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
-              I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
+              F32 -> Wasm.F32Store (Wasm.MemArg offset 0)
+              F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
+              I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
+              I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
               Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
-              Void    -> error "WSet Void"
+              Void -> error "WSet Void"
          in [Wasm.GetLocal index] <> toWasm value <> [storeInstruction]
    in toWasm container
         <> [Wasm.SetLocal index]
@@ -149,12 +149,12 @@ toWasm (WSet index container items) =
         <> [Wasm.GetLocal index]
 toWasm (WTupleAccess ty tup offset) =
   let loadInstruction = case ty of
-        F32     -> Wasm.F32Load (Wasm.MemArg offset 0)
-        F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
-        I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
-        I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
+        F32 -> Wasm.F32Load (Wasm.MemArg offset 0)
+        F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
+        I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
+        I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
         Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
-        Void    -> error "WTupleAccess Void"
+        Void -> error "WTupleAccess Void"
    in toWasm tup <> [loadInstruction]
 
 allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function

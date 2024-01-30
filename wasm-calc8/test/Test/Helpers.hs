@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Helpers
@@ -18,11 +18,11 @@ module Test.Helpers
   )
 where
 
-import           Calc
+import Calc
 import qualified Data.List.NonEmpty as NE
-import           Data.String
-import qualified Data.Text          as T
-import           Data.Word
+import Data.String
+import qualified Data.Text as T
+import Data.Word
 
 joinLines :: [T.Text] -> T.Text
 joinLines = T.intercalate "\n"
@@ -49,7 +49,6 @@ tuple = \case
 
 tyInt32 :: (Monoid ann) => Type ann
 tyInt32 = TPrim mempty TInt32
-
 
 tyInt64 :: (Monoid ann) => Type ann
 tyInt64 = TPrim mempty TInt64
