@@ -7,7 +7,7 @@ function big(
   f: Int32, 
   g: Int32, 
   h: Int32
-) { 
+) -> Int32 { 
   if 1 then
     2
   else
