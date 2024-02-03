@@ -37,6 +37,7 @@ data TypeError ann
   | NonBoxedGenericValue ann (Type ann)
   | PatternMismatch (Type ann) (Pattern ann)
   | CantBindVoidValue (Pattern ann)
+  | UnknownIntegerLiteral ann
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -63,6 +64,26 @@ typeErrorDiagnostic input e =
   let filename = "<repl>"
       diag = Diag.addFile mempty filename (T.unpack input)
       report = case e of
+        (UnknownIntegerLiteral ann) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Unknown integer literal."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint
+                              "This could be an Int32 or an Int64."
+                          )
+                      )
+                ]
+            )
+            []
         (NonFunctionTypeFound _ ty) ->
           Diag.Err
             Nothing

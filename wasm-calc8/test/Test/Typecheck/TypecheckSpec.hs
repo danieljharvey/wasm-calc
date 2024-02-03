@@ -1,24 +1,24 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either         (isLeft)
+import           Data.Foldable       (traverse_)
+import qualified Data.List           as List
+import qualified Data.List.NonEmpty  as NE
+import           Data.Text           (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -177,40 +177,40 @@ spec = do
 
     describe "Expr" $ do
       let succeeding =
-            [ ("42", "Int64"),
+            [ ("(42 : Int64)", "Int64"),
               ("True", "Boolean"),
-              ("1 + 1", "Int64"),
-              ("6 * 9", "Int64"),
-              ("1 - 10", "Int64"),
-              ("2 == 2", "Boolean"),
-              ("2 > 2", "Boolean"),
-              ("2 >= 2", "Boolean"),
-              ("2 < 2", "Boolean"),
-              ("2 <= 2", "Boolean"),
+              ("1 + (1 : Int64)", "Int64"),
+              ("6 * (9 : Int64)", "Int64"),
+              ("(1 - 10 : Int64)", "Int64"),
+              ("2 == (2 : Int64)", "Boolean"),
+              ("2 > (2: Int64)", "Boolean"),
+              ("(2: Int64) >= 2", "Boolean"),
+              ("2 < (2: Int64)", "Boolean"),
+              ("(2: Int64) <= 2", "Boolean"),
               ("1.0 + 2.0", "Float64"),
               ("10.0 * 10.0", "Float64"),
-              ("if True then 1 else 2", "Int64"),
+              ("if True then (1: Int64) else 2", "Int64"),
               ("if False then True else False", "Boolean"),
-              ("(1,2,True)", "(Int64,Int64,Boolean)"),
-              ("(1,2,3).2", "Int64"),
-              ("Box(1)", "Box(Int64)"),
-              ("Box(1).1", "Int64"),
-              ("let a = 100; a", "Int64"),
-              ("let (a,b) = (1,2); a + b", "Int64")
+              ("((1: Int64),(2: Int64), True)", "(Int64,Int64,Boolean)"),
+              ("((1: Int64),(2: Int64),(3: Int64)).2", "Int64"),
+              ("Box((1: Int64))", "Box(Int64)"),
+              ("Box((1: Int64)).1", "Int64"),
+              ("let a = (100: Int64); a", "Int64"),
+              ("let (a,b) = ((1: Int64), (2: Int64)); a + b", "Int64")
             ]
 
       describe "Successfully typechecking expressions" $ do
         traverse_ testTypecheck succeeding
 
       let failing =
-            [ ("if 1 then 1 else 2", PredicateIsNotBoolean () tyInt64),
-              ("if True then 1 else True", TypeMismatch tyInt64 tyBool),
-              ("1 + 1.0", InfixTypeMismatch OpAdd tyInt64 tyFloat64),
-              ("1 + True", InfixTypeMismatch OpAdd tyInt64 tyBool),
+            [ ("if (1: Int64) then 1 else 2", PredicateIsNotBoolean () tyInt64),
+              ("if True then (1: Int64) else True", TypeMismatch tyBool tyInt64),
+              ("(1: Int64) + 1.0", InfixTypeMismatch OpAdd tyInt64 tyFloat64),
+              ("(1: Int64) + True", InfixTypeMismatch OpAdd tyInt64 tyBool),
               ("True + False", InfixTypeMismatch OpAdd tyBool tyBool),
-              ("1 * False", InfixTypeMismatch OpMultiply tyInt64 tyBool),
-              ("True - 1", InfixTypeMismatch OpSubtract tyBool tyInt64),
-              ( "let (a,b) = 1; a + b",
+              ("(1 : Int64) * False", InfixTypeMismatch OpMultiply tyInt64 tyBool),
+              ("True - (1 : Int64)", InfixTypeMismatch OpSubtract tyBool tyInt64),
+              ( "let (a,b) = (1 : Int64); a + b",
                 PatternMismatch
                   tyInt64
                   ( PTuple
@@ -219,7 +219,7 @@ spec = do
                       (NE.singleton $ PVar () "b")
                   )
               ),
-              ( "let (a,b,c) = (1,2); a + b",
+              ( "let (a,b,c) = ((1 : Int64), (2 : Int64)); a + b",
                 PatternMismatch
                   (tyContainer [tyInt64, tyInt64])
                   ( PTuple

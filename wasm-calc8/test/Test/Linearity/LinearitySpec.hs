@@ -2,15 +2,15 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad   (void)
+import           Data.Either     (isRight)
+import           Data.Foldable   (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Text       as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -45,7 +45,7 @@ spec = do
                     lsUses = [("a", Whole ()), ("a", Whole ())]
                   }
               ),
-              ( "function main() -> Int64 { let a = 1; let b = Box(a); b! }",
+              ( "function main() -> Int64 { let a = (1: Int64); let b = Box(a); b! }",
                 LinearState
                   { lsVars =
                       M.fromList
@@ -73,10 +73,10 @@ spec = do
         let success =
               [ "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
-                "function main() -> Int64 { let a = 1; let b = Box(a); b! }",
+                "function main() -> Int64 { let a = (1: Int64); let b = Box(a); b! }",
                 "function addPair(pair: (Int64,Int64)) -> Int64 { let (a,b) = pair; a + b }",
                 "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a,_) = pair; Box(a) }",
-                "function main() -> Int64 { let _ = 1; 2 }"
+                "function main() -> Int64 { let _ = (1: Int64); 2 }"
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do

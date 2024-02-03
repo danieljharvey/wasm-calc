@@ -1,4 +1,4 @@
-module Calc.Typecheck.Generalise (generalise) where
+module Calc.Typecheck.Generalise (freshUnificationVariable, generalise) where
 
 import Calc.TypeUtils (mapType)
 import Calc.Typecheck.Types

@@ -23,7 +23,7 @@ import           Calc.Types.Pattern
 import           Calc.Types.Prim
 import           Calc.Types.Type
 import           Calc.TypeUtils
-import           Control.Monad             (when, zipWithM)
+import           Control.Monad             (unless, when, zipWithM)
 import           Control.Monad.Except
 import           Control.Monad.State
 import           Data.Functor
@@ -152,6 +152,8 @@ check ty (EInfix ann op a b) =
   checkInfix (Just ty) ann op a b
 check ty (ETuple ann fstExpr restExpr) =
   checkTuple (Just ty) ann fstExpr restExpr
+check ty (ELet ann pat expr rest) =
+  checkLet (Just ty) ann pat expr rest
 check (TPrim ann tyPrim) (EPrim _ (PIntLit i)) = do
   let ty = TPrim ann tyPrim
   pure $ EPrim ty (PIntLit i)
@@ -183,19 +185,35 @@ unify tyA tyB =
     then pure tyA
     else throwError (TypeMismatch tyA tyB)
 
-inferIf ::
+checkIf ::
+  Maybe (Type ann) ->
   ann ->
   Expr ann ->
   Expr ann ->
   Expr ann ->
   TypecheckM ann (Expr (Type ann))
-inferIf ann predExpr thenExpr elseExpr = do
+checkIf maybeReturnTy ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
     otherType       -> throwError (PredicateIsNotBoolean ann otherType)
-  thenA <- infer thenExpr
-  elseA <- check (getOuterAnnotation thenA) elseExpr
+  (thenA,elseA) <- case maybeReturnTy of
+    Just returnTy -> do
+      thenA <- check returnTy thenExpr
+      elseA <- check returnTy elseExpr
+      pure (thenA, elseA)
+    Nothing -> do
+       let thenThenElse = do
+                            thenA <- infer thenExpr
+                            elseA <- check (getOuterAnnotation thenA) elseExpr
+                            pure (thenA, elseA)
+       let elseThenThen = do
+                            elseA <- infer elseExpr
+                            thenA <- check (getOuterAnnotation elseA) thenExpr
+                            pure (thenA,elseA)
+
+       thenThenElse `catchError` const elseThenThen
+
   pure (EIf (getOuterAnnotation elseA) predA thenA elseA)
 
 -- | any infix which is basically `a -> a -> Bool`
@@ -206,16 +224,16 @@ inferComparisonOperator ::
   Expr ann ->
   TypecheckM ann (Expr (Type ann))
 inferComparisonOperator ann op a b = do
-  elabA <- infer a
-  elabB <- infer b
-  ty <- case (getOuterAnnotation elabA, getOuterAnnotation elabB) of
-    (TPrim _ tA, TPrim _ tB)
-      | tA == tB ->
-          -- if the types are the same, then great! it's a bool!
-          pure (TPrim ann TBool)
-    (otherA, otherB) ->
-      -- otherwise, error!
-      throwError (TypeMismatch otherA otherB)
+  let leftThenRight = do
+        elabA <- infer a
+        elabB <- check (getOuterAnnotation elabA) b
+        pure (elabA, elabB)
+  let rightThenLeft = do
+        elabB <- infer b
+        elabA <- check (getOuterAnnotation elabB) a
+        pure (elabA, elabB)
+  (elabA, elabB) <- leftThenRight `catchError` \_ -> rightThenLeft
+  let ty = TPrim ann TBool
   pure (EInfix ty op elabA elabB)
 
 checkInfix ::
@@ -240,23 +258,36 @@ checkInfix (Just ty) ann op a b = do
   elabB <- check ty b
   pure (EInfix (ty $> ann) op elabA elabB)
 checkInfix Nothing ann op a b = do
-  elabA <- infer a
-  elabB <- infer b
-  ty <- case (getOuterAnnotation elabA, getOuterAnnotation elabB) of
-    (TPrim _ TInt32, TPrim _ TInt32) ->
-      -- if the types are the same, then great! it's an int32!
-      pure (TPrim ann TInt32)
-    (TPrim _ TInt64, TPrim _ TInt64) ->
-      -- if the types are the same, then great! it's an int64!
-      pure (TPrim ann TInt64)
-    (TPrim _ TFloat32, TPrim _ TFloat32) ->
-      -- if the types are the same, then great! it's a float32!
-      pure (TPrim ann TFloat32)
-    (TPrim _ TFloat64, TPrim _ TFloat64) ->
-      -- if the types are the same, then great! it's a float64!
-      pure (TPrim ann TFloat64)
-    (otherA, otherB) -> throwError (InfixTypeMismatch op otherA otherB)
-  pure (EInfix ty op elabA elabB)
+  let throwInfixError = do
+        elabA <- infer a
+        elabB <- infer b
+        throwError (InfixTypeMismatch op (getOuterAnnotation elabA) (getOuterAnnotation elabB))
+  let leftThenRight = do
+        elabA <- infer a
+        elabB <- check (getOuterAnnotation elabA) b
+        pure (elabA, elabB)
+  let rightThenLeft = do
+        elabB <- infer b
+        elabA <- check (getOuterAnnotation elabB) a
+        pure (elabA, elabB)
+  (elabA, elabB) <-
+    leftThenRight `catchError` \_ ->
+      rightThenLeft `catchError` const throwInfixError
+  let ty = getOuterAnnotation elabA
+  unless
+    (isNumber ty)
+    ( throwError $
+        InfixTypeMismatch op (getOuterAnnotation elabA) (getOuterAnnotation elabB)
+    )
+  pure (EInfix (ty $> ann) op elabA elabB)
+
+-- | is this type a primitive number?
+isNumber :: Type ann -> Bool
+isNumber (TPrim _ TInt32)   = True
+isNumber (TPrim _ TInt64)   = True
+isNumber (TPrim _ TFloat32) = True
+isNumber (TPrim _ TFloat64) = True
+isNumber _                  = False
 
 -- | like `check`, but we also check we're not passing a non-boxed value to a
 -- generic argument
@@ -369,6 +400,17 @@ checkTuple Nothing ann fstExpr restExpr = do
   pure $ ETuple typ typedFst typedRest
 checkTuple _ _ _ _ = error "tuple mess"
 
+checkLet :: Maybe (Type ann) -> ann -> Pattern ann -> Expr ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
+checkLet maybeReturnTy ann pat expr rest = do
+  typedExpr <- infer expr
+  typedPat <- checkPattern (getOuterAnnotation typedExpr) pat
+  typedRest <- withVar pat (getOuterAnnotation typedExpr) $
+    case maybeReturnTy of
+      Just returnTy -> check returnTy rest
+      Nothing       -> infer rest
+  pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
+
+
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
@@ -377,8 +419,7 @@ infer (EPrim ann prim) =
   case typeFromPrim ann prim of
     Just ty -> pure (EPrim ty prim)
     Nothing -> case prim of
-      -- ints default to Int64
-      PIntLit _ -> pure (EPrim (TPrim ann TInt64) prim)
+      PIntLit _ -> throwError (UnknownIntegerLiteral ann)
       _         -> error "don't know what int type to use"
 infer (EBox ann inner) = do
   typedInner <- infer inner
@@ -389,13 +430,10 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
-infer (ELet ann pat expr rest) = do
-  typedExpr <- infer expr
-  typedPat <- checkPattern (getOuterAnnotation typedExpr) pat
-  typedRest <- withVar pat (getOuterAnnotation typedExpr) (infer rest)
-  pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
+infer (ELet ann pat expr rest) =
+  checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =
-  inferIf ann predExpr thenExpr elseExpr
+  checkIf Nothing ann predExpr thenExpr elseExpr
 infer (ETuple ann fstExpr restExpr) =
   checkTuple Nothing ann fstExpr restExpr
 infer (EContainerAccess ann tup index) = do
