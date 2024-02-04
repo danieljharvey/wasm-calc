@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
@@ -22,16 +23,20 @@ import GHC.Natural
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
     fesImports :: M.Map FunctionName FromExprImport,
-    fesVars :: [(Maybe Identifier, WasmType)]
+    fesVars :: [(Maybe Identifier, WasmType)],
+    fesArgs :: [(Identifier, WasmType)]
   }
+  deriving stock (Eq, Ord, Show)
 
 data FromExprFunc = FromExprFunc
   { fefIndex :: Natural,
     fefArgs :: [WasmType],
     fefReturnType :: WasmType
   }
+  deriving stock (Eq, Ord, Show)
 
 newtype FromExprImport = FromExprImport {feiIndex :: Natural}
+  deriving newtype (Eq, Ord, Show)
 
 -- | add a local type, returning a unique index
 addLocal ::
@@ -47,28 +52,47 @@ addLocal maybeIdent ty = do
               fesVars fes <> [(maybeIdent, ty)]
           }
     )
-  len <-
+
+  varLen <-
     gets
       ( fromIntegral . length . fesVars
       )
-  pure (len - 1)
+
+  argLen <-
+    gets (fromIntegral . length . fesArgs)
+
+  pure (argLen + varLen - 1)
 
 lookupIdent ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   Identifier ->
   m Natural
 lookupIdent ident = do
-  let matchIdent (_, (thisIdent, _)) = thisIdent == Just ident
+  let matchVarIdent (_, (thisIdent, _)) = thisIdent == Just ident
+      matchArgIdent (_, (thisIdent, _)) = thisIdent == ident
 
-  maybeNat <-
+  startingDigit <- gets (fromIntegral . length . fesArgs)
+
+  maybeVarNat <-
     gets
-      ( List.find matchIdent
-          . zip [0 ..]
+      ( List.find matchVarIdent
+          . zip [startingDigit ..]
           . fesVars
       )
-  case maybeNat of
+  case maybeVarNat of
     Just (nat, _) -> pure nat
-    Nothing -> throwError $ IdentifierNotFound ident
+    Nothing -> do
+      -- check in args
+      maybeArgNat <-
+        gets
+          ( List.find matchArgIdent
+              . zip [0 ..]
+              . fesArgs
+          )
+      case maybeArgNat of
+        Just (nat, _) -> pure nat
+        Nothing ->
+          throwError $ IdentifierNotFound ident
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -190,12 +214,6 @@ fromExpr (ETuple ty a as) = do
             <*> fromExpr item
       )
       allItems
-fromExpr (EContainerAccess ty tup nat) =
-  let offset = getOffsetList (getOuterAnnotation tup) !! fromIntegral (nat - 1)
-   in WTupleAccess
-        <$> liftEither (scalarFromType ty)
-        <*> fromExpr tup
-        <*> pure offset
 fromExpr (EBox ty inner) = do
   innerWasmType <- liftEither $ scalarFromType (getOuterAnnotation inner)
   containerWasmType <- liftEither $ scalarFromType ty
@@ -242,7 +260,7 @@ fromFunction funcMap importMap (Function {fnPublic, fnBody, fnArgs, fnFunctionNa
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
           wasmType <- scalarFromType faType
-          pure (Just (Identifier ident), wasmType)
+          pure (Identifier ident, wasmType)
       )
       fnArgs
 
@@ -250,7 +268,8 @@ fromFunction funcMap importMap (Function {fnPublic, fnBody, fnArgs, fnFunctionNa
     runStateT
       (fromExpr fnBody)
       ( FromExprState
-          { fesVars = args,
+          { fesVars = mempty,
+            fesArgs = args,
             fesImports = importMap,
             fesFunctions = funcMap
           }

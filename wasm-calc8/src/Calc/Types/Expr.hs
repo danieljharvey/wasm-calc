@@ -11,7 +11,6 @@ import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type
 import qualified Data.List.NonEmpty as NE
-import GHC.Natural
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 
@@ -23,7 +22,6 @@ data Expr ann
   | EVar ann Identifier
   | EApply ann FunctionName [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
-  | EContainerAccess ann (Expr ann) Natural
   | EBox ann (Expr ann)
   | EAnn ann (Type ann) (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -79,7 +77,5 @@ instance PP.Pretty (Expr ann) where
     where
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs
-  pretty (EContainerAccess _ tup nat) =
-    PP.pretty tup <> "." <> PP.pretty nat
   pretty (EBox _ inner) =
     "Box(" <> PP.pretty inner <> ")"

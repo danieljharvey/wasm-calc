@@ -26,12 +26,11 @@ fromType Pointer = Just Wasm.I32
 fromType Void = Nothing
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
-fromFunction wfIndex (WasmFunction {wfExpr, wfArgs, wfLocals}) =
-  let args = fromType <$> wfArgs
-      locals = fromType <$> wfLocals
+fromFunction wfIndex (WasmFunction {wfExpr, wfLocals}) =
+  let locals = fromType <$> wfLocals
    in Wasm.Function
         (fromIntegral $ wfIndex + 1)
-        (catMaybes $ locals <> args) -- we're dropping `Void` rather than erroring, perhaps this is bad
+        (catMaybes $ locals) -- we're dropping `Void` rather than erroring, perhaps this is bad
         (toWasm wfExpr)
 
 fromImport :: Int -> WasmImport -> Wasm.Import

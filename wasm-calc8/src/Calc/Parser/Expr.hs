@@ -13,7 +13,6 @@ import Calc.Types.Expr
 import Calc.Types.Op
 import Calc.Types.Pattern
 import Control.Monad.Combinators.Expr
-import Data.Foldable (foldl')
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import Text.Megaparsec
@@ -37,10 +36,9 @@ exprParser = do
 -- it contains everything except `let` bindings
 exprParserInternal :: Parser (Expr Annotation)
 exprParserInternal =
-  let parser = do
-        try unboxParser
-          <|> try containerAccessParser
-          <|> try annotationParser
+  let parser =
+        do
+          try annotationParser
           <|> try tupleParser
           <|> boxParser
           <|> inBrackets (addLocation exprParserInternal)
@@ -133,45 +131,6 @@ tupleParser = label "tuple" $
       _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
-
-unboxParser :: Parser (Expr Annotation)
-unboxParser =
-  let tupParser :: Parser (Expr Annotation)
-      tupParser =
-        try containerAccessParser
-          <|> try tupleParser
-          <|> try applyParser
-          <|> try varParser
-          <|> boxParser
-   in label "unbox" $
-        addLocation $ do
-          tup <- tupParser
-          _ <- stringLiteral "!"
-          pure $
-            EContainerAccess mempty tup 1
-
-containerAccessParser :: Parser (Expr Annotation)
-containerAccessParser =
-  let tupParser :: Parser (Expr Annotation)
-      tupParser =
-        try tupleParser
-          <|> try applyParser
-          <|> try varParser
-          <|> boxParser
-   in label "container access" $
-        addLocation $ do
-          tup <- tupParser
-          _ <- stringLiteral "."
-          accesses <-
-            sepBy1
-              (myLexeme naturalParser)
-              (stringLiteral ".")
-          pure $
-            foldl'
-              ( EContainerAccess mempty
-              )
-              tup
-              accesses
 
 boxParser :: Parser (Expr Annotation)
 boxParser = label "box" $

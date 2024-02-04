@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -93,12 +93,13 @@ spec = do
                 Wasm.VF64 101.0
               ),
               (asTest "if False then 1 else (2: Int64)", Wasm.VI64 2),
-              (asTest "if (1 : Int64) == 1 then (7: Int64) else 10", Wasm.VI64 7),
+              (asTest "if (1 : Int64) == 1 then 7 else 10", Wasm.VI64 7),
               ( "export function test() -> Boolean { if 2 == (1 : Int32) then True else False }",
                 Wasm.VI32 0
               ),
-              (asTest "let a = (100: Int64); a + 1",
-                    Wasm.VI64 101),
+              ( asTest "let a = (100: Int64); a + 1",
+                Wasm.VI64 101
+              ),
               ( asTest "let dog = (1: Int64); let cat = dog + 2; let hat = cat + 3; hat",
                 Wasm.VI64 6
               ),
@@ -127,49 +128,58 @@ spec = do
                   ],
                 Wasm.VI64 4
               ),
-              ( asTest "Box((100: Int64)).1",
+              ( asTest "let Box(a) = Box((100: Int64)); a",
                 Wasm.VI64 100
               ),
-              ( asTest "Box(Box((100: Int64))).1.1",
+              ( asTest "let Box(Box(a)) = Box(Box((100: Int64))); a",
                 Wasm.VI64 100
               ),
-              ( "export function test() -> Boolean { ((10 : Int64), True).2 }",
+              ( "export function test() -> Boolean { let (_, b) = ((10 : Int64), True); b }",
+                Wasm.VI32 1
+              ),
+              ( "export function test() -> Boolean { let (a, _) = (True, (10 : Int64)); a }",
                 Wasm.VI32 1
               ),
               ( joinLines
-                  [ "function swapIntAndBool(pair: (Int64, Boolean)) -> (Boolean, Int64) { (pair.2, pair.1) }",
-                    "function fst(pair: (Boolean, Int64)) -> Boolean { pair.1 }",
+                  [ "function fst(pair: (Boolean, Int64)) -> Boolean { let (a, _) = pair; a }",
+                    "export function test() -> Boolean { fst((True, 100)) }"
+                  ],
+                Wasm.VI32 1
+              ),
+              ( joinLines
+                  [ "function swapIntAndBool(pair: (Int64, Boolean)) -> (Boolean, Int64) { let (a,b) = pair; (b,a) }",
+                    "function fst(pair: (Boolean, Int64)) -> Boolean { let (a,_) = pair; a }",
                     "export function test() -> Boolean { fst(swapIntAndBool((1,True))) }"
                   ],
                 Wasm.VI32 1
               ),
               ( joinLines
-                  [ "function sumTuple(pair: (Float64, Float64)) -> Float64 { pair.1 + pair.2 }",
+                  [ "function sumTuple(pair: (Int64, Int64)) -> Int64 { let (a,b) = pair; a + b }",
+                    "export function test() -> Int64 { sumTuple((100,200)) }"
+                  ],
+                Wasm.VI64 300
+              ),
+              ( joinLines
+                  [ "function sumTuple(pair: (Float64, Float64)) -> Float64 { let (a,b) = pair; a + b }",
                     "export function test() -> Float64 { sumTuple((100.0,200.0)) }"
                   ],
                 Wasm.VF64 300.0
               ),
               ( joinLines
-                  [ "function fst(pair: (Int64,Int64)) -> Int64 { pair.1 }",
-                    asTest "fst((((10: Int64), (2: Int64)), ((3: Int64), (4: Int64))).1)"
-                  ],
-                Wasm.VI64 10
-              ),
-              ( joinLines
-                  [ "function fst<a,b>(pair: (a,b)) -> Box(a) { Box(pair.1) }",
-                    asTest "fst(((10: Int64), (2: Int64))).1"
+                  [ "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a, _) = pair; Box(a) }",
+                    asTest "let Box(a) = fst(((10: Int64), (2: Int64))); a"
                   ],
                 Wasm.VI64 10
               ),
               ( joinLines
                   [ "function pair<a,b>(left: a, right:b) -> (a,b) { (left, right) }",
-                    asTest "pair(Box((43 : Int64)),Box((42 : Int64))).1.1"
+                    asTest "let (Box(a),_) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
                   ],
                 Wasm.VI64 43
               ),
               ( joinLines
                   [ "function pair<a,b>(left: a, right: b) -> (a,b) { (left, right) }",
-                    asTest "pair(Box((43 : Int64)),Box((42 : Int64))).2.1"
+                    asTest "let (_, Box(a)) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
                   ],
                 Wasm.VI64 42
               ),

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Calc.Linearity.Types
   ( Linearity (..),
@@ -11,15 +12,14 @@ where
 
 import Calc.Types.Identifier
 import qualified Data.Map as M
-import GHC.Natural
 
 -- | Are we using the whole type or bits of it?
 -- this distinction will be gone once we can destructure types instead,
 -- implicitly destroying them
-data Linearity ann
+newtype Linearity ann
   = Whole ann
-  | Slice ann Natural
-  deriving stock (Eq, Ord, Show, Functor)
+  deriving newtype (Eq, Ord, Show)
+  deriving stock (Functor)
 
 -- | we're less fussy about the use of primitive values
 data LinearityType = LTPrimitive | LTBoxed

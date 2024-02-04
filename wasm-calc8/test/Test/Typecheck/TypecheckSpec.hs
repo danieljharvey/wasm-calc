@@ -1,24 +1,24 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import           Calc.ExprUtils
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Types.Function
-import           Calc.Types.Module
-import           Calc.Types.Op
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Control.Monad
-import           Data.Either         (isLeft)
-import           Data.Foldable       (traverse_)
-import qualified Data.List           as List
-import qualified Data.List.NonEmpty  as NE
-import           Data.Text           (Text)
-import           Test.Helpers
-import           Test.Hspec
+import Calc.ExprUtils
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Types.Function
+import Calc.Types.Module
+import Calc.Types.Op
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Control.Monad
+import Data.Either (isLeft)
+import Data.Foldable (traverse_)
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import Data.Text (Text)
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -83,11 +83,17 @@ spec = do
               ( "function not (bool: Boolean) -> Boolean { if bool then False else True }",
                 TFunction () [tyBool] tyBool
               ),
-              ( "function swapPair<a,b>(pair: (a,b)) -> (b,a) { (pair.2, pair.1) }",
+              ( "function swapPair<a,b>(pair: (a,b)) -> (b,a) { let (a,b) = pair; (b,a) }",
                 TFunction
                   ()
                   [tyContainer [tyVar "a", tyVar "b"]]
                   (tyContainer [tyVar "b", tyVar "a"])
+              ),
+              ( "function sumTuple(pair: (Float64, Float64)) -> Float64 { let (a,b) = pair; a + b }",
+                TFunction
+                  ()
+                  [tyContainer [tyFloat64, tyFloat64]]
+                  tyFloat64
               )
             ]
 
@@ -116,7 +122,7 @@ spec = do
                 tyInt64
               ),
               ( joinLines
-                  [ "function swapPair<a,b>(pair: (a,b)) -> (b,a) { (pair.2, pair.1) }",
+                  [ "function swapPair<a,b>(pair: (a,b)) -> (b,a) { let (a,b) = pair; (b,a) }",
                     "function main() -> (Int64, Boolean) { swapPair((True,1)) }"
                   ],
                 tyContainer [tyInt64, tyBool]
@@ -128,7 +134,7 @@ spec = do
                 tyContainer [tyInt64]
               ),
               ( joinLines
-                  [ "function unboxedReturnFst<a,b>(pair: (a,b)) -> a { pair.1 }",
+                  [ "function unboxedReturnFst<a,b>(pair: (a,b)) -> a { let (a, _) = pair; a }",
                     "function main() -> Box(Int64) { unboxedReturnFst((Box(1),Box((2 : Int32)))) }"
                   ],
                 tyContainer [tyInt64]
@@ -164,7 +170,7 @@ spec = do
                   "function main() -> Int32 { usesNonBoxedGeneric(1) }"
                 ],
               joinLines
-                [ "function unboxedReturnFst<a,b>(pair: (a,b)) -> a { pair.1 }",
+                [ "function unboxedReturnFst<a,b>(pair: (a,b)) -> a { let (a, _) = pair; a }",
                   "function main() -> Int32 { unboxedReturnFst((1,(2 : Int32))) }"
                 ],
               joinLines
@@ -191,10 +197,9 @@ spec = do
               ("10.0 * 10.0", "Float64"),
               ("if True then (1: Int64) else 2", "Int64"),
               ("if False then True else False", "Boolean"),
-              ("((1: Int64),(2: Int64), True)", "(Int64,Int64,Boolean)"),
-              ("((1: Int64),(2: Int64),(3: Int64)).2", "Int64"),
+              ("((1: Int64), (2: Int64), True)", "(Int64,Int64,Boolean)"),
               ("Box((1: Int64))", "Box(Int64)"),
-              ("Box((1: Int64)).1", "Int64"),
+              ("let Box(a) = Box((1: Int64)); a", "Int64"),
               ("let a = (100: Int64); a", "Int64"),
               ("let (a,b) = ((1: Int64), (2: Int64)); a + b", "Int64")
             ]

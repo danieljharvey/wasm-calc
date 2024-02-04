@@ -22,11 +22,9 @@ import Calc.Types.Type
 import Control.Monad.State
 import Data.Foldable (traverse_)
 import qualified Data.Map as M
-import GHC.Natural
 
 getLinearityAnnotation :: Linearity ann -> ann
 getLinearityAnnotation (Whole ann) = ann
-getLinearityAnnotation (Slice ann _) = ann
 
 validateModule :: (Show ann) => Module (Type ann) -> Either (LinearityError ann) ()
 validateModule (Module {mdFunctions}) =
@@ -48,9 +46,7 @@ validate (LinearState {lsVars, lsUses}) =
               LTBoxed ->
                 case length completeUses of
                   0 ->
-                    if countPartialUses lsUses ident > 0
-                      then Right ()
-                      else Left (NotUsed ann ident)
+                    Left (NotUsed ann ident)
                   1 -> Right ()
                   _more ->
                     Left (UsedMultipleTimes (getLinearityAnnotation <$> completeUses) ident)
@@ -63,21 +59,8 @@ filterCompleteUses uses ident =
     ( \(thisIdent, linearity) total -> case linearity of
         Whole _ ->
           if thisIdent == ident then linearity : total else total
-        _ -> total
     )
     []
-    uses
-
--- | count uses of a given identifier
-countPartialUses :: [(Identifier, Linearity ann)] -> Identifier -> Natural
-countPartialUses uses ident =
-  foldr
-    ( \(thisIdent, linearity) total -> case linearity of
-        Whole _ -> total
-        Slice _ _ ->
-          if thisIdent == ident then total + 1 else total
-    )
-    0
     uses
 
 getFunctionUses :: (Show ann) => Function (Type ann) -> LinearState ann
@@ -102,20 +85,6 @@ getFunctionUses (Function {fnBody, fnArgs}) =
 recordUse :: (MonadState (LinearState ann) m) => Identifier -> ann -> m ()
 recordUse ident ann =
   modify (\ls -> ls {lsUses = (ident, Whole ann) : lsUses ls})
-
-recordContainerAccessUse ::
-  (MonadState (LinearState ann) m) =>
-  Natural ->
-  Identifier ->
-  ann ->
-  m ()
-recordContainerAccessUse index ident ann =
-  modify
-    ( \ls ->
-        ls
-          { lsUses = (ident, Slice ann index) : lsUses ls
-          }
-    )
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -147,10 +116,6 @@ decorateWithUses ::
 decorateWithUses (EVar ann ident) = do
   recordUse ident (getOuterTypeAnnotation ann)
   pure (EVar ann ident)
-decorateWithUses (EContainerAccess ann (EVar ann' ident) index) =
-  do
-    recordContainerAccessUse index ident (getOuterTypeAnnotation ann')
-    pure (EContainerAccess ann (EVar ann' ident) index)
 decorateWithUses (ELet ann pat expr rest) = do
   addLetBinding pat
   ELet ann pat <$> decorateWithUses expr <*> decorateWithUses rest
