@@ -1,24 +1,24 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either         (isLeft)
+import           Data.Foldable       (traverse_)
+import qualified Data.List           as List
+import qualified Data.List.NonEmpty  as NE
+import           Data.Text           (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty)
@@ -193,8 +193,8 @@ spec = do
               ("(2: Int64) >= 2", "Boolean"),
               ("2 < (2: Int64)", "Boolean"),
               ("(2: Int64) <= 2", "Boolean"),
-              ("1.0 + 2.0", "Float64"),
-              ("10.0 * 10.0", "Float64"),
+              ("1.0 + (2.0: Float32)", "Float32"),
+              ("(10.0 : Float64) * 10.0", "Float64"),
               ("if True then (1: Int64) else 2", "Int64"),
               ("if False then True else False", "Boolean"),
               ("((1: Int64), (2: Int64), True)", "(Int64,Int64,Boolean)"),
@@ -210,7 +210,7 @@ spec = do
       let failing =
             [ ("if (1: Int64) then 1 else 2", PredicateIsNotBoolean () tyInt64),
               ("if True then (1: Int64) else True", TypeMismatch tyBool tyInt64),
-              ("(1: Int64) + 1.0", InfixTypeMismatch OpAdd tyInt64 tyFloat64),
+              ("(1: Int64) + (1.0: Float64)", InfixTypeMismatch OpAdd tyInt64 tyFloat64),
               ("(1: Int64) + True", InfixTypeMismatch OpAdd tyInt64 tyBool),
               ("True + False", InfixTypeMismatch OpAdd tyBool tyBool),
               ("(1 : Int64) * False", InfixTypeMismatch OpMultiply tyInt64 tyBool),

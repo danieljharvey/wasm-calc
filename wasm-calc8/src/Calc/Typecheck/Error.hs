@@ -1,27 +1,27 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
-import Calc.ExprUtils
-import Calc.SourceSpan
-import Calc.TypeUtils
-import Calc.Types.Annotation
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HS
-import qualified Data.List as List
-import Data.Maybe (catMaybes, mapMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import GHC.Natural
-import qualified Prettyprinter as PP
+import           Calc.ExprUtils
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Data.HashSet              (HashSet)
+import qualified Data.HashSet              as HS
+import qualified Data.List                 as List
+import           Data.Maybe                (catMaybes, mapMaybe)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import           GHC.Natural
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data TypeError ann
@@ -38,6 +38,8 @@ data TypeError ann
   | PatternMismatch (Type ann) (Pattern ann)
   | CantBindVoidValue (Pattern ann)
   | UnknownIntegerLiteral ann
+  | UnknownFloatLiteral ann
+
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -64,6 +66,27 @@ typeErrorDiagnostic input e =
   let filename = "<repl>"
       diag = Diag.addFile mempty filename (T.unpack input)
       report = case e of
+        (UnknownFloatLiteral ann) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Unknown float literal."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint
+                              "This could be an Float32 or an Float64."
+                          )
+                      )
+                ]
+            )
+            []
+
         (UnknownIntegerLiteral ann) ->
           Diag.Err
             Nothing

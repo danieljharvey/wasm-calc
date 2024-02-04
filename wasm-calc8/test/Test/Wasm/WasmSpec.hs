@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Wasm
-import Calc.Wasm.FromExpr
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Wasm
+import           Calc.Wasm.FromExpr
+import           Calc.Wasm.Run
+import           Calc.Wasm.ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e -> error (show e)
+              Left e        -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -189,7 +189,7 @@ spec = do
               ( asTest "let Box(a) = Box((42 : Int64)); a",
                 Wasm.VI64 42
               ),
-              ( asTest "let Box(a) = Box(1.23); let _ = a; (23 : Int64)",
+              ( asTest "let Box(a) = Box((1.23: Float32)); let _ = a; (23 : Int64)",
                 Wasm.VI64 23
               ),
               ( asTest "let (a,b) = ((1: Int64), (2 : Int64)); a + b",

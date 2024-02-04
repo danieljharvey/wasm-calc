@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Helpers
@@ -18,11 +18,11 @@ module Test.Helpers
   )
 where
 
-import Calc
+import           Calc
 import qualified Data.List.NonEmpty as NE
-import Data.String
-import qualified Data.Text as T
-import Data.Word
+import           Data.String
+import qualified Data.Text          as T
+import           Data.Word
 
 joinLines :: [T.Text] -> T.Text
 joinLines = T.intercalate "\n"
@@ -31,7 +31,7 @@ int :: (Monoid ann) => Word64 -> Expr ann
 int = EPrim mempty . PIntLit
 
 float :: (Monoid ann) => Double -> Expr ann
-float = EPrim mempty . PFloat64
+float = EPrim mempty . PFloatLit
 
 bool :: (Monoid ann) => Bool -> Expr ann
 bool = EPrim mempty . PBool

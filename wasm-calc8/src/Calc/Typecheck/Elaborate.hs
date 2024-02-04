@@ -1,5 +1,5 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DerivingStrategies  #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -9,26 +9,26 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import Calc.ExprUtils
-import Calc.TypeUtils
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Substitute
-import Calc.Typecheck.Types
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Import
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Prim
-import Calc.Types.Type
-import Control.Monad (unless, when, zipWithM)
-import Control.Monad.Except
-import Control.Monad.State
-import Data.Functor
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Substitute
+import           Calc.Typecheck.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Import
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Prim
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad             (unless, when, zipWithM)
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Functor
+import qualified Data.List.NonEmpty        as NE
+import qualified Data.Set                  as S
 
 elaborateModule ::
   forall ann.
@@ -155,9 +155,18 @@ check ty (ELet ann pat expr rest) =
   checkLet (Just ty) ann pat expr rest
 check ty (EIf ann predExpr thenExpr elseExpr) =
   checkIf (Just ty) ann predExpr thenExpr elseExpr
-check (TPrim ann tyPrim) (EPrim _ (PIntLit i)) = do
-  let ty = TPrim ann tyPrim
-  pure $ EPrim ty (PIntLit i)
+check ty (EPrim _ (PFloatLit f)) = do
+  tyPrim <- case ty of
+    TPrim _ TFloat32 -> pure ty
+    TPrim _ TFloat64 -> pure ty
+    _                -> error "non float type error"
+  pure $ EPrim tyPrim (PFloatLit f)
+check ty (EPrim _ (PIntLit i)) = do
+  tyPrim <- case ty of
+    TPrim _ TInt32 -> pure ty
+    TPrim _ TInt64 -> pure ty
+    _              -> error "non int type error"
+  pure $ EPrim tyPrim (PIntLit i)
 check (TContainer tyAnn tyItems) (EBox _ inner) | length tyItems == 1 = do
   typedInner <- check (NE.head tyItems) inner
   let ty = TContainer tyAnn (NE.singleton (getOuterAnnotation typedInner))
@@ -180,7 +189,8 @@ unify (TFunction ann argA bodyA) (TFunction _ argB bodyB) =
     <*> unify bodyA bodyB
 unify (TContainer ann as) (TContainer _ bs) =
   TContainer ann
-    <$> (NE.fromList <$> zipWithM unify (NE.toList as) (NE.toList bs))
+    <$> (NE.fromList <$>
+      zipWithM unify (NE.toList as) (NE.toList bs))
 unify tyA tyB =
   if void tyA == void tyB
     then pure tyA
@@ -197,7 +207,7 @@ checkIf maybeReturnTy ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
   (thenA, elseA) <- case maybeReturnTy of
     Just returnTy -> do
       thenA <- check returnTy thenExpr
@@ -208,6 +218,7 @@ checkIf maybeReturnTy ann predExpr thenExpr elseExpr = do
             thenA <- infer thenExpr
             elseA <- check (getOuterAnnotation thenA) elseExpr
             pure (thenA, elseA)
+
       let elseThenThen = do
             elseA <- infer elseExpr
             thenA <- check (getOuterAnnotation elseA) thenExpr
@@ -233,7 +244,8 @@ inferComparisonOperator ann op a b = do
         elabB <- infer b
         elabA <- check (getOuterAnnotation elabB) a
         pure (elabA, elabB)
-  (elabA, elabB) <- leftThenRight `catchError` \_ -> rightThenLeft
+  (elabA, elabB) <- leftThenRight
+                        `catchError` \_ -> rightThenLeft
   let ty = TPrim ann TBool
   pure (EInfix ty op elabA elabB)
 
@@ -284,11 +296,11 @@ checkInfix Nothing ann op a b = do
 
 -- | is this type a primitive number?
 isNumber :: Type ann -> Bool
-isNumber (TPrim _ TInt32) = True
-isNumber (TPrim _ TInt64) = True
+isNumber (TPrim _ TInt32)   = True
+isNumber (TPrim _ TInt64)   = True
 isNumber (TPrim _ TFloat32) = True
 isNumber (TPrim _ TFloat64) = True
-isNumber _ = False
+isNumber _                  = False
 
 -- | like `check`, but we also check we're not passing a non-boxed value to a
 -- generic argument
@@ -297,7 +309,7 @@ checkApplyArg ty@(TUnificationVar {}) expr = do
   tyExpr <- check ty expr
   case getOuterAnnotation tyExpr of
     p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
-    _other -> pure tyExpr
+    _other     -> pure tyExpr
 checkApplyArg ty expr = check ty expr
 
 -- | if our return type is polymorphic, our concrete type should not be a
@@ -346,6 +358,7 @@ checkApply maybeTy ann fnName args = do
           fnReturn
           (substitute moreUnified fnReturn)
       pure (actualTyReturn, elabArgs)
+
     _ ->
       throwError $
         NonFunctionTypeFound ann fn
@@ -401,14 +414,15 @@ checkTuple Nothing ann fstExpr restExpr = do
   pure $ ETuple typ typedFst typedRest
 checkTuple _ _ _ _ = error "tuple mess"
 
-checkLet :: Maybe (Type ann) -> ann -> Pattern ann -> Expr ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
+checkLet :: Maybe (Type ann) -> ann ->
+  Pattern ann -> Expr ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 checkLet maybeReturnTy ann pat expr rest = do
   typedExpr <- infer expr
   typedPat <- checkPattern (getOuterAnnotation typedExpr) pat
   typedRest <- withVar pat (getOuterAnnotation typedExpr) $
     case maybeReturnTy of
       Just returnTy -> check returnTy rest
-      Nothing -> infer rest
+      Nothing       -> infer rest
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
@@ -416,11 +430,10 @@ infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
   pure $ EAnn (getOuterAnnotation typedExpr $> ann) (ty $> ty) typedExpr
 infer (EPrim ann prim) =
-  case typeFromPrim ann prim of
-    Just ty -> pure (EPrim ty prim)
-    Nothing -> case prim of
-      PIntLit _ -> throwError (UnknownIntegerLiteral ann)
-      _ -> error "don't know what int type to use"
+  case prim of
+    PBool _     -> pure (EPrim (TPrim ann TBool) prim)
+    PIntLit _   -> throwError (UnknownIntegerLiteral ann)
+    PFloatLit _ -> throwError (UnknownFloatLiteral ann)
 infer (EBox ann inner) = do
   typedInner <- infer inner
   pure $
@@ -443,12 +456,3 @@ infer (EVar ann var) = do
   pure (EVar (ty $> ann) var)
 infer (EInfix ann op a b) =
   checkInfix Nothing ann op a b
-
-typePrimFromPrim :: Prim -> Maybe TypePrim
-typePrimFromPrim (PBool _) = pure TBool
-typePrimFromPrim (PIntLit _) = Nothing
-typePrimFromPrim (PFloat32 _) = pure TFloat32
-typePrimFromPrim (PFloat64 _) = pure TFloat64
-
-typeFromPrim :: ann -> Prim -> Maybe (Type ann)
-typeFromPrim ann prim = TPrim ann <$> typePrimFromPrim prim
