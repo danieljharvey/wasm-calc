@@ -123,6 +123,26 @@ spec = do
                     mdImports = [],
                     mdMemory = Just 100
                   }
+              ),
+              ( joinLines
+                  [ "memory 100",
+                    "function main() -> Int32 { 100 }"
+                  ],
+                Module
+                  { mdFunctions =
+                      [ Function
+                          { fnPublic = False,
+                            fnAnn = (),
+                            fnArgs = [],
+                            fnFunctionName = "main",
+                            fnBody = int 100,
+                            fnGenerics = mempty,
+                            fnReturnType = tyInt32
+                          }
+                      ],
+                    mdImports = [],
+                    mdMemory = Just 100
+                  }
               )
             ]
 
@@ -257,7 +277,9 @@ spec = do
               ),
               ("dogs(); 100", ELet () (PWildcard ()) (EApply () "dogs" []) (int 100)),
               ("100; 100", ELet () (PWildcard ()) (int 100) (int 100)),
-              ("(100 : Int32)", EAnn () tyInt32 (int 100))
+              ("(100 : Int32)", EAnn () tyInt32 (int 100)),
+              ("load(100)", ELoad () 100),
+              ("store(100, (200 : Int64))", EStore () 100 (EAnn () tyInt64 (int 200)))
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

@@ -1,18 +1,19 @@
-{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Expr (Expr (..)) where
 
-import           Calc.Types.FunctionName
-import           Calc.Types.Identifier
-import           Calc.Types.Op
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import qualified Data.List.NonEmpty      as NE
-import           Prettyprinter           ((<+>))
-import qualified Prettyprinter           as PP
+import Calc.Types.FunctionName
+import Calc.Types.Identifier
+import Calc.Types.Op
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import Calc.Types.Type
+import qualified Data.List.NonEmpty as NE
+import GHC.Natural
+import Prettyprinter ((<+>))
+import qualified Prettyprinter as PP
 
 data Expr ann
   = EPrim ann Prim
@@ -24,6 +25,8 @@ data Expr ann
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
   | EAnn ann (Type ann) (Expr ann)
+  | ELoad ann Natural
+  | EStore ann Natural (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- when on multilines, indent by `i`, if not then nothing
@@ -79,3 +82,7 @@ instance PP.Pretty (Expr ann) where
       tupleItems b bs = b : NE.toList bs
   pretty (EBox _ inner) =
     "Box(" <> PP.pretty inner <> ")"
+  pretty (ELoad _ index) =
+    "load(" <> PP.pretty index <> ")"
+  pretty (EStore _ index expr) =
+    "store(" <> PP.pretty index <> "," <+> PP.pretty expr <> ")"

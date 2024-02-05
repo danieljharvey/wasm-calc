@@ -44,6 +44,8 @@ exprParserInternal =
           <|> inBrackets (addLocation exprParserInternal)
           <|> primExprParser
           <|> ifParser
+          <|> loadParser
+          <|> storeParser
           <|> try applyParser
           <|> try varParser
           <?> "term"
@@ -140,3 +142,23 @@ boxParser = label "box" $
     inner <- exprParserInternal
     _ <- stringLiteral ")"
     pure (EBox mempty inner)
+
+loadParser :: Parser (Expr Annotation)
+loadParser = label "load" $
+  addLocation $ do
+    stringLiteral "load"
+    stringLiteral "("
+    nat <- naturalParser
+    stringLiteral ")"
+    pure $ ELoad mempty nat
+
+storeParser :: Parser (Expr Annotation)
+storeParser = label "store" $
+  addLocation $ do
+    stringLiteral "store"
+    stringLiteral "("
+    nat <- naturalParser
+    stringLiteral ","
+    expr <- exprParserInternal
+    stringLiteral ")"
+    pure $ EStore mempty nat expr

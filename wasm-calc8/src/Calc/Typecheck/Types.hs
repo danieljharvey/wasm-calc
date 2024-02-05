@@ -24,7 +24,8 @@ import GHC.Natural
 -- | temporary read-only state
 data TypecheckEnv ann = TypecheckEnv
   { tceVars :: HM.HashMap Identifier (Type ann),
-    tceGenerics :: S.Set TypeVar
+    tceGenerics :: S.Set TypeVar,
+    tceMemoryLimit :: Natural
   }
   deriving stock (Eq, Ord, Show)
 

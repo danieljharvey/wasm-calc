@@ -134,36 +134,54 @@ toWasm (WAllocate i) =
 -- we need to store the return value so we can refer to it in multiple places
 toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
-        let storeInstruction = case ty of
-              F32 -> Wasm.F32Store (Wasm.MemArg offset 0)
-              F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
-              I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
-              I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
-              Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
-              Void -> error "WSet Void"
-         in [Wasm.GetLocal index] <> toWasm value <> [storeInstruction]
+        [Wasm.GetLocal index] <> toWasm value <> [storeInstruction ty offset]
    in toWasm container
         <> [Wasm.SetLocal index]
         <> foldMap fromItem items
         <> [Wasm.GetLocal index]
 toWasm (WTupleAccess ty tup offset) =
-  let loadInstruction = case ty of
-        F32 -> Wasm.F32Load (Wasm.MemArg offset 0)
-        F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
-        I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
-        I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
-        Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
-        Void -> error "WTupleAccess Void"
-   in toWasm tup <> [loadInstruction]
+  toWasm tup <> [loadInstruction ty offset]
+toWasm (WLoad ty index) =
+  [Wasm.I32Const (fromIntegral index), loadInstruction ty 0]
+toWasm (WStore ty index expr) =
+  [Wasm.I32Const (fromIntegral index)] <> toWasm expr <> [storeInstruction ty 0]
+
+loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
+loadInstruction ty offset = case ty of
+  F32 -> Wasm.F32Load (Wasm.MemArg offset 0)
+  F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
+  I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
+  I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
+  Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
+  Void -> error "loadInstruction Void"
+
+storeInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
+storeInstruction ty offset = case ty of
+  F32 -> Wasm.F32Store (Wasm.MemArg offset 0)
+  F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
+  I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
+  I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
+  Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
+  Void -> error "storeInstruction Void"
 
 allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function
 allocatorFunction offset mod' =
   let (Wasm.Function _ a b) = head (Wasm.functions mod')
    in Wasm.Function offset a b
 
+-- add the global allocator position as a global
+-- we start at 32 + any manual memory space that has been set aside
+-- for messing around
+globals :: Natural -> [Wasm.Global]
+globals nat =
+  [ Wasm.Global
+      (Wasm.Mut Wasm.I32)
+      [Wasm.I32Const (fromIntegral $ nat + 32)]
+  ]
+
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmImports, wmFunctions}) =
+moduleToWasm (WasmModule {wmMemoryStart, wmImports, wmFunctions}) =
   let imports = mapWithIndex (uncurry fromImport) wmImports
       offset = length imports
       functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
@@ -173,6 +191,7 @@ moduleToWasm (WasmModule {wmImports, wmFunctions}) =
    in moduleWithAllocator
         { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
           Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
+          Wasm.globals = globals wmMemoryStart,
           Wasm.tables = mempty,
           Wasm.elems = mempty,
           Wasm.datas = mempty,

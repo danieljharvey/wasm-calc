@@ -13,7 +13,7 @@ import GHC.Natural
 import Text.Megaparsec
 
 memoryParser :: Parser Natural
-memoryParser = do
+memoryParser = myLexeme $ do
   stringLiteral "memory"
   naturalParser
 

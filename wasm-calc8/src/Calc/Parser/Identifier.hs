@@ -24,7 +24,9 @@ protectedNames =
       "then",
       "else",
       "function",
-      "let"
+      "let",
+      "load",
+      "store"
     ]
 
 filterProtectedNames :: Text -> Maybe Text

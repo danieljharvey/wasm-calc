@@ -4,7 +4,12 @@
     (memory $mem 1)
 
     ;; the pointer of the next allocation
-    (global $alloc.offset (mut i32) (i32.const 32))
+    ;; we add this in the compiler now
+    ;; so that we can offset it to allow manual access
+    ;; earlier in the memory
+    ;; (global $alloc.offset (mut i32) (i32.const 32))
+
+    ;; allocator function
     (func $alloc (param $size i32) (result (;pointer;) i32)
         (local $this_alloc_ptr i32)
         (local $next_alloc_ptr i32)
@@ -22,7 +27,7 @@
         )
 
         ;; calculate the current ptr and the next ptr
-        global.get $alloc.offset
+        global.get 0 ;; global 0 == $alloc.offset
         local.tee $this_alloc_ptr
         local.get $size
         i32.add
@@ -57,7 +62,7 @@
 
         ;; store the ptr to the next allocation
         local.get $next_alloc_ptr
-        global.set $alloc.offset
+        global.set 0 ;; global 0 == $alloc.offset
 
         ;; and return the current pointer
         local.get $this_alloc_ptr

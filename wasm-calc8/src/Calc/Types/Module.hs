@@ -1,13 +1,14 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Module where
 
 import Calc.Types.Function
 import Calc.Types.Import
-import Data.Maybe (maybeToList)
 import GHC.Natural
+import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 
 data Module ann = Module
@@ -19,8 +20,10 @@ data Module ann = Module
 
 instance PP.Pretty (Module ann) where
   pretty (Module {mdFunctions, mdImports, mdMemory}) =
-    let memory = PP.pretty <$> mdMemory
+    let memory = case mdMemory of
+          Just mem -> ["memory" <+> PP.pretty mem]
+          Nothing -> mempty
         imports = PP.pretty <$> mdImports
         functions = PP.pretty <$> mdFunctions
-        parts = maybeToList memory <> imports <> functions
+        parts = memory <> imports <> functions
      in PP.cat (PP.punctuate PP.line parts)

@@ -33,7 +33,9 @@ data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports :: [WasmImport]
+    wmImports :: [WasmImport],
+    -- | where should memory allocation start?
+    wmMemoryStart :: Natural
   }
   deriving stock (Eq, Ord, Show)
 
@@ -73,8 +75,10 @@ data WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]
   | WAllocate Natural
-  | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 2) [(0, 1),(1, 2)]
+  | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
   | WTupleAccess WasmType WasmExpr Natural
+  | WLoad WasmType Natural -- unsafe load from linear memory
+  | WStore WasmType Natural WasmExpr -- unsafe store from linear memory
   deriving stock (Eq, Ord, Show)
 
 data FromWasmError

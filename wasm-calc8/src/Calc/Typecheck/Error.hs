@@ -1,27 +1,27 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 
-import           Calc.ExprUtils
-import           Calc.SourceSpan
-import           Calc.Types.Annotation
-import           Calc.Types.FunctionName
-import           Calc.Types.Identifier
-import           Calc.Types.Op
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Data.HashSet              (HashSet)
-import qualified Data.HashSet              as HS
-import qualified Data.List                 as List
-import           Data.Maybe                (catMaybes, mapMaybe)
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import qualified Error.Diagnose            as Diag
-import           GHC.Natural
-import qualified Prettyprinter             as PP
+import Calc.ExprUtils
+import Calc.SourceSpan
+import Calc.TypeUtils
+import Calc.Types.Annotation
+import Calc.Types.FunctionName
+import Calc.Types.Identifier
+import Calc.Types.Op
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HS
+import qualified Data.List as List
+import Data.Maybe (catMaybes, mapMaybe)
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Error.Diagnose as Diag
+import GHC.Natural
+import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data TypeError ann
@@ -39,7 +39,7 @@ data TypeError ann
   | CantBindVoidValue (Pattern ann)
   | UnknownIntegerLiteral ann
   | UnknownFloatLiteral ann
-
+  | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -86,7 +86,6 @@ typeErrorDiagnostic input e =
                 ]
             )
             []
-
         (UnknownIntegerLiteral ann) ->
           Diag.Err
             Nothing
@@ -335,6 +334,38 @@ typeErrorDiagnostic input e =
                 ]
             )
             [Diag.Note "Perhaps try wrapping the value in Box()"]
+        (ManualMemoryAccessOutsideLimit ann 0 _) ->
+          Diag.Err
+            Nothing
+            "Manual memory access is not configured."
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This (prettyPrint "Cannot manually access memory without configuring a limit first.")
+                      )
+                ]
+            )
+            [Diag.Note "Try adding a memory limit by adding \"memory 1000\" at the top of the module."]
+        (ManualMemoryAccessOutsideLimit ann limit value) ->
+          Diag.Err
+            Nothing
+            "Attempted to manually access memory outside the specified limit."
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This (prettyPrint $ "Value of " <> PP.pretty value <> " should be less than the currently set limit of " <> PP.pretty limit <> ".")
+                      )
+                ]
+            )
+            [Diag.Note $ "Perhaps increase the limit by adding \"memory " <> T.pack (show (limit + 1)) <> "\""]
    in Diag.addReport diag report
 
 -- | becomes "a, b, c, d"

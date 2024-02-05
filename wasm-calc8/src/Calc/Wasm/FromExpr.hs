@@ -1,36 +1,37 @@
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.Helpers
-import           Calc.Wasm.Patterns
-import           Calc.Wasm.Types
-import           Control.Monad        (void)
-import           Control.Monad.Except
-import           Control.Monad.State
-import qualified Data.List            as List
-import qualified Data.List.NonEmpty   as NE
-import qualified Data.Map.Strict      as M
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.Helpers
+import Calc.Wasm.Patterns
+import Calc.Wasm.Types
+import Control.Monad (void)
+import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import Data.Maybe (fromMaybe)
+import GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesImports   :: M.Map FunctionName FromExprImport,
-    fesVars      :: [(Maybe Identifier, WasmType)],
-    fesArgs      :: [(Identifier, WasmType)]
+    fesImports :: M.Map FunctionName FromExprImport,
+    fesVars :: [(Maybe Identifier, WasmType)],
+    fesArgs :: [(Identifier, WasmType)]
   }
   deriving stock (Eq, Ord, Show)
 
 data FromExprFunc = FromExprFunc
-  { fefIndex      :: Natural,
-    fefArgs       :: [WasmType],
+  { fefIndex :: Natural,
+    fefArgs :: [WasmType],
     fefReturnType :: WasmType
   }
   deriving stock (Eq, Ord, Show)
@@ -219,6 +220,12 @@ fromExpr (EBox ty inner) = do
   containerWasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing containerWasmType
   boxed index innerWasmType <$> fromExpr inner
+fromExpr (ELoad ty index) = do
+  wasmType <- liftEither $ scalarFromType ty
+  pure $ WLoad wasmType (fromIntegral index)
+fromExpr (EStore _ index expr) = do
+  wasmType <- liftEither $ scalarFromType (getOuterAnnotation expr)
+  WStore wasmType (fromIntegral index) <$> fromExpr expr
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -328,7 +335,7 @@ fromModule ::
   (Show ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule (Module {mdImports, mdFunctions}) = do
+fromModule (Module {mdMemory, mdImports, mdFunctions}) = do
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
 
@@ -339,5 +346,6 @@ fromModule (Module {mdImports, mdFunctions}) = do
   pure $
     WasmModule
       { wmFunctions = wasmFunctions,
-        wmImports = wasmImports
+        wmImports = wasmImports,
+        wmMemoryStart = fromMaybe 0 mdMemory
       }

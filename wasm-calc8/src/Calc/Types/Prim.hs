@@ -5,7 +5,7 @@ module Calc.Types.Prim
   )
 where
 
-import           Data.Word
+import Data.Word
 import qualified Prettyprinter as PP
 
 data Prim
@@ -15,6 +15,6 @@ data Prim
   deriving stock (Eq, Ord, Show)
 
 instance PP.Pretty Prim where
-  pretty (PIntLit i)   = PP.pretty i
+  pretty (PIntLit i) = PP.pretty i
   pretty (PFloatLit f) = PP.pretty f
-  pretty (PBool b)     = PP.pretty b
+  pretty (PBool b) = PP.pretty b

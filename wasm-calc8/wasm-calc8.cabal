@@ -78,8 +78,10 @@ common shared
     Calc.Typecheck.Error
     Calc.Typecheck.Generalise
     Calc.Typecheck.Helpers
+    Calc.Typecheck.Infer
     Calc.Typecheck.Substitute
     Calc.Typecheck.Types
+    Calc.Typecheck.Unify
     Calc.Types
     Calc.Types.Annotation
     Calc.Types.Expr
