@@ -11,17 +11,17 @@ module Calc.Wasm.Types
   )
 where
 
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Prim
-import Calc.Types.Type
-import qualified Data.Text as T
-import Data.Word
-import GHC.Natural
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Op
+import           Calc.Types.Prim
+import           Calc.Types.Type
+import qualified Data.Text             as T
+import           Data.Word
+import           GHC.Natural
 
 data WasmType
-  = I32
+  = I8 | I16 | I32
   | I64
   | F32
   | F64
@@ -31,29 +31,29 @@ data WasmType
 
 data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
-    wmFunctions :: [WasmFunction],
+    wmFunctions   :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports :: [WasmImport],
+    wmImports     :: [WasmImport],
     -- | where should memory allocation start?
     wmMemoryStart :: Natural
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmFunction = WasmFunction
-  { wfName :: FunctionName,
-    wfExpr :: WasmExpr,
-    wfPublic :: Bool,
-    wfArgs :: [WasmType],
+  { wfName       :: FunctionName,
+    wfExpr       :: WasmExpr,
+    wfPublic     :: Bool,
+    wfArgs       :: [WasmType],
     wfReturnType :: WasmType,
-    wfLocals :: [WasmType]
+    wfLocals     :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmImport = WasmImport
-  { wiName :: FunctionName,
-    wiArgs :: [WasmType],
-    wiReturnType :: WasmType,
-    wiExternalModule :: T.Text,
+  { wiName             :: FunctionName,
+    wiArgs             :: [WasmType],
+    wiReturnType       :: WasmType,
+    wiExternalModule   :: T.Text,
     wiExternalFunction :: T.Text
   }
   deriving stock (Eq, Ord, Show)
