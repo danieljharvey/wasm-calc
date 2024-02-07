@@ -196,7 +196,7 @@ spec = do
 
     describe "Expr" $ do
       let succeeding =
-            [ ("(42 : Int64)", "Int64"),
+            [ ("(42 : Int8)", "Int8"),
               ("True", "Boolean"),
               ("1 + (1 : Int64)", "Int64"),
               ("6 * (9 : Int64)", "Int64"),

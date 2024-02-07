@@ -1,24 +1,27 @@
 module Calc.Wasm.Helpers (boxed, memorySizeForType, getOffsetList, scalarFromType, memorySize) where
 
-import           Calc.Types.Type
-import           Calc.Wasm.Types
+import Calc.Types.Type
+import Calc.Wasm.Types
 import qualified Data.List.NonEmpty as NE
-import           Data.Monoid
-import           GHC.Natural
+import Data.Monoid
+import GHC.Natural
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
-memorySize I32     = 4
-memorySize I64     = 8
-memorySize F32     = 4
-memorySize F64     = 8
+memorySize I8 = 1
+memorySize I16 = 2
+memorySize I32 = 4
+memorySize I64 = 8
+memorySize F32 = 4
+memorySize F64 = 8
 memorySize Pointer = memorySize I32
-memorySize Void    = 0
+memorySize Void = 0
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TVoid) = pure Void
 scalarFromType (TPrim _ TBool) = pure I32
-scalarFromType (TPrim _ TInt16) = pure I32
+scalarFromType (TPrim _ TInt8) = pure I8
+scalarFromType (TPrim _ TInt16) = pure I16
 scalarFromType (TPrim _ TInt32) = pure I32
 scalarFromType (TPrim _ TInt64) = pure I64
 scalarFromType (TPrim _ TFloat32) = pure F32
@@ -37,8 +40,10 @@ getOffsetList _ = []
 
 -- | size of the primitive in memory (ie, struct is size of its pointer)
 offsetForType :: Type ann -> Natural
+offsetForType (TPrim _ TInt8) =
+  memorySize I8
 offsetForType (TPrim _ TInt16) =
-  memorySize I32
+  memorySize I16
 offsetForType (TPrim _ TInt32) =
   memorySize I32
 offsetForType (TPrim _ TInt64) =
@@ -68,8 +73,9 @@ boxed index ty wExpr =
 
 -- | the actual size of the item in memory
 memorySizeForType :: Type ann -> Natural
-memorySizeForType (TPrim _ TInt16)
-  = memorySize I32
+memorySizeForType (TPrim _ TInt8) = memorySize I8
+memorySizeForType (TPrim _ TInt16) =
+  memorySize I16
 memorySizeForType (TPrim _ TInt32) =
   memorySize I32
 memorySizeForType (TPrim _ TInt64) =

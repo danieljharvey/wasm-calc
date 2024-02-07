@@ -2,15 +2,22 @@
 
 module Calc.Parser.Type (typeParser) where
 
-import           Calc.Parser.Identifier
-import           Calc.Parser.Shared     (addTypeLocation, myLexeme,
-                                         stringLiteral)
-import           Calc.Parser.Types
-import           Calc.Types.Type
-import           Data.Functor           (($>))
-import qualified Data.List.NonEmpty     as NE
-import           Text.Megaparsec        (MonadParsec (try), label, sepBy1,
-                                         (<|>))
+import Calc.Parser.Identifier
+import Calc.Parser.Shared
+  ( addTypeLocation,
+    myLexeme,
+    stringLiteral,
+  )
+import Calc.Parser.Types
+import Calc.Types.Type
+import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
+import Text.Megaparsec
+  ( MonadParsec (try),
+    label,
+    sepBy1,
+    (<|>),
+  )
 
 -- | top-level parser for type signatures
 typeParser :: Parser ParserType
@@ -22,6 +29,7 @@ tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
   where
     tyPrimParser =
       try (stringLiteral "Boolean" $> TBool)
+        <|> try (stringLiteral "Int8" $> TInt8)
         <|> try (stringLiteral "Int16" $> TInt16)
         <|> try (stringLiteral "Int32" $> TInt32)
         <|> try (stringLiteral "Int64" $> TInt64)
@@ -47,7 +55,7 @@ tyTupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepBy1 typeParser (stringLiteral ",")
     _neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _       -> fail "Expected at least two items in a tuple"
+      _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (TContainer mempty neArgs)
 

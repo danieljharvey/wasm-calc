@@ -60,6 +60,8 @@ exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
 bitsizeFromType Void    = error "bitsizeFromType Void"
+bitsizeFromType I8      = Wasm.BS32
+bitsizeFromType I16     = Wasm.BS32
 bitsizeFromType I32     = Wasm.BS32
 bitsizeFromType I64     = Wasm.BS64
 bitsizeFromType F32     = Wasm.BS32
@@ -146,15 +148,18 @@ toWasm (WTupleAccess ty tup offset) =
 toWasm (WLoad ty index) =
   [Wasm.I32Const 0, loadInstruction ty index]
 toWasm (WStore ty index expr) =
-  [Wasm.I32Const 0] <>
-      toWasm expr <> [storeInstruction ty index]
+  [Wasm.I32Const 0]
+    <> toWasm expr
+    <> [storeInstruction ty index]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of
   F32     -> Wasm.F32Load (Wasm.MemArg offset 0)
   F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
-  I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
+  I8      -> Wasm.I32Load8S (Wasm.MemArg offset 0)
+  I16     -> Wasm.I32Load16S (Wasm.MemArg offset 0)
   I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
+  I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
   Void    -> error "loadInstruction Void"
 
@@ -162,8 +167,10 @@ storeInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 storeInstruction ty offset = case ty of
   F32     -> Wasm.F32Store (Wasm.MemArg offset 0)
   F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
-  I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
+  I8      -> Wasm.I32Store8 (Wasm.MemArg offset 0)
+  I16     -> Wasm.I32Store16 (Wasm.MemArg offset 0)
   I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
+  I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
   Void    -> error "storeInstruction Void"
 
@@ -182,10 +189,14 @@ globals nat =
       [Wasm.I32Const (fromIntegral $ nat + 32)]
   ]
 
+importsToWasm :: [WasmImport] -> [Wasm.Import]
+importsToWasm wmImports =
+  mapWithIndex (uncurry fromImport) wmImports
+
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
 moduleToWasm (WasmModule {wmMemoryStart, wmImports, wmFunctions}) =
-  let imports = mapWithIndex (uncurry fromImport) wmImports
+  let imports = importsToWasm wmImports
       offset = length imports
       functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
       importTypes = typeFromImport <$> wmImports

@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -7,21 +7,20 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import Calc.ExprUtils
-import Calc.Typecheck.Error
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Infer
-import Calc.Typecheck.Substitute
-import Calc.Typecheck.Types
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Import
-import Calc.Types.Module
-import Calc.Types.Type
-import Control.Monad.State
-import Data.Functor
-import Data.Maybe (fromMaybe)
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Infer
+import           Calc.Typecheck.Substitute
+import           Calc.Typecheck.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Import
+import           Calc.Types.Module
+import           Calc.Types.Type
+import           Control.Monad.State
+import           Data.Functor
+import qualified Data.Set                  as S
 
 elaborateModule ::
   forall ann.
@@ -32,7 +31,10 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
         TypecheckEnv
           { tceVars = mempty,
             tceGenerics = mempty,
-            tceMemoryLimit = fromMaybe 0 mdMemory
+            tceMemoryLimit = case mdMemory of
+                               Nothing                         -> 0
+                               Just (LocalMemory {lmLimit})    -> lmLimit
+                               Just (ImportedMemory {imLimit}) -> imLimit
           }
 
   runTypecheckM typecheckEnv $ do
@@ -61,8 +63,12 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
       Module
         { mdFunctions = fns,
           mdImports = imports,
-          mdMemory
+          mdMemory = elaborateMemory <$> mdMemory
         }
+
+-- decorate a memory annotation with an arbitrary Void type
+elaborateMemory :: Memory ann -> Memory (Type ann)
+elaborateMemory = fmap (`TPrim` TVoid)
 
 elaborateImport :: Import ann -> TypecheckM ann (Import (Type ann))
 elaborateImport

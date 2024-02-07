@@ -67,6 +67,7 @@
             pkgs.nodejs
             pkgs.watchexec
             pkgs.nodePackages_latest.serve
+            pkgs.wabt
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};

@@ -48,6 +48,8 @@ check ty (EPrim _ (PFloatLit f)) = do
   pure $ EPrim tyPrim (PFloatLit f)
 check ty (EPrim _ (PIntLit i)) = do
   tyPrim <- case ty of
+    TPrim _ TInt8 -> pure ty
+    TPrim _ TInt16 -> pure ty
     TPrim _ TInt32 -> pure ty
     TPrim _ TInt64 -> pure ty
     _ -> error "non int type error"
@@ -195,6 +197,8 @@ checkInfix Nothing ann op a b = do
 
 -- | is this type a primitive number?
 isNumber :: Type ann -> Bool
+isNumber (TPrim _ TInt8) = True
+isNumber (TPrim _ TInt16) = True
 isNumber (TPrim _ TInt32) = True
 isNumber (TPrim _ TInt64) = True
 isNumber (TPrim _ TFloat32) = True
