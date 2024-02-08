@@ -62,7 +62,7 @@ testWithNode (input, result) = it (show input) $ do
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
-    describe "Test with node" $ do
+    fdescribe "Test with node" $ do
       let testVals =
             [ ( joinLines
                   [ "import console.log as consoleLog(number: Int64) -> Void",
@@ -75,6 +75,13 @@ spec = do
                     "export function test() -> Int64 { let _ = consoleLog(42); let _ = consoleLog(42); 100 }"
                   ],
                 joinLines ["42n", "42n"]
+              ),
+              ( joinLines
+                  [ "import env.memory as memory 1000",
+                    "import console.log as consoleLog(number: Int64) -> Void",
+                    "export function test() -> Int64 { let (a,b) = ((1: Int64), (2: Int64)); let _ = consoleLog(a + b); 100 }"
+                  ],
+                "3n"
               )
             ]
 

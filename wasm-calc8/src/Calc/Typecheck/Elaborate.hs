@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -7,20 +7,20 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Infer
-import           Calc.Typecheck.Substitute
-import           Calc.Typecheck.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Import
-import           Calc.Types.Module
-import           Calc.Types.Type
-import           Control.Monad.State
-import           Data.Functor
-import qualified Data.Set                  as S
+import Calc.ExprUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Infer
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Import
+import Calc.Types.Module
+import Calc.Types.Type
+import Control.Monad.State
+import Data.Functor
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
@@ -32,9 +32,9 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
           { tceVars = mempty,
             tceGenerics = mempty,
             tceMemoryLimit = case mdMemory of
-                               Nothing                         -> 0
-                               Just (LocalMemory {lmLimit})    -> lmLimit
-                               Just (ImportedMemory {imLimit}) -> imLimit
+              Nothing -> 0
+              Just (LocalMemory {lmLimit}) -> lmLimit
+              Just (ImportedMemory {imLimit}) -> imLimit
           }
 
   runTypecheckM typecheckEnv $ do

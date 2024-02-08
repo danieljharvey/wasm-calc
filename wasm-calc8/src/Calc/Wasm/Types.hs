@@ -4,6 +4,7 @@ module Calc.Wasm.Types
   ( WasmType (..),
     WasmPrim (..),
     WasmModule (..),
+    WasmMemory (..),
     WasmFunction (..),
     WasmExpr (..),
     WasmImport (..),
@@ -31,13 +32,19 @@ data WasmType
   | Void
   deriving stock (Eq, Ord, Show)
 
+data WasmMemory = WasmMemory
+  { wmeMemoryStart :: Natural,
+    wmeImport :: Maybe (Identifier, Identifier)
+  }
+  deriving stock (Eq, Ord, Show)
+
 data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
     wmImports :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemoryStart :: Natural
+    wmMemory :: WasmMemory
   }
   deriving stock (Eq, Ord, Show)
 
@@ -76,7 +83,7 @@ data WasmExpr
   | WIf WasmExpr WasmExpr WasmExpr
   | WVar Natural
   | WApply Natural [WasmExpr]
-  | WAllocate Natural
+  | WAllocate Natural Natural -- function number, size of allocation
   | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
   | WTupleAccess WasmType WasmExpr Natural
   | WLoad WasmType Natural -- unsafe load from linear memory

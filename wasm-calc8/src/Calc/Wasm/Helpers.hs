@@ -66,9 +66,9 @@ offsetForType (TUnificationVar _ _) =
   error "offsetForType TUnificationVar"
 
 -- | wrap a `WasmExpr` in a single item struct
-boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
-boxed index ty wExpr =
-  let allocate = WAllocate (memorySize ty)
+boxed :: Natural -> Natural -> WasmType -> WasmExpr -> WasmExpr
+boxed importsSize index ty wExpr =
+  let allocate = WAllocate importsSize (memorySize ty)
    in WSet index allocate [(0, ty, wExpr)]
 
 -- | the actual size of the item in memory

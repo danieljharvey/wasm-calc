@@ -4,7 +4,9 @@
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
 import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
 import           Calc.Types.Op
+import           Calc.Utils
 import           Calc.Wasm.Allocator
 import           Calc.Wasm.Types
 import           Data.Maybe              (catMaybes, mapMaybe, maybeToList)
@@ -133,8 +135,8 @@ toWasm (WIf predExpr thenExpr elseExpr) =
 toWasm (WVar i) = [Wasm.GetLocal i]
 toWasm (WApply fnIndex args) =
   foldMap toWasm args <> [Wasm.Call fnIndex]
-toWasm (WAllocate i) =
-  [Wasm.I32Const (fromIntegral i), Wasm.Call 0]
+toWasm (WAllocate fnIndex i) =
+  [Wasm.I32Const (fromIntegral i), Wasm.Call fnIndex]
 -- we need to store the return value so we can refer to it in multiple places
 toWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
@@ -182,34 +184,55 @@ allocatorFunction offset mod' =
 -- add the global allocator position as a global
 -- we start at 32 + any manual memory space that has been set aside
 -- for messing around
-globals :: Natural -> [Wasm.Global]
-globals nat =
+globals :: WasmMemory -> [Wasm.Global]
+globals (WasmMemory nat _) =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
       [Wasm.I32Const (fromIntegral $ nat + 32)]
   ]
 
-importsToWasm :: [WasmImport] -> [Wasm.Import]
-importsToWasm wmImports =
-  mapWithIndex (uncurry fromImport) wmImports
+-- | if no memory has been imported, we create our own `memory`
+-- instance for this module
+memory :: WasmMemory -> [Wasm.Memory]
+memory (WasmMemory _limit Nothing) =
+  [Wasm.Memory (Wasm.Limit 1 Nothing)]
+memory _ = mempty
+
+functionImportsToWasm :: [WasmImport] -> [Wasm.Import]
+functionImportsToWasm =
+  mapWithIndex (uncurry fromImport)
+
+memoryImportsToWasm :: WasmMemory -> [Wasm.Import]
+memoryImportsToWasm wasmMemory =
+  case wasmMemory of
+    (WasmMemory _ (Just (Identifier memModule, Identifier memName))) ->
+      [ Wasm.Import
+          (TL.fromStrict memModule)
+          (TL.fromStrict memName)
+          (Wasm.ImportMemory (Wasm.Limit 1 Nothing))
+      ]
+    (WasmMemory _ Nothing) -> mempty
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmMemoryStart, wmImports, wmFunctions}) =
-  let imports = importsToWasm wmImports
-      offset = length imports
+moduleToWasm (WasmModule {wmMemory, wmImports, wmFunctions}) =
+  let functionImports = functionImportsToWasm wmImports
+      offset = length functionImports
       functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
       importTypes = typeFromImport <$> wmImports
       functionTypes = typeFromFunction <$> wmFunctions
       exports = mapMaybe (uncurry exportFromFunction) (zip [offset ..] wmFunctions)
-   in moduleWithAllocator
-        { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
-          Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
-          Wasm.globals = globals wmMemoryStart,
-          Wasm.tables = mempty,
-          Wasm.elems = mempty,
-          Wasm.datas = mempty,
-          Wasm.start = Nothing,
-          Wasm.imports = imports,
-          Wasm.exports = exports
-        }
+      imports = functionImports <> memoryImportsToWasm wmMemory
+   in ltrace "module" $
+        moduleWithAllocator
+          { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
+            Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
+            Wasm.globals = globals wmMemory,
+            Wasm.mems = memory wmMemory,
+            Wasm.tables = mempty,
+            Wasm.elems = mempty,
+            Wasm.datas = mempty,
+            Wasm.start = Nothing,
+            Wasm.imports = imports,
+            Wasm.exports = exports
+          }
