@@ -1,36 +1,36 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns             #-}
 
 module Calc.Wasm.FromExpr (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.Helpers
-import Calc.Wasm.Patterns
-import Calc.Wasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.Helpers
+import           Calc.Wasm.Patterns
+import           Calc.Wasm.Types
+import           Control.Monad        (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List            as List
+import qualified Data.List.NonEmpty   as NE
+import qualified Data.Map.Strict      as M
+import           GHC.Natural
 
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesImports :: M.Map FunctionName FromExprImport,
-    fesVars :: [(Maybe Identifier, WasmType)],
-    fesArgs :: [(Identifier, WasmType)]
+    fesImports   :: M.Map FunctionName FromExprImport,
+    fesVars      :: [(Maybe Identifier, WasmType)],
+    fesArgs      :: [(Identifier, WasmType)]
   }
   deriving stock (Eq, Ord, Show)
 
 data FromExprFunc = FromExprFunc
-  { fefIndex :: Natural,
-    fefArgs :: [WasmType],
+  { fefIndex      :: Natural,
+    fefArgs       :: [WasmType],
     fefReturnType :: WasmType
   }
   deriving stock (Eq, Ord, Show)
@@ -348,7 +348,8 @@ fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
 fromMemory Nothing = WasmMemory 0 Nothing
 fromMemory (Just (LocalMemory {lmLimit})) =
   WasmMemory lmLimit Nothing
-fromMemory (Just (ImportedMemory {imExternalModule, imExternalMemoryName, imLimit})) =
+fromMemory (Just (ImportedMemory {imExternalModule = Identifier imExternalModule,
+          imExternalMemoryName = Identifier imExternalMemoryName , imLimit})) =
   WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
 
 fromModule ::

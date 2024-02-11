@@ -4,9 +4,7 @@
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
 import           Calc.Types.FunctionName
-import           Calc.Types.Identifier
 import           Calc.Types.Op
-import           Calc.Utils
 import           Calc.Wasm.Allocator
 import           Calc.Wasm.Types
 import           Data.Maybe              (catMaybes, mapMaybe, maybeToList)
@@ -205,7 +203,7 @@ functionImportsToWasm =
 memoryImportsToWasm :: WasmMemory -> [Wasm.Import]
 memoryImportsToWasm wasmMemory =
   case wasmMemory of
-    (WasmMemory _ (Just (Identifier memModule, Identifier memName))) ->
+    (WasmMemory _ (Just (memModule, memName))) ->
       [ Wasm.Import
           (TL.fromStrict memModule)
           (TL.fromStrict memName)
@@ -222,9 +220,8 @@ moduleToWasm (WasmModule {wmMemory, wmImports, wmFunctions}) =
       importTypes = typeFromImport <$> wmImports
       functionTypes = typeFromFunction <$> wmFunctions
       exports = mapMaybe (uncurry exportFromFunction) (zip [offset ..] wmFunctions)
-      imports = functionImports <> memoryImportsToWasm wmMemory
-   in ltrace "module" $
-        moduleWithAllocator
+      imports = memoryImportsToWasm wmMemory <> functionImports
+   in moduleWithAllocator
           { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
             Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
             Wasm.globals = globals wmMemory,

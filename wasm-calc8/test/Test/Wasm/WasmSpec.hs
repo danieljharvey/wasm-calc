@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Wasm
-import Calc.Wasm.FromExpr
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Wasm
+import           Calc.Wasm.FromExpr
+import           Calc.Wasm.Run
+import           Calc.Wasm.ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e -> error (show e)
+              Left e        -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -49,8 +49,8 @@ testWithNode (input, result) = it (show input) $ do
   (True, gitRoot) <- getGitRoot
   let actualWasmModule = compile input
       inputHash = hash input
-      wasmFilename = gitRoot <> "/wasm-calc7/test/output/" <> show inputHash <> ".wasm"
-      jsFilename = gitRoot <> "/wasm-calc7/test/output/test.mjs"
+      wasmFilename = gitRoot <> "/wasm-calc8/test/output/" <> show inputHash <> ".wasm"
+      jsFilename = gitRoot <> "/wasm-calc8/test/output/test.mjs"
   -- write module to a file so we can run it with `wasmtime` etc
   liftIO (writeModule wasmFilename actualWasmModule)
   -- run node js, get output
@@ -62,7 +62,7 @@ testWithNode (input, result) = it (show input) $ do
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
-    fdescribe "Test with node" $ do
+    describe "Test with node" $ do
       let testVals =
             [ ( joinLines
                   [ "import console.log as consoleLog(number: Int64) -> Void",
