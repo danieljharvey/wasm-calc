@@ -5,6 +5,8 @@ module Calc.Types
     module Calc.Types.Import,
     module Calc.Types.Expr,
     module Calc.Types.Function,
+    module Calc.Types.Global,
+    module Calc.Types.Memory,
     module Calc.Types.Module,
     module Calc.Types.Pattern,
     module Calc.Types.Prim,
@@ -16,8 +18,10 @@ where
 import Calc.Types.Annotation
 import Calc.Types.Expr
 import Calc.Types.Function
+import Calc.Types.Global
 import Calc.Types.Identifier
 import Calc.Types.Import
+import Calc.Types.Memory
 import Calc.Types.Module
 import Calc.Types.Op
 import Calc.Types.Pattern

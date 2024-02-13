@@ -16,6 +16,7 @@ import Calc.Typecheck.Types
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Import
+import Calc.Types.Memory
 import Calc.Types.Module
 import Calc.Types.Type
 import Control.Monad.State
@@ -63,7 +64,8 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
       Module
         { mdFunctions = fns,
           mdImports = imports,
-          mdMemory = elaborateMemory <$> mdMemory
+          mdMemory = elaborateMemory <$> mdMemory,
+          mdGlobals = mempty
         }
 
 -- decorate a memory annotation with an arbitrary Void type

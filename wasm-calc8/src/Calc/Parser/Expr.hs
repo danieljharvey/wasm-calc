@@ -63,10 +63,14 @@ letPartParser = do
   label "let" $ withLocation (\loc (pat, expr) -> LetPart loc pat expr) $ do
     _ <- stringLiteral "let"
     pat <- patternParser
+    maybeTy <- optional $ stringLiteral ":" >> typeParser
     _ <- stringLiteral "="
     expr <- exprParserInternal
+    let expr' = case maybeTy of
+          Just ty -> EAnn mempty ty expr
+          Nothing -> expr
     stringLiteral ";"
-    pure (pat, expr)
+    pure (pat, expr')
 
 discardPartParser :: Parser (LetPart Annotation)
 discardPartParser = label "discard" $ withLocation DiscardPart $ do

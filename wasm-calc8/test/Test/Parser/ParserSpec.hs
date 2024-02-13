@@ -32,9 +32,16 @@ spec = do
         strings
 
     describe "Module" $ do
+      let emptyModule =
+            Module
+              { mdFunctions = mempty,
+                mdImports = mempty,
+                mdMemory = Nothing,
+                mdGlobals = mempty
+              }
       let strings =
             [ ( "export function increment(a: Int64) -> Int64 { a + 1 }",
-                Module
+                emptyModule
                   { mdFunctions =
                       [ Function
                           { fnPublic = True,
@@ -51,13 +58,11 @@ spec = do
                             fnGenerics = mempty,
                             fnReturnType = tyInt64
                           }
-                      ],
-                    mdImports = [],
-                    mdMemory = Nothing
+                      ]
                   }
               ),
               ( "function increment(a: Int64) -> Int64 { a + 1 } function decrement(a: Int64) -> Int64 { a - 1}",
-                Module
+                emptyModule
                   { mdFunctions =
                       [ Function
                           { fnPublic = False,
@@ -89,17 +94,14 @@ spec = do
                             fnGenerics = mempty,
                             fnReturnType = tyInt64
                           }
-                      ],
-                    mdImports = mempty,
-                    mdMemory = Nothing
+                      ]
                   }
               ),
               ( joinLines
                   [ "import maths.add as add(a: Int64, b:Int64) -> Int64"
                   ],
-                Module
-                  { mdFunctions = [],
-                    mdImports =
+                emptyModule
+                  { mdImports =
                       [ Import
                           { impAnn = (),
                             impArgs =
@@ -111,24 +113,21 @@ spec = do
                             impExternalModule = "maths",
                             impExternalFunction = "add"
                           }
-                      ],
-                    mdMemory = Nothing
+                      ]
                   }
               ),
               ( joinLines
                   [ "memory 100"
                   ],
-                Module
-                  { mdFunctions = [],
-                    mdImports = [],
-                    mdMemory = Just (LocalMemory () 100)
+                emptyModule
+                  { mdMemory = Just (LocalMemory () 100)
                   }
               ),
               ( joinLines
                   [ "memory 100",
                     "function main() -> Int32 { 100 }"
                   ],
-                Module
+                emptyModule
                   { mdFunctions =
                       [ Function
                           { fnPublic = False,
@@ -140,17 +139,35 @@ spec = do
                             fnReturnType = tyInt32
                           }
                       ],
-                    mdImports = [],
                     mdMemory = Just (LocalMemory () 100)
                   }
               ),
               ( joinLines
                   [ "import env.memory as memory 100"
                   ],
-                Module
-                  { mdFunctions = [],
-                    mdImports = [],
-                    mdMemory = Just (ImportedMemory () "env" "memory" 100)
+                emptyModule
+                  { mdMemory = Just (ImportedMemory () "env" "memory" 100)
+                  }
+              ),
+              ( joinLines
+                  [ "global one: Int64 = 1",
+                    "global true = True"
+                  ],
+                emptyModule
+                  { mdGlobals =
+                      [ Global
+                          { glbAnn = (),
+                            glbMutability = Constant,
+                            glbIdentifier = "one",
+                            glbExpr = EAnn () tyInt64 (int 1)
+                          },
+                        Global
+                          { glbAnn = (),
+                            glbMutability = Constant,
+                            glbIdentifier = "true",
+                            glbExpr = bool True
+                          }
+                      ]
                   }
               )
             ]
@@ -283,6 +300,9 @@ spec = do
                   (PTuple () (PVar () "a") (NE.singleton $ PVar () "b"))
                   (tuple [int 1, int 2])
                   (EInfix () OpAdd (var "a") (var "b"))
+              ),
+              ( "let a : Int64 = 1; True",
+                ELet () (PVar () "a") (EAnn () tyInt64 (int 1)) (bool True)
               ),
               ("dogs(); 100", ELet () (PWildcard ()) (EApply () "dogs" []) (int 100)),
               ("100; 100", ELet () (PWildcard ()) (int 100) (int 100)),

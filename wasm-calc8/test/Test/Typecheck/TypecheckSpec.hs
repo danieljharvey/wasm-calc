@@ -213,8 +213,8 @@ spec = do
               ("((1: Int64), (2: Int64), True)", "(Int64,Int64,Boolean)"),
               ("Box((1: Int64))", "Box(Int64)"),
               ("let Box(a) = Box((1: Int64)); a", "Int64"),
-              ("let a = (100: Int64); a", "Int64"),
-              ("let (a,b) = ((1: Int64), (2: Int64)); a + b", "Int64")
+              ("let a: Int64 = 100; a", "Int64"),
+              ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64")
             ]
 
       describe "Successfully typechecking expressions" $ do

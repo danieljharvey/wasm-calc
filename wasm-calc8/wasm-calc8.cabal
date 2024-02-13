@@ -87,8 +87,10 @@ common shared
     Calc.Types.Expr
     Calc.Types.Function
     Calc.Types.FunctionName
+    Calc.Types.Global
     Calc.Types.Identifier
     Calc.Types.Import
+    Calc.Types.Memory
     Calc.Types.Module
     Calc.Types.Op
     Calc.Types.Pattern
