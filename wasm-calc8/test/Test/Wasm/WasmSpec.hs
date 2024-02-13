@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -72,6 +72,12 @@ spec = do
               ),
               ( joinLines
                   [ "import console.log as consoleLog(number: Int64) -> Void",
+                    "export function test() -> Void { if (0: Int32) == 1 then consoleLog(0) else consoleLog(42) }"
+                  ],
+                "42n"
+              ),
+              ( joinLines
+                  [ "import console.log as consoleLog(number: Int64) -> Void",
                     "export function test() -> Int64 { let _ = consoleLog(42); let _ = consoleLog(42); 100 }"
                   ],
                 joinLines ["42n", "42n"]
@@ -100,7 +106,7 @@ spec = do
                 Wasm.VF64 101.0
               ),
               (asTest "if False then 1 else (2: Int64)", Wasm.VI64 2),
-              (asTest "if (1 : Int64) == 1 then 7 else 10", Wasm.VI64 7),
+              ("export function test() -> Int32 { if (1 : Int64) == 1 then 7 else 10 }", Wasm.VI32 7),
               ( "export function test() -> Boolean { if 2 == (1 : Int32) then True else False }",
                 Wasm.VI32 0
               ),

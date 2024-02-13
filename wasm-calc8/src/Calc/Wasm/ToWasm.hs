@@ -1,15 +1,15 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.ToWasm (moduleToWasm) where
 
-import           Calc.Types.FunctionName
-import           Calc.Types.Op
-import           Calc.Wasm.Allocator
-import           Calc.Wasm.Types
-import           Data.Maybe              (catMaybes, mapMaybe, maybeToList)
-import qualified Data.Text.Lazy          as TL
-import           GHC.Natural
+import Calc.Types.FunctionName
+import Calc.Types.Op
+import Calc.Wasm.Allocator
+import Calc.Wasm.Types
+import Data.Maybe (catMaybes, mapMaybe, maybeToList)
+import qualified Data.Text.Lazy as TL
+import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
@@ -18,14 +18,14 @@ mapWithIndex f = fmap f . zip [0 ..]
 -- | turn types into wasm types
 -- void won't have a type, hence the Maybe
 fromType :: WasmType -> Maybe Wasm.ValueType
-fromType I8      = Just Wasm.I32
-fromType I16     = Just Wasm.I32
-fromType I32     = Just Wasm.I32
-fromType I64     = Just Wasm.I64
-fromType F32     = Just Wasm.F32
-fromType F64     = Just Wasm.F64
+fromType I8 = Just Wasm.I32
+fromType I16 = Just Wasm.I32
+fromType I32 = Just Wasm.I32
+fromType I64 = Just Wasm.I64
+fromType F32 = Just Wasm.F32
+fromType F64 = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
-fromType Void    = Nothing
+fromType Void = Nothing
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfExpr, wfLocals}) =
@@ -59,19 +59,19 @@ exportFromFunction wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic
 exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
-bitsizeFromType Void    = error "bitsizeFromType Void"
-bitsizeFromType I8      = Wasm.BS32
-bitsizeFromType I16     = Wasm.BS32
-bitsizeFromType I32     = Wasm.BS32
-bitsizeFromType I64     = Wasm.BS64
-bitsizeFromType F32     = Wasm.BS32
-bitsizeFromType F64     = Wasm.BS64
+bitsizeFromType Void = error "bitsizeFromType Void"
+bitsizeFromType I8 = Wasm.BS32
+bitsizeFromType I16 = Wasm.BS32
+bitsizeFromType I32 = Wasm.BS32
+bitsizeFromType I64 = Wasm.BS64
+bitsizeFromType F32 = Wasm.BS32
+bitsizeFromType F64 = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
 typeIsFloat :: WasmType -> Bool
 typeIsFloat F32 = True
 typeIsFloat F64 = True
-typeIsFloat _   = False
+typeIsFloat _ = False
 
 instructionFromOp :: WasmType -> Op -> Wasm.Instruction Natural
 instructionFromOp ty OpAdd =
@@ -128,8 +128,13 @@ toWasm (WSequence _ first second) =
   toWasm first <> [Wasm.Drop] <> toWasm second
 toWasm (WInfix ty op a b) =
   toWasm a <> toWasm b <> [instructionFromOp ty op]
-toWasm (WIf predExpr thenExpr elseExpr) =
-  toWasm thenExpr <> toWasm elseExpr <> toWasm predExpr <> [Wasm.Select]
+toWasm (WIf tyReturn predExpr thenExpr elseExpr) =
+  toWasm predExpr
+    <> [ Wasm.If
+           (Wasm.Inline (fromType tyReturn))
+           (toWasm thenExpr)
+           (toWasm elseExpr)
+       ]
 toWasm (WVar i) = [Wasm.GetLocal i]
 toWasm (WApply fnIndex args) =
   foldMap toWasm args <> [Wasm.Call fnIndex]
@@ -154,25 +159,25 @@ toWasm (WStore ty index expr) =
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of
-  F32     -> Wasm.F32Load (Wasm.MemArg offset 0)
-  F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
-  I8      -> Wasm.I32Load8S (Wasm.MemArg offset 0)
-  I16     -> Wasm.I32Load16S (Wasm.MemArg offset 0)
-  I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
-  I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
+  F32 -> Wasm.F32Load (Wasm.MemArg offset 0)
+  F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
+  I8 -> Wasm.I32Load8S (Wasm.MemArg offset 0)
+  I16 -> Wasm.I32Load16S (Wasm.MemArg offset 0)
+  I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
+  I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
-  Void    -> error "loadInstruction Void"
+  Void -> error "loadInstruction Void"
 
 storeInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 storeInstruction ty offset = case ty of
-  F32     -> Wasm.F32Store (Wasm.MemArg offset 0)
-  F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
-  I8      -> Wasm.I32Store8 (Wasm.MemArg offset 0)
-  I16     -> Wasm.I32Store16 (Wasm.MemArg offset 0)
-  I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
-  I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
+  F32 -> Wasm.F32Store (Wasm.MemArg offset 0)
+  F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
+  I8 -> Wasm.I32Store8 (Wasm.MemArg offset 0)
+  I16 -> Wasm.I32Store16 (Wasm.MemArg offset 0)
+  I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
+  I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
-  Void    -> error "storeInstruction Void"
+  Void -> error "storeInstruction Void"
 
 allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function
 allocatorFunction offset mod' =
@@ -222,14 +227,14 @@ moduleToWasm (WasmModule {wmMemory, wmImports, wmFunctions}) =
       exports = mapMaybe (uncurry exportFromFunction) (zip [offset ..] wmFunctions)
       imports = memoryImportsToWasm wmMemory <> functionImports
    in moduleWithAllocator
-          { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
-            Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
-            Wasm.globals = globals wmMemory,
-            Wasm.mems = memory wmMemory,
-            Wasm.tables = mempty,
-            Wasm.elems = mempty,
-            Wasm.datas = mempty,
-            Wasm.start = Nothing,
-            Wasm.imports = imports,
-            Wasm.exports = exports
-          }
+        { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
+          Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
+          Wasm.globals = globals wmMemory,
+          Wasm.mems = memory wmMemory,
+          Wasm.tables = mempty,
+          Wasm.elems = mempty,
+          Wasm.datas = mempty,
+          Wasm.start = Nothing,
+          Wasm.imports = imports,
+          Wasm.exports = exports
+        }

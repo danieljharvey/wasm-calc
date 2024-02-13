@@ -12,14 +12,14 @@ module Calc.Wasm.Types
   )
 where
 
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.Op
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import qualified Data.Text             as T
-import           Data.Word
-import           GHC.Natural
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.Op
+import Calc.Types.Prim
+import Calc.Types.Type
+import qualified Data.Text as T
+import Data.Word
+import GHC.Natural
 
 data WasmType
   = I8
@@ -34,7 +34,7 @@ data WasmType
 
 data WasmMemory = WasmMemory
   { wmeMemoryStart :: Natural,
-    wmeImport      :: Maybe (T.Text, T.Text)
+    wmeImport :: Maybe (T.Text, T.Text)
   }
   deriving stock (Eq, Ord, Show)
 
@@ -42,27 +42,27 @@ data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports   :: [WasmImport],
+    wmImports :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemory    :: WasmMemory
+    wmMemory :: WasmMemory
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmFunction = WasmFunction
-  { wfName       :: FunctionName,
-    wfExpr       :: WasmExpr,
-    wfPublic     :: Bool,
-    wfArgs       :: [WasmType],
+  { wfName :: FunctionName,
+    wfExpr :: WasmExpr,
+    wfPublic :: Bool,
+    wfArgs :: [WasmType],
     wfReturnType :: WasmType,
-    wfLocals     :: [WasmType]
+    wfLocals :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmImport = WasmImport
-  { wiName             :: FunctionName,
-    wiArgs             :: [WasmType],
-    wiReturnType       :: WasmType,
-    wiExternalModule   :: T.Text,
+  { wiName :: FunctionName,
+    wiArgs :: [WasmType],
+    wiReturnType :: WasmType,
+    wiExternalModule :: T.Text,
     wiExternalFunction :: T.Text
   }
   deriving stock (Eq, Ord, Show)
@@ -80,7 +80,7 @@ data WasmExpr
   | WInfix WasmType Op WasmExpr WasmExpr
   | WLet Natural WasmExpr WasmExpr
   | WSequence WasmType WasmExpr WasmExpr -- first type, do first, return second
-  | WIf WasmExpr WasmExpr WasmExpr
+  | WIf WasmType WasmExpr WasmExpr WasmExpr -- return type, pred, then, else
   | WVar Natural
   | WApply Natural [WasmExpr]
   | WAllocate Natural Natural -- function number, size of allocation
