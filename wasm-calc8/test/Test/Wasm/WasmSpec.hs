@@ -237,6 +237,12 @@ spec = do
                     asTest "store(0, (20: Int64)); store(8, (22: Int64)); sum(load(0), load(8))"
                   ],
                 Wasm.VI64 42
+              ),
+              ( joinLines
+                  [ "global one: Int64 = 1",
+                    asTest "1 + one"
+                  ],
+                Wasm.VI64 2
               )
             ]
 

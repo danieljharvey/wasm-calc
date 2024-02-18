@@ -167,6 +167,18 @@ spec = do
                     "function main() -> Int32 { store(0, (100: Int32)); load(0) }"
                   ],
                 tyInt32
+              ),
+              ( joinLines
+                  [ "global one: Int32 = 1",
+                    "function main() -> Int64 { 1 }"
+                  ],
+                tyInt64
+              ),
+              ( joinLines
+                  [ "global one: Int32 = 1",
+                    "function main() -> Int32 { one }"
+                  ],
+                tyInt32
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -189,7 +201,8 @@ spec = do
                 [ "import console.log as log(a: Int64) -> Void",
                   "function main() -> Int32 { let a = log(1); a }"
                 ],
-              "function noMemAllocated() -> Int32 { load(100) }"
+              "function noMemAllocated() -> Int32 { load(100) }",
+              "global one = 1"
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing

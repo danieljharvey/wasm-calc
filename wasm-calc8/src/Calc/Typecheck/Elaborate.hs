@@ -15,6 +15,7 @@ import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
 import Calc.Types.Expr
 import Calc.Types.Function
+import Calc.Types.Global
 import Calc.Types.Import
 import Calc.Types.Memory
 import Calc.Types.Module
@@ -27,7 +28,7 @@ elaborateModule ::
   forall ann.
   Module ann ->
   Either (TypeError ann) (Module (Type ann))
-elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
+elaborateModule (Module {mdImports, mdGlobals, mdMemory, mdFunctions}) = do
   let typecheckEnv =
         TypecheckEnv
           { tceVars = mempty,
@@ -39,6 +40,15 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
           }
 
   runTypecheckM typecheckEnv $ do
+    globals <-
+      traverse
+        ( \global -> do
+            elabGlobal <- elaborateGlobal global
+            storeGlobal (glbIdentifier elabGlobal) (glbAnn elabGlobal)
+            pure elabGlobal
+        )
+        mdGlobals
+
     imports <-
       traverse
         ( \imp -> do
@@ -48,7 +58,7 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
         )
         mdImports
 
-    fns <-
+    functions <-
       traverse
         ( \fn -> do
             elabFn <- elaborateFunction fn
@@ -62,15 +72,27 @@ elaborateModule (Module {mdImports, mdMemory, mdFunctions}) = do
 
     pure $
       Module
-        { mdFunctions = fns,
+        { mdFunctions = functions,
           mdImports = imports,
           mdMemory = elaborateMemory <$> mdMemory,
-          mdGlobals = mempty
+          mdGlobals = globals
         }
 
 -- decorate a memory annotation with an arbitrary Void type
 elaborateMemory :: Memory ann -> Memory (Type ann)
 elaborateMemory = fmap (`TPrim` TVoid)
+
+elaborateGlobal :: Global ann -> TypecheckM ann (Global (Type ann))
+elaborateGlobal (Global {glbMutability, glbIdentifier, glbExpr}) = do
+  elabExpr <- infer glbExpr
+
+  pure $
+    Global
+      { glbAnn = getOuterAnnotation elabExpr,
+        glbMutability,
+        glbIdentifier,
+        glbExpr = elabExpr
+      }
 
 elaborateImport :: Import ann -> TypecheckM ann (Import (Type ann))
 elaborateImport
@@ -126,6 +148,7 @@ elaborateFunction (Function {fnPublic, fnAnn, fnArgs, fnGenerics, fnReturnType, 
       fnArgs
       (S.fromList fnGenerics)
       (checkAndSubstitute fnReturnType fnBody)
+
   let argsA =
         ( \FunctionArg {faName, faType, faAnn} ->
             FunctionArg

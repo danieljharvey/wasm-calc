@@ -31,6 +31,7 @@ data TypecheckEnv ann = TypecheckEnv
 
 data TypecheckState ann = TypecheckState
   { tcsFunctions :: HM.HashMap FunctionName (TypeScheme ann),
+    tcsGlobals :: HM.HashMap Identifier (Type ann),
     tcsUnique :: Natural,
     tcsUnified :: HM.HashMap Natural (Type ann)
   }

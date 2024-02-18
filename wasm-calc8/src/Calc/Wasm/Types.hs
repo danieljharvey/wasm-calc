@@ -4,6 +4,7 @@ module Calc.Wasm.Types
   ( WasmType (..),
     WasmPrim (..),
     WasmModule (..),
+    WasmGlobal (..),
     WasmMemory (..),
     WasmFunction (..),
     WasmExpr (..),
@@ -38,13 +39,19 @@ data WasmMemory = WasmMemory
   }
   deriving stock (Eq, Ord, Show)
 
+data WasmGlobal = WasmGlobal
+  {wgExpr :: WasmExpr, wgType :: WasmType}
+  deriving stock (Eq, Ord, Show)
+
 data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
     wmImports :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemory :: WasmMemory
+    wmMemory :: WasmMemory,
+    -- | which globals are defined?
+    wmGlobals :: [WasmGlobal]
   }
   deriving stock (Eq, Ord, Show)
 
@@ -82,6 +89,7 @@ data WasmExpr
   | WSequence WasmType WasmExpr WasmExpr -- first type, do first, return second
   | WIf WasmType WasmExpr WasmExpr WasmExpr -- return type, pred, then, else
   | WVar Natural
+  | WGlobal Natural
   | WApply Natural [WasmExpr]
   | WAllocate Natural Natural -- function number, size of allocation
   | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]

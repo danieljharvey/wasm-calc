@@ -23,9 +23,14 @@ import GHC.Natural
 data FromExprState = FromExprState
   { fesFunctions :: M.Map FunctionName FromExprFunc,
     fesImports :: M.Map FunctionName FromExprImport,
+    fesGlobals :: M.Map Identifier FromExprGlobal,
     fesVars :: [(Maybe Identifier, WasmType)],
     fesArgs :: [(Identifier, WasmType)]
   }
+  deriving stock (Eq, Ord, Show)
+
+data FromExprGlobal = FromExprGlobal
+  {fegIndex :: Natural, fegExpr :: WasmExpr, fegType :: WasmType}
   deriving stock (Eq, Ord, Show)
 
 data FromExprFunc = FromExprFunc
@@ -62,6 +67,24 @@ addLocal maybeIdent ty = do
     gets (fromIntegral . length . fesArgs)
 
   pure (argLen + varLen - 1)
+
+lookupGlobal ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m
+  ) =>
+  Identifier ->
+  m Natural
+lookupGlobal ident = do
+  maybeGlobalNat <-
+    gets
+      ( M.lookup ident
+          . fesGlobals
+      )
+
+  case maybeGlobalNat of
+    Just (FromExprGlobal {fegIndex}) -> pure fegIndex
+    Nothing ->
+      throwError $ IdentifierNotFound ident
 
 lookupIdent ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -206,8 +229,9 @@ fromExpr (EInfix _ op a b) = do
 fromExpr (EIf ty predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
   WIf wasmType <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
-fromExpr (EVar _ ident) =
-  WVar <$> lookupIdent ident
+fromExpr (EVar _ ident) = do
+  (WVar <$> lookupIdent ident)
+    `catchError` \_ -> WGlobal <$> lookupGlobal ident
 fromExpr (EApply _ funcName args) = do
   fefIndex <- lookupFunction funcName
   WApply fefIndex
@@ -274,9 +298,10 @@ fromFunction ::
   (Show ann) =>
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
+  M.Map Identifier FromExprGlobal ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
-fromFunction funcMap importMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
+fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -291,6 +316,7 @@ fromFunction funcMap importMap (Function {fnPublic, fnBody, fnArgs, fnFunctionNa
       ( FromExprState
           { fesVars = mempty,
             fesArgs = args,
+            fesGlobals = globalMap,
             fesImports = importMap,
             fesFunctions = funcMap
           }
@@ -307,6 +333,33 @@ fromFunction funcMap importMap (Function {fnPublic, fnBody, fnArgs, fnFunctionNa
         wfReturnType = retType,
         wfLocals = snd <$> fesVars fes
       }
+
+-- take only the information about globals that we need
+-- we assume each global uses no imports or functions
+getGlobalMap ::
+  (Show ann) =>
+  [Global (Type ann)] ->
+  Either FromWasmError (M.Map Identifier FromExprGlobal)
+getGlobalMap globals =
+  M.fromList
+    <$> traverse
+      ( \(fegIndex, Global {glbIdentifier, glbExpr}) -> do
+          (fegExpr, _) <-
+            runStateT
+              (fromExpr glbExpr)
+              ( FromExprState
+                  { fesVars = mempty,
+                    fesArgs = mempty,
+                    fesGlobals = mempty,
+                    fesImports = mempty,
+                    fesFunctions = mempty
+                  }
+              )
+
+          fegType <- scalarFromType (getOuterAnnotation glbExpr)
+          pure (glbIdentifier, FromExprGlobal {fegExpr, fegIndex, fegType})
+      )
+      (zip [0 ..] globals)
 
 -- take only the function info we need
 getFunctionMap ::
@@ -360,15 +413,38 @@ fromMemory
     ) =
     WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
 
+fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
+fromGlobal (Global {glbExpr}) = do
+  (wgExpr, _) <-
+    runStateT
+      (fromExpr glbExpr)
+      ( FromExprState
+          { fesVars = mempty,
+            fesArgs = mempty,
+            fesGlobals = mempty,
+            fesImports = mempty,
+            fesFunctions = mempty
+          }
+      )
+
+  wgType <- scalarFromType (getOuterAnnotation glbExpr)
+  pure $ WasmGlobal {wgExpr, wgType}
+
 fromModule ::
   (Show ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule (Module {mdMemory, mdImports, mdFunctions}) = do
+fromModule (Module {mdMemory, mdGlobals, mdImports, mdFunctions}) = do
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
+  globalMap <- getGlobalMap mdGlobals
 
-  wasmFunctions <- traverse (fromFunction funcMap importMap) mdFunctions
+  wasmGlobals <- traverse fromGlobal mdGlobals
+
+  wasmFunctions <-
+    traverse
+      (fromFunction funcMap importMap globalMap)
+      mdFunctions
 
   wasmImports <- traverse fromImport mdImports
 
@@ -376,5 +452,6 @@ fromModule (Module {mdMemory, mdImports, mdFunctions}) = do
     WasmModule
       { wmFunctions = wasmFunctions,
         wmImports = wasmImports,
-        wmMemory = fromMemory mdMemory
+        wmMemory = fromMemory mdMemory,
+        wmGlobals = wasmGlobals
       }

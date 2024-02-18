@@ -9,6 +9,7 @@ module Calc.Typecheck.Helpers
     lookupFunction,
     withFunctionEnv,
     storeFunction,
+    storeGlobal,
   )
 where
 
@@ -38,6 +39,7 @@ runTypecheckM env action =
     (runReaderT (getTypecheckM action) env)
     ( TypecheckState
         { tcsFunctions = mempty,
+          tcsGlobals = mempty,
           tcsUnique = 0,
           tcsUnified = mempty
         }
@@ -60,6 +62,15 @@ storeFunction fnName generics ty =
           }
     )
 
+storeGlobal :: Identifier -> Type ann -> TypecheckM ann ()
+storeGlobal ident ty =
+  modify
+    ( \tcs ->
+        tcs
+          { tcsGlobals = HM.insert ident ty (tcsGlobals tcs)
+          }
+    )
+
 -- | look up a saved identifier "in the environment"
 lookupFunction :: ann -> FunctionName -> TypecheckM ann (Type ann)
 lookupFunction ann fnName = do
@@ -75,12 +86,19 @@ lookupFunction ann fnName = do
 -- | look up a saved identifier "in the environment"
 lookupVar :: ann -> Identifier -> TypecheckM ann (Type ann)
 lookupVar ann identifier = do
-  maybeType <- asks (HM.lookup identifier . tceVars)
-  case maybeType of
+  -- is it a var?
+  maybeVarType <- asks (HM.lookup identifier . tceVars)
+  case maybeVarType of
     Just found -> pure found
     Nothing -> do
-      allIdentifiers <- asks (HM.keysSet . tceVars)
-      throwError (VarNotFound ann identifier allIdentifiers)
+      -- if not, is a global maybe?
+      maybeGlobalType <- gets (HM.lookup identifier . tcsGlobals)
+      case maybeGlobalType of
+        Just found -> pure found
+        Nothing -> do
+          allVarIdentifiers <- asks (HM.keysSet . tceVars)
+          allGlobalIdentifiers <- gets (HM.keysSet . tcsGlobals)
+          throwError (VarNotFound ann identifier (allVarIdentifiers <> allGlobalIdentifiers))
 
 identifiersFromPattern :: Pattern ann -> Type ann -> TypecheckM ann [(Identifier, Type ann)]
 identifiersFromPattern (PVar _ identifier) ty =

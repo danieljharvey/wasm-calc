@@ -136,6 +136,7 @@ toWasm (WIf tyReturn predExpr thenExpr elseExpr) =
            (toWasm elseExpr)
        ]
 toWasm (WVar i) = [Wasm.GetLocal i]
+toWasm (WGlobal i) = [Wasm.GetGlobal (i + 1)] -- add one as malloc function uses first global
 toWasm (WApply fnIndex args) =
   foldMap toWasm args <> [Wasm.Call fnIndex]
 toWasm (WAllocate fnIndex i) =
@@ -187,12 +188,20 @@ allocatorFunction offset mod' =
 -- add the global allocator position as a global
 -- we start at 32 + any manual memory space that has been set aside
 -- for messing around
-globals :: WasmMemory -> [Wasm.Global]
-globals (WasmMemory nat _) =
+globals :: WasmMemory -> [WasmGlobal] -> [Wasm.Global]
+globals (WasmMemory nat _) globs =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
       [Wasm.I32Const (fromIntegral $ nat + 32)]
   ]
+    <> mapMaybe
+      ( \WasmGlobal {wgExpr, wgType} ->
+          case fromType wgType of
+            Just ty ->
+              Just $ Wasm.Global (Wasm.Const ty) (toWasm wgExpr)
+            Nothing -> Nothing
+      )
+      globs
 
 -- | if no memory has been imported, we create our own `memory`
 -- instance for this module
@@ -218,7 +227,7 @@ memoryImportsToWasm wasmMemory =
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmMemory, wmImports, wmFunctions}) =
+moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmFunctions}) =
   let functionImports = functionImportsToWasm wmImports
       offset = length functionImports
       functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
@@ -229,7 +238,7 @@ moduleToWasm (WasmModule {wmMemory, wmImports, wmFunctions}) =
    in moduleWithAllocator
         { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
           Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
-          Wasm.globals = globals wmMemory,
+          Wasm.globals = globals wmMemory wmGlobals,
           Wasm.mems = memory wmMemory,
           Wasm.tables = mempty,
           Wasm.elems = mempty,
