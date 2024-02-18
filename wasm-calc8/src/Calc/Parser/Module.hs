@@ -45,20 +45,29 @@ importMemoryParser = myLexeme
 memoryParser :: Parser (Memory Annotation)
 memoryParser = localMemoryParser <|> importMemoryParser
 
+mutabilityParser :: Parser Mutability
+mutabilityParser = myLexeme $ do
+  maybeMut <- optional (stringLiteral "mut")
+  case maybeMut of
+    Just _ -> pure Mutable
+    Nothing -> pure Constant
+
 globalParser :: Parser (Global Annotation)
 globalParser = myLexeme
   $ withLocation
-    ( \glbAnn (glbIdentifier, glbExpr) ->
-        Global {glbAnn, glbIdentifier, glbExpr, glbMutability = Constant}
+    ( \glbAnn (glbIdentifier, glbMutability, glbExpr) ->
+        Global {glbAnn, glbIdentifier, glbExpr, glbMutability}
     )
   $ do
     stringLiteral "global"
+    mutability <- mutabilityParser
     ident <- identifierParser
     maybeTy <- optional $ stringLiteral ":" >> typeParser
     stringLiteral "="
     expr <- exprParser
     pure
       ( ident,
+        mutability,
         case maybeTy of
           Just ty -> EAnn mempty ty expr
           Nothing -> expr

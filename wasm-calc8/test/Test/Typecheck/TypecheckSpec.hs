@@ -179,6 +179,13 @@ spec = do
                     "function main() -> Int32 { one }"
                   ],
                 tyInt32
+              ),
+              ( joinLines
+                  [ "global one: Int32 = 1",
+                    "global two = one + one",
+                    "function main() -> Int32 { two }"
+                  ],
+                tyInt32
               )
             ]
       describe "Successfully typechecking modules" $ do

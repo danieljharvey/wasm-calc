@@ -151,7 +151,8 @@ spec = do
               ),
               ( joinLines
                   [ "global one: Int64 = 1",
-                    "global true = True"
+                    "global true = True",
+                    "global mut counter: Int64 = 0"
                   ],
                 emptyModule
                   { mdGlobals =
@@ -166,8 +167,30 @@ spec = do
                             glbMutability = Constant,
                             glbIdentifier = "true",
                             glbExpr = bool True
+                          },
+                        Global
+                          { glbAnn = (),
+                            glbMutability = Mutable,
+                            glbIdentifier = "counter",
+                            glbExpr = EAnn () tyInt64 (int 0)
                           }
                       ]
+                  }
+              ),
+              ( joinLines
+                  [ "global mut counter: Int64 = 0",
+                    "function main() -> Void { set(counter, 1) }"
+                  ],
+                emptyModule
+                  { mdGlobals =
+                      [ Global
+                          { glbAnn = (),
+                            glbMutability = Mutable,
+                            glbIdentifier = "counter",
+                            glbExpr = EAnn () tyInt64 (int 0)
+                          }
+                      ],
+                    mdFunctions = [Function {}]
                   }
               )
             ]
