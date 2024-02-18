@@ -29,8 +29,8 @@ data FromExprState = FromExprState
   }
   deriving stock (Eq, Ord, Show)
 
-data FromExprGlobal = FromExprGlobal
-  {fegIndex :: Natural, fegExpr :: WasmExpr, fegType :: WasmType}
+newtype FromExprGlobal = FromExprGlobal
+  {fegIndex :: Natural}
   deriving stock (Eq, Ord, Show)
 
 data FromExprFunc = FromExprFunc
@@ -337,27 +337,13 @@ fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fn
 -- take only the information about globals that we need
 -- we assume each global uses no imports or functions
 getGlobalMap ::
-  (Show ann) =>
   [Global (Type ann)] ->
   Either FromWasmError (M.Map Identifier FromExprGlobal)
 getGlobalMap globals =
   M.fromList
     <$> traverse
-      ( \(fegIndex, Global {glbIdentifier, glbExpr}) -> do
-          (fegExpr, _) <-
-            runStateT
-              (fromExpr glbExpr)
-              ( FromExprState
-                  { fesVars = mempty,
-                    fesArgs = mempty,
-                    fesGlobals = mempty,
-                    fesImports = mempty,
-                    fesFunctions = mempty
-                  }
-              )
-
-          fegType <- scalarFromType (getOuterAnnotation glbExpr)
-          pure (glbIdentifier, FromExprGlobal {fegExpr, fegIndex, fegType})
+      ( \(fegIndex, Global {glbIdentifier}) -> do
+          pure (glbIdentifier, FromExprGlobal {fegIndex})
       )
       (zip [0 ..] globals)
 
