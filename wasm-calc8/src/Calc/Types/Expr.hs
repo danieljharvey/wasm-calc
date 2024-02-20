@@ -27,6 +27,7 @@ data Expr ann
   | EAnn ann (Type ann) (Expr ann)
   | ELoad ann Natural
   | EStore ann Natural (Expr ann)
+  | ESet ann Identifier (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- when on multilines, indent by `i`, if not then nothing
@@ -86,3 +87,5 @@ instance PP.Pretty (Expr ann) where
     "load(" <> PP.pretty index <> ")"
   pretty (EStore _ index expr) =
     "store(" <> PP.pretty index <> "," <+> PP.pretty expr <> ")"
+  pretty (ESet _ ident expr) =
+    "set(" <> PP.pretty ident <> "," <+> PP.pretty expr <> ")"

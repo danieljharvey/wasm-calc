@@ -40,6 +40,7 @@ data TypeError ann
   | UnknownIntegerLiteral ann
   | UnknownFloatLiteral ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
+  | CantSetConstant ann Identifier
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -66,6 +67,26 @@ typeErrorDiagnostic input e =
   let filename = "<repl>"
       diag = Diag.addFile mempty filename (T.unpack input)
       report = case e of
+        (CantSetConstant ann ident) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint $ "Cannot mutate constant " <> PP.pretty ident
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint
+                              "Perhaps declare this with 'global mut' instead?"
+                          )
+                      )
+                ]
+            )
+            []
         (UnknownFloatLiteral ann) ->
           Diag.Err
             Nothing

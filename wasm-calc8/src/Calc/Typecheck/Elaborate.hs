@@ -44,7 +44,7 @@ elaborateModule (Module {mdImports, mdGlobals, mdMemory, mdFunctions}) = do
       traverse
         ( \global -> do
             elabGlobal <- elaborateGlobal global
-            storeGlobal (glbIdentifier elabGlobal) (glbAnn elabGlobal)
+            storeGlobal (glbIdentifier elabGlobal) (glbMutability elabGlobal) (glbAnn elabGlobal)
             pure elabGlobal
         )
         mdGlobals

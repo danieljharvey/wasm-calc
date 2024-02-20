@@ -243,6 +243,12 @@ spec = do
                     asTest "1 + one"
                   ],
                 Wasm.VI64 2
+              ),
+              ( joinLines
+                  [ "global mut counter: Int64 = 0",
+                    asTest "set(counter, 2); counter"
+                  ],
+                Wasm.VI64 2
               )
             ]
 

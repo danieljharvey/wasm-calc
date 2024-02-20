@@ -13,6 +13,8 @@ import Calc.Typecheck.Types
 import Calc.Typecheck.Unify
 import Calc.Types.Expr
 import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Identifier
 import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
@@ -40,6 +42,8 @@ check ty (ELoad ann index) =
   checkLoad (Just ty) ann index
 check ty (EStore ann index expr) =
   checkStore (Just ty) ann index expr
+check ty (ESet ann ident expr) =
+  checkSet (Just ty) ann ident expr
 check ty (EPrim _ (PFloatLit f)) = do
   tyPrim <- case ty of
     TPrim _ TFloat32 -> pure ty
@@ -95,6 +99,25 @@ checkStore maybeTy ann index expr = do
     Just ty -> void (unify tyVoid ty)
     Nothing -> pure ()
   pure $ EStore tyVoid index typedExpr
+
+-- | set always returns Void
+checkSet ::
+  Maybe (Type ann) ->
+  ann ->
+  Identifier ->
+  Expr ann ->
+  TypecheckM ann (Expr (Type ann))
+checkSet maybeTy ann ident expr = do
+  (TypecheckGlobal tyVar mutability) <- lookupGlobal ann ident
+  case mutability of
+    Constant -> throwError $ CantSetConstant ann ident
+    Mutable -> pure ()
+  typedExpr <- check tyVar expr
+  let tyVoid = TPrim ann TVoid
+  case maybeTy of
+    Just ty -> void (unify tyVoid ty)
+    Nothing -> pure ()
+  pure $ ESet tyVoid ident typedExpr
 
 checkIf ::
   Maybe (Type ann) ->
@@ -367,3 +390,5 @@ infer (ELoad ann index) =
   checkLoad Nothing ann index
 infer (EStore ann index expr) =
   checkStore Nothing ann index expr
+infer (ESet ann ident expr) =
+  checkSet Nothing ann ident expr

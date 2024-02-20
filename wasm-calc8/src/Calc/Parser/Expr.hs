@@ -46,6 +46,7 @@ exprParserInternal =
           <|> ifParser
           <|> loadParser
           <|> storeParser
+          <|> setParser
           <|> try applyParser
           <|> try varParser
           <?> "term"
@@ -166,3 +167,14 @@ storeParser = label "store" $
     expr <- exprParserInternal
     stringLiteral ")"
     pure $ EStore mempty nat expr
+
+setParser :: Parser (Expr Annotation)
+setParser = label "set" $
+  addLocation $ do
+    stringLiteral "set"
+    stringLiteral "("
+    ident <- identifierParser
+    stringLiteral ","
+    expr <- exprParserInternal
+    stringLiteral ")"
+    pure $ ESet mempty ident expr

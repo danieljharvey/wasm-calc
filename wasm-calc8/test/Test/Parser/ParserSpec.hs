@@ -190,7 +190,17 @@ spec = do
                             glbExpr = EAnn () tyInt64 (int 0)
                           }
                       ],
-                    mdFunctions = [Function {}]
+                    mdFunctions =
+                      [ Function
+                          { fnAnn = (),
+                            fnGenerics = mempty,
+                            fnArgs = mempty,
+                            fnFunctionName = "main",
+                            fnPublic = False,
+                            fnReturnType = tyVoid,
+                            fnBody = ESet () "counter" (int 1)
+                          }
+                      ]
                   }
               )
             ]

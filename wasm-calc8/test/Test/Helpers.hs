@@ -9,6 +9,7 @@ module Test.Helpers
     box,
     var,
     tuple,
+    tyVoid,
     tyInt32,
     tyInt64,
     tyFloat64,
@@ -46,6 +47,9 @@ tuple :: (Monoid ann) => [Expr ann] -> Expr ann
 tuple = \case
   (a : b : rest) -> ETuple mempty a (b NE.:| rest)
   _ -> error "not enough items for tuple"
+
+tyVoid :: (Monoid ann) => Type ann
+tyVoid = TPrim mempty TVoid
 
 tyInt32 :: (Monoid ann) => Type ann
 tyInt32 = TPrim mempty TInt32

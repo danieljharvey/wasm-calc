@@ -264,6 +264,9 @@ fromExpr (ELoad ty index) = do
 fromExpr (EStore _ index expr) = do
   wasmType <- liftEither $ scalarFromType (getOuterAnnotation expr)
   WStore wasmType (fromIntegral index) <$> fromExpr expr
+fromExpr (ESet _ ident expr) = do
+  index <- lookupGlobal ident
+  WGlobalSet index <$> fromExpr expr
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -400,7 +403,7 @@ fromMemory
     WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
 
 fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
-fromGlobal (Global {glbExpr}) = do
+fromGlobal (Global {glbExpr, glbMutability}) = do
   (wgExpr, _) <-
     runStateT
       (fromExpr glbExpr)
@@ -412,9 +415,11 @@ fromGlobal (Global {glbExpr}) = do
             fesFunctions = mempty
           }
       )
-
+  let wgMutable = case glbMutability of
+        Mutable -> True
+        Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
-  pure $ WasmGlobal {wgExpr, wgType}
+  pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
 fromModule ::
   (Show ann) =>

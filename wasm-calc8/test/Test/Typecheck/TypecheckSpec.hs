@@ -186,6 +186,13 @@ spec = do
                     "function main() -> Int32 { two }"
                   ],
                 tyInt32
+              ),
+              ( joinLines
+                  [ "global mut counter: Int32 = 0",
+                    "function increment() -> Void { let current = counter; set(counter, current + 1) }",
+                    "function main() -> Int32 { increment(); increment(); counter }"
+                  ],
+                tyInt32
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -209,7 +216,15 @@ spec = do
                   "function main() -> Int32 { let a = log(1); a }"
                 ],
               "function noMemAllocated() -> Int32 { load(100) }",
-              "global one = 1"
+              "global one = 1",
+              joinLines
+                [ "global mut counter: Int32 = 0",
+                  "function setsWithWrongType() -> Void { set(counter, True) }"
+                ],
+              joinLines
+                [ "global counter: Int32 = 0",
+                  "function setsNonMutableGlobal() -> Void { set(counter, 1) }"
+                ]
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing

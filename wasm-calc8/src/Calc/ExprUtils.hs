@@ -24,6 +24,7 @@ getOuterAnnotation (ETuple ann _ _) = ann
 getOuterAnnotation (EBox ann _) = ann
 getOuterAnnotation (ELoad ann _) = ann
 getOuterAnnotation (EStore ann _ _) = ann
+getOuterAnnotation (ESet ann _ _) = ann
 
 -- | modify the outer annotation of an expression
 -- useful for adding line numbers during parsing
@@ -41,6 +42,7 @@ mapOuterExprAnnotation f expr' =
     EBox ann a -> EBox (f ann) a
     ELoad ann a -> ELoad (f ann) a
     EStore ann a b -> EStore (f ann) a b
+    ESet ann a b -> ESet (f ann) a b
 
 -- | Given a function that changes `Expr` values to `m Expr`, apply it throughout
 -- an AST tree
@@ -63,6 +65,7 @@ bindExpr f (EBox ann a) = EBox ann <$> f a
 bindExpr f (EAnn ann a b) = EAnn ann a <$> f b
 bindExpr _ (ELoad ann a) = pure $ ELoad ann a
 bindExpr f (EStore ann a b) = EStore ann a <$> f b
+bindExpr f (ESet ann a b) = ESet ann a <$> f b
 
 getOuterPatternAnnotation :: Pattern ann -> ann
 getOuterPatternAnnotation (PWildcard ann) = ann

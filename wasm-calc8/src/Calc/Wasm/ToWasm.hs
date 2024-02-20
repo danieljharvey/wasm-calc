@@ -157,6 +157,8 @@ toWasm (WStore ty index expr) =
   [Wasm.I32Const 0]
     <> toWasm expr
     <> [storeInstruction ty index]
+toWasm (WGlobalSet index expr) =
+  toWasm expr <> [Wasm.SetGlobal (index + 1)]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of
@@ -195,11 +197,13 @@ globals (WasmMemory nat _) globs =
       [Wasm.I32Const (fromIntegral $ nat + 32)]
   ]
     <> mapMaybe
-      ( \WasmGlobal {wgExpr, wgType} ->
-          case fromType wgType of
-            Just ty ->
+      ( \WasmGlobal {wgExpr, wgType, wgMutable} ->
+          case (wgMutable, fromType wgType) of
+            (False, Just ty) ->
               Just $ Wasm.Global (Wasm.Const ty) (toWasm wgExpr)
-            Nothing -> Nothing
+            (True, Just ty) ->
+              Just $ Wasm.Global (Wasm.Mut ty) (toWasm wgExpr)
+            (_, Nothing) -> Nothing
       )
       globs
 

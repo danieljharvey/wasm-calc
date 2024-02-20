@@ -5,12 +5,14 @@ module Calc.Typecheck.Types
   ( TypecheckM (..),
     TypecheckState (..),
     TypecheckEnv (..),
+    TypecheckGlobal (..),
     TypeScheme (..),
   )
 where
 
 import Calc.Typecheck.Error
 import Calc.Types.Function
+import Calc.Types.Global
 import Calc.Types.Identifier
 import Calc.Types.Type
 import Calc.Types.TypeVar
@@ -29,9 +31,15 @@ data TypecheckEnv ann = TypecheckEnv
   }
   deriving stock (Eq, Ord, Show)
 
+data TypecheckGlobal ann = TypecheckGlobal
+  { tcgType :: Type ann,
+    tcgMutable :: Mutability
+  }
+  deriving stock (Eq, Ord, Show)
+
 data TypecheckState ann = TypecheckState
   { tcsFunctions :: HM.HashMap FunctionName (TypeScheme ann),
-    tcsGlobals :: HM.HashMap Identifier (Type ann),
+    tcsGlobals :: HM.HashMap Identifier (TypecheckGlobal ann),
     tcsUnique :: Natural,
     tcsUnified :: HM.HashMap Natural (Type ann)
   }

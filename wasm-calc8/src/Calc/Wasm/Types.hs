@@ -40,7 +40,7 @@ data WasmMemory = WasmMemory
   deriving stock (Eq, Ord, Show)
 
 data WasmGlobal = WasmGlobal
-  {wgExpr :: WasmExpr, wgType :: WasmType}
+  {wgExpr :: WasmExpr, wgType :: WasmType, wgMutable :: Bool}
   deriving stock (Eq, Ord, Show)
 
 data WasmModule = WasmModule
@@ -96,6 +96,7 @@ data WasmExpr
   | WTupleAccess WasmType WasmExpr Natural
   | WLoad WasmType Natural -- unsafe load from linear memory
   | WStore WasmType Natural WasmExpr -- unsafe store from linear memory
+  | WGlobalSet Natural WasmExpr -- set global value
   deriving stock (Eq, Ord, Show)
 
 data FromWasmError

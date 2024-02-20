@@ -26,7 +26,8 @@ protectedNames =
       "function",
       "let",
       "load",
-      "store"
+      "store",
+      "set"
     ]
 
 filterProtectedNames :: Text -> Maybe Text
