@@ -8,7 +8,7 @@ import Calc.Typecheck
 import Calc.Wasm
 import Calc.Wasm.FromExpr.Expr
 import Calc.Wasm.Run
-import Calc.Wasm.ToWasm.Expr
+import Calc.Wasm.ToWasm.Module
 import Control.Monad.IO.Class
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)

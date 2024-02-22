@@ -20,7 +20,7 @@ import Calc.Parser.Types
 import Calc.Typecheck
 import Calc.Wasm.FromExpr.Expr
 import Calc.Wasm.Run
-import Calc.Wasm.ToWasm.Expr
+import Calc.Wasm.ToWasm.Module
 import Calc.Wasm.ToWasm.Types
 import Control.Monad.IO.Class
 import Data.Text (Text)

@@ -108,6 +108,7 @@ common shared
     Calc.Wasm.Run
     Calc.Wasm.ToWasm.Expr
     Calc.Wasm.ToWasm.Helpers
+    Calc.Wasm.ToWasm.Module
     Calc.Wasm.ToWasm.Types
     Calc.Wasm.WriteModule
 

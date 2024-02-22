@@ -1,19 +1,11 @@
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Wasm.ToWasm.Expr (moduleToWasm) where
+module Calc.Wasm.ToWasm.Expr (exprToWasm) where
 
-import Calc.Types.FunctionName
 import Calc.Types.Op
-import Calc.Wasm.Allocator
 import Calc.Wasm.ToWasm.Types
-import Data.Maybe (catMaybes, mapMaybe, maybeToList)
-import qualified Data.Text.Lazy as TL
 import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
-
-mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
-mapWithIndex f = fmap f . zip [0 ..]
 
 -- | turn types into wasm types
 -- void won't have a type, hence the Maybe
@@ -26,37 +18,6 @@ fromType F32 = Just Wasm.F32
 fromType F64 = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
 fromType Void = Nothing
-
-fromFunction :: Int -> WasmFunction -> Wasm.Function
-fromFunction wfIndex (WasmFunction {wfExpr, wfLocals}) =
-  let locals = fromType <$> wfLocals
-   in Wasm.Function
-        (fromIntegral $ wfIndex + 1)
-        (catMaybes locals) -- we're dropping `Void` rather than erroring, perhaps this is bad
-        (toWasm wfExpr)
-
-fromImport :: Int -> WasmImport -> Wasm.Import
-fromImport wfIndex (WasmImport {wiExternalModule, wiExternalFunction}) =
-  Wasm.Import
-    (TL.fromStrict wiExternalModule)
-    (TL.fromStrict wiExternalFunction)
-    (Wasm.ImportFunc $ fromIntegral wfIndex)
-
-typeFromFunction :: WasmFunction -> Wasm.FuncType
-typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
-  Wasm.FuncType
-    (mapMaybe fromType wfArgs)
-    (maybeToList $ fromType wfReturnType)
-
-typeFromImport :: WasmImport -> Wasm.FuncType
-typeFromImport (WasmImport {wiArgs, wiReturnType}) =
-  Wasm.FuncType (mapMaybe fromType wiArgs) (maybeToList $ fromType wiReturnType)
-
--- for now, export everything
-exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
-exportFromFunction wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic = True}) =
-  Just $ Wasm.Export (TL.fromStrict wfName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
-exportFromFunction _ _ = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
 bitsizeFromType Void = error "bitsizeFromType Void"
@@ -107,58 +68,58 @@ instructionFromOp ty OpLessThanOrEqualTo =
     then Wasm.FRelOp (bitsizeFromType ty) Wasm.FLe
     else Wasm.IRelOp (bitsizeFromType ty) Wasm.ILeS
 
-toWasm :: WasmExpr -> [Wasm.Instruction Natural]
-toWasm (WPrim (WPInt32 i)) =
+exprToWasm :: WasmExpr -> [Wasm.Instruction Natural]
+exprToWasm (WPrim (WPInt32 i)) =
   [Wasm.I32Const i]
-toWasm (WPrim (WPInt64 i)) =
+exprToWasm (WPrim (WPInt64 i)) =
   [Wasm.I64Const i]
-toWasm (WPrim (WPFloat32 f)) =
+exprToWasm (WPrim (WPFloat32 f)) =
   [Wasm.F32Const f]
-toWasm (WPrim (WPFloat64 f)) =
+exprToWasm (WPrim (WPFloat64 f)) =
   [Wasm.F64Const f]
-toWasm (WPrim (WPBool True)) =
+exprToWasm (WPrim (WPBool True)) =
   [Wasm.I32Const 1]
-toWasm (WPrim (WPBool False)) =
+exprToWasm (WPrim (WPBool False)) =
   [Wasm.I32Const 0]
-toWasm (WLet index expr body) = do
-  toWasm expr <> [Wasm.SetLocal index] <> toWasm body
-toWasm (WSequence Void first second) =
-  toWasm first <> toWasm second
-toWasm (WSequence _ first second) =
-  toWasm first <> [Wasm.Drop] <> toWasm second
-toWasm (WInfix ty op a b) =
-  toWasm a <> toWasm b <> [instructionFromOp ty op]
-toWasm (WIf tyReturn predExpr thenExpr elseExpr) =
-  toWasm predExpr
+exprToWasm (WLet index expr body) = do
+  exprToWasm expr <> [Wasm.SetLocal index] <> exprToWasm body
+exprToWasm (WSequence Void first second) =
+  exprToWasm first <> exprToWasm second
+exprToWasm (WSequence _ first second) =
+  exprToWasm first <> [Wasm.Drop] <> exprToWasm second
+exprToWasm (WInfix ty op a b) =
+  exprToWasm a <> exprToWasm b <> [instructionFromOp ty op]
+exprToWasm (WIf tyReturn predExpr thenExpr elseExpr) =
+  exprToWasm predExpr
     <> [ Wasm.If
            (Wasm.Inline (fromType tyReturn))
-           (toWasm thenExpr)
-           (toWasm elseExpr)
+           (exprToWasm thenExpr)
+           (exprToWasm elseExpr)
        ]
-toWasm (WVar i) = [Wasm.GetLocal i]
-toWasm (WGlobal i) = [Wasm.GetGlobal (i + 1)] -- add one as malloc function uses first global
-toWasm (WApply fnIndex args) =
-  foldMap toWasm args <> [Wasm.Call fnIndex]
-toWasm (WAllocate fnIndex i) =
+exprToWasm (WVar i) = [Wasm.GetLocal i]
+exprToWasm (WGlobal i) = [Wasm.GetGlobal (i + 1)] -- add one as malloc function uses first global
+exprToWasm (WApply fnIndex args) =
+  foldMap exprToWasm args <> [Wasm.Call fnIndex]
+exprToWasm (WAllocate fnIndex i) =
   [Wasm.I32Const (fromIntegral i), Wasm.Call fnIndex]
 -- we need to store the return value so we can refer to it in multiple places
-toWasm (WSet index container items) =
+exprToWasm (WSet index container items) =
   let fromItem (offset, ty, value) =
-        [Wasm.GetLocal index] <> toWasm value <> [storeInstruction ty offset]
-   in toWasm container
+        [Wasm.GetLocal index] <> exprToWasm value <> [storeInstruction ty offset]
+   in exprToWasm container
         <> [Wasm.SetLocal index]
         <> foldMap fromItem items
         <> [Wasm.GetLocal index]
-toWasm (WTupleAccess ty tup offset) =
-  toWasm tup <> [loadInstruction ty offset]
-toWasm (WLoad ty index) =
+exprToWasm (WTupleAccess ty tup offset) =
+  exprToWasm tup <> [loadInstruction ty offset]
+exprToWasm (WLoad ty index) =
   [Wasm.I32Const 0, loadInstruction ty index]
-toWasm (WStore ty index expr) =
+exprToWasm (WStore ty index expr) =
   [Wasm.I32Const 0]
-    <> toWasm expr
+    <> exprToWasm expr
     <> [storeInstruction ty index]
-toWasm (WGlobalSet index expr) =
-  toWasm expr <> [Wasm.SetGlobal (index + 1)]
+exprToWasm (WGlobalSet index expr) =
+  exprToWasm expr <> [Wasm.SetGlobal (index + 1)]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of
@@ -181,73 +142,3 @@ storeInstruction ty offset = case ty of
   I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
   Void -> error "storeInstruction Void"
-
-allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function
-allocatorFunction offset mod' =
-  let (Wasm.Function _ a b) = head (Wasm.functions mod')
-   in Wasm.Function offset a b
-
--- add the global allocator position as a global
--- we start at 32 + any manual memory space that has been set aside
--- for messing around
-globals :: WasmMemory -> [WasmGlobal] -> [Wasm.Global]
-globals (WasmMemory nat _) globs =
-  [ Wasm.Global
-      (Wasm.Mut Wasm.I32)
-      [Wasm.I32Const (fromIntegral $ nat + 32)]
-  ]
-    <> mapMaybe
-      ( \WasmGlobal {wgExpr, wgType, wgMutable} ->
-          case (wgMutable, fromType wgType) of
-            (False, Just ty) ->
-              Just $ Wasm.Global (Wasm.Const ty) (toWasm wgExpr)
-            (True, Just ty) ->
-              Just $ Wasm.Global (Wasm.Mut ty) (toWasm wgExpr)
-            (_, Nothing) -> Nothing
-      )
-      globs
-
--- | if no memory has been imported, we create our own `memory`
--- instance for this module
-memory :: WasmMemory -> [Wasm.Memory]
-memory (WasmMemory _limit Nothing) =
-  [Wasm.Memory (Wasm.Limit 1 Nothing)]
-memory _ = mempty
-
-functionImportsToWasm :: [WasmImport] -> [Wasm.Import]
-functionImportsToWasm =
-  mapWithIndex (uncurry fromImport)
-
-memoryImportsToWasm :: WasmMemory -> [Wasm.Import]
-memoryImportsToWasm wasmMemory =
-  case wasmMemory of
-    (WasmMemory _ (Just (memModule, memName))) ->
-      [ Wasm.Import
-          (TL.fromStrict memModule)
-          (TL.fromStrict memName)
-          (Wasm.ImportMemory (Wasm.Limit 1 Nothing))
-      ]
-    (WasmMemory _ Nothing) -> mempty
-
--- | we load the bump allocator module and build on top of it
-moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmFunctions}) =
-  let functionImports = functionImportsToWasm wmImports
-      offset = length functionImports
-      functions = uncurry fromFunction <$> zip [offset ..] wmFunctions
-      importTypes = typeFromImport <$> wmImports
-      functionTypes = typeFromFunction <$> wmFunctions
-      exports = mapMaybe (uncurry exportFromFunction) (zip [offset ..] wmFunctions)
-      imports = memoryImportsToWasm wmMemory <> functionImports
-   in moduleWithAllocator
-        { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
-          Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
-          Wasm.globals = globals wmMemory wmGlobals,
-          Wasm.mems = memory wmMemory,
-          Wasm.tables = mempty,
-          Wasm.elems = mempty,
-          Wasm.datas = mempty,
-          Wasm.start = Nothing,
-          Wasm.imports = imports,
-          Wasm.exports = exports
-        }
