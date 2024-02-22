@@ -1,12 +1,14 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Calc.Wasm.Patterns (patternToPaths, typeFromPath, fromPath) where
+module Calc.Wasm.FromExpr.Patterns (patternToPaths, typeFromPath, fromPath) where
 
 import Calc.ExprUtils
 import Calc.Types
-import Calc.Wasm.Helpers
-import Calc.Wasm.Types
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Types
 import Control.Monad.Except
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M

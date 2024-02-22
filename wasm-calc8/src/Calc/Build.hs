@@ -19,8 +19,8 @@ import Calc.Parser
 import Calc.Parser.Types
 import Calc.PrettyPrint (format)
 import Calc.Typecheck
-import Calc.Wasm.FromExpr
-import Calc.Wasm.ToWasm
+import Calc.Wasm.FromExpr.Expr
+import Calc.Wasm.ToWasm.Expr
 import Calc.Wasm.WriteModule
 import Control.Monad.IO.Class
 import Data.Text (Text)

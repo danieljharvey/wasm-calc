@@ -6,9 +6,9 @@ import Calc.Linearity (validateModule)
 import Calc.Parser
 import Calc.Typecheck
 import Calc.Wasm
-import Calc.Wasm.FromExpr
+import Calc.Wasm.FromExpr.Expr
 import Calc.Wasm.Run
-import Calc.Wasm.ToWasm
+import Calc.Wasm.ToWasm.Expr
 import Control.Monad.IO.Class
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)

@@ -20,9 +20,10 @@ data Module ann = Module
   deriving stock (Eq, Ord, Show, Functor)
 
 instance PP.Pretty (Module ann) where
-  pretty (Module {mdFunctions, mdImports, mdMemory}) =
+  pretty (Module {mdFunctions, mdImports, mdGlobals, mdMemory}) =
     let memory = maybeToList (PP.pretty <$> mdMemory)
+        globals = PP.pretty <$> mdGlobals
         imports = PP.pretty <$> mdImports
         functions = PP.pretty <$> mdFunctions
-        parts = memory <> imports <> functions
+        parts = memory <> globals <> imports <> functions
      in PP.cat (PP.punctuate PP.line parts)

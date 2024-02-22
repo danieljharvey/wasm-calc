@@ -1,142 +1,20 @@
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Calc.Wasm.FromExpr (fromModule) where
+module Calc.Wasm.FromExpr.Expr (fromModule) where
 
 import Calc.ExprUtils
 import Calc.Types
-import Calc.Wasm.Helpers
-import Calc.Wasm.Patterns
-import Calc.Wasm.Types
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Patterns
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Control.Monad.Except
 import Control.Monad.State
-import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
-import GHC.Natural
-
--- | take our regular module and do the book keeping to get it ready for Wasm
--- town
-data FromExprState = FromExprState
-  { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesImports :: M.Map FunctionName FromExprImport,
-    fesGlobals :: M.Map Identifier FromExprGlobal,
-    fesVars :: [(Maybe Identifier, WasmType)],
-    fesArgs :: [(Identifier, WasmType)]
-  }
-  deriving stock (Eq, Ord, Show)
-
-newtype FromExprGlobal = FromExprGlobal
-  {fegIndex :: Natural}
-  deriving stock (Eq, Ord, Show)
-
-data FromExprFunc = FromExprFunc
-  { fefIndex :: Natural,
-    fefArgs :: [WasmType],
-    fefReturnType :: WasmType
-  }
-  deriving stock (Eq, Ord, Show)
-
-newtype FromExprImport = FromExprImport {feiIndex :: Natural}
-  deriving newtype (Eq, Ord, Show)
-
--- | add a local type, returning a unique index
-addLocal ::
-  (MonadState FromExprState m) =>
-  Maybe Identifier ->
-  WasmType ->
-  m Natural
-addLocal maybeIdent ty = do
-  modify
-    ( \fes ->
-        fes
-          { fesVars =
-              fesVars fes <> [(maybeIdent, ty)]
-          }
-    )
-
-  varLen <-
-    gets
-      ( fromIntegral . length . fesVars
-      )
-
-  argLen <-
-    gets (fromIntegral . length . fesArgs)
-
-  pure (argLen + varLen - 1)
-
-lookupGlobal ::
-  ( MonadError FromWasmError m,
-    MonadState FromExprState m
-  ) =>
-  Identifier ->
-  m Natural
-lookupGlobal ident = do
-  maybeGlobalNat <-
-    gets
-      ( M.lookup ident
-          . fesGlobals
-      )
-
-  case maybeGlobalNat of
-    Just (FromExprGlobal {fegIndex}) -> pure fegIndex
-    Nothing ->
-      throwError $ IdentifierNotFound ident
-
-lookupIdent ::
-  (MonadState FromExprState m, MonadError FromWasmError m) =>
-  Identifier ->
-  m Natural
-lookupIdent ident = do
-  let matchVarIdent (_, (thisIdent, _)) = thisIdent == Just ident
-      matchArgIdent (_, (thisIdent, _)) = thisIdent == ident
-
-  startingDigit <- gets (fromIntegral . length . fesArgs)
-
-  maybeVarNat <-
-    gets
-      ( List.find matchVarIdent
-          . zip [startingDigit ..]
-          . fesVars
-      )
-  case maybeVarNat of
-    Just (nat, _) -> pure nat
-    Nothing -> do
-      -- check in args
-      maybeArgNat <-
-        gets
-          ( List.find matchArgIdent
-              . zip [0 ..]
-              . fesArgs
-          )
-      case maybeArgNat of
-        Just (nat, _) -> pure nat
-        Nothing ->
-          throwError $ IdentifierNotFound ident
-
--- | user defined functions live after any imports, and our alloc is the first
--- function
-getAllocationFunctionNumber :: (MonadState FromExprState m) => m Natural
-getAllocationFunctionNumber =
-  gets (fromIntegral . length . fesImports)
-
-lookupFunction ::
-  (MonadState FromExprState m, MonadError FromWasmError m) =>
-  FunctionName ->
-  m Natural
-lookupFunction functionName = do
-  maybeFunc <- gets (M.lookup functionName . fesFunctions)
-  case maybeFunc of
-    Just (FromExprFunc {fefIndex}) -> pure fefIndex
-    Nothing -> do
-      maybeImport <- gets (M.lookup functionName . fesImports)
-      case maybeImport of
-        Just (FromExprImport {feiIndex}) -> pure feiIndex
-        Nothing ->
-          throwError $ FunctionNotFound functionName
 
 fromLet ::
   ( Show ann,
@@ -336,56 +214,6 @@ fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fn
         wfReturnType = retType,
         wfLocals = snd <$> fesVars fes
       }
-
--- take only the information about globals that we need
--- we assume each global uses no imports or functions
-getGlobalMap ::
-  [Global (Type ann)] ->
-  Either FromWasmError (M.Map Identifier FromExprGlobal)
-getGlobalMap globals =
-  M.fromList
-    <$> traverse
-      ( \(fegIndex, Global {glbIdentifier}) -> do
-          pure (glbIdentifier, FromExprGlobal {fegIndex})
-      )
-      (zip [0 ..] globals)
-
--- take only the function info we need
-getFunctionMap ::
-  Natural ->
-  [Function (Type ann)] ->
-  Either
-    FromWasmError
-    (M.Map FunctionName FromExprFunc)
-getFunctionMap offset mdFunctions =
-  M.fromList
-    <$> traverse
-      ( \(i, Function {fnFunctionName, fnArgs, fnBody}) -> do
-          fefArgs <- traverse (scalarFromType . faType) fnArgs
-          fefReturnType <- scalarFromType (getOuterAnnotation fnBody)
-          pure
-            ( fnFunctionName,
-              FromExprFunc {fefIndex = i + 1, fefArgs, fefReturnType}
-            )
-      )
-      (zip [offset ..] mdFunctions)
-
--- take only the function info we need
-getImportMap ::
-  [Import (Type ann)] ->
-  Either
-    FromWasmError
-    (M.Map FunctionName FromExprImport)
-getImportMap mdImports =
-  M.fromList
-    <$> traverse
-      ( \(i, Import {impImportName}) -> do
-          pure
-            ( impImportName,
-              FromExprImport {feiIndex = i}
-            )
-      )
-      (zip [0 ..] mdImports)
 
 fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
 fromMemory Nothing = WasmMemory 0 Nothing

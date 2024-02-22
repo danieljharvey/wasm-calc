@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 
-module Calc.Wasm.Types
+module Calc.Wasm.ToWasm.Types
   ( WasmType (..),
     WasmPrim (..),
     WasmModule (..),
@@ -9,15 +9,11 @@ module Calc.Wasm.Types
     WasmFunction (..),
     WasmExpr (..),
     WasmImport (..),
-    FromWasmError (..),
   )
 where
 
 import Calc.Types.Function
-import Calc.Types.Identifier
 import Calc.Types.Op
-import Calc.Types.Prim
-import Calc.Types.Type
 import qualified Data.Text as T
 import Data.Word
 import GHC.Natural
@@ -97,11 +93,4 @@ data WasmExpr
   | WLoad WasmType Natural -- unsafe load from linear memory
   | WStore WasmType Natural WasmExpr -- unsafe store from linear memory
   | WGlobalSet Natural WasmExpr -- set global value
-  deriving stock (Eq, Ord, Show)
-
-data FromWasmError
-  = FunctionTypeNotScalar
-  | IdentifierNotFound Identifier
-  | FunctionNotFound FunctionName
-  | PrimWithNonNumberType Prim (Type ())
   deriving stock (Eq, Ord, Show)

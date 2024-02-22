@@ -101,12 +101,14 @@ common shared
     Calc.Utils
     Calc.Wasm
     Calc.Wasm.Allocator
-    Calc.Wasm.FromExpr
-    Calc.Wasm.Helpers
-    Calc.Wasm.Patterns
+    Calc.Wasm.FromExpr.Expr
+    Calc.Wasm.FromExpr.Helpers
+    Calc.Wasm.FromExpr.Patterns
+    Calc.Wasm.FromExpr.Types
     Calc.Wasm.Run
-    Calc.Wasm.ToWasm
-    Calc.Wasm.Types
+    Calc.Wasm.ToWasm.Expr
+    Calc.Wasm.ToWasm.Helpers
+    Calc.Wasm.ToWasm.Types
     Calc.Wasm.WriteModule
 
 library

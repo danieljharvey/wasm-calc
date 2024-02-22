@@ -1,7 +1,7 @@
-module Calc.Wasm.Helpers (boxed, memorySizeForType, getOffsetList, scalarFromType, memorySize) where
+module Calc.Wasm.ToWasm.Helpers (getOffsetList, boxed, memorySize, memorySizeForType, offsetForType) where
 
-import Calc.Types.Type
-import Calc.Wasm.Types
+import Calc.Types
+import Calc.Wasm.ToWasm.Types
 import qualified Data.List.NonEmpty as NE
 import Data.Monoid
 import GHC.Natural
@@ -17,21 +17,11 @@ memorySize F64 = 8
 memorySize Pointer = memorySize I32
 memorySize Void = 0
 
-scalarFromType :: Type ann -> Either FromWasmError WasmType
-scalarFromType (TPrim _ TVoid) = pure Void
-scalarFromType (TPrim _ TBool) = pure I32
-scalarFromType (TPrim _ TInt8) = pure I8
-scalarFromType (TPrim _ TInt16) = pure I16
-scalarFromType (TPrim _ TInt32) = pure I32
-scalarFromType (TPrim _ TInt64) = pure I64
-scalarFromType (TPrim _ TFloat32) = pure F32
-scalarFromType (TPrim _ TFloat64) = pure F64
-scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
-scalarFromType (TContainer {}) = pure Pointer
-scalarFromType (TVar _ _) =
-  pure Pointer -- all polymorphic variables are Pointer
-scalarFromType (TUnificationVar {}) =
-  pure Pointer
+-- | wrap a `WasmExpr` in a single item struct
+boxed :: Natural -> Natural -> WasmType -> WasmExpr -> WasmExpr
+boxed importsSize index ty wExpr =
+  let allocate = WAllocate importsSize (memorySize ty)
+   in WSet index allocate [(0, ty, wExpr)]
 
 getOffsetList :: Type ann -> [Natural]
 getOffsetList (TContainer _ items) =
@@ -64,12 +54,6 @@ offsetForType (TVar _ _) =
   memorySize Pointer
 offsetForType (TUnificationVar _ _) =
   error "offsetForType TUnificationVar"
-
--- | wrap a `WasmExpr` in a single item struct
-boxed :: Natural -> Natural -> WasmType -> WasmExpr -> WasmExpr
-boxed importsSize index ty wExpr =
-  let allocate = WAllocate importsSize (memorySize ty)
-   in WSet index allocate [(0, ty, wExpr)]
 
 -- | the actual size of the item in memory
 memorySizeForType :: Type ann -> Natural

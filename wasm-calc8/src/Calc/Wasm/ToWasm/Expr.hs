@@ -1,12 +1,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Wasm.ToWasm (moduleToWasm) where
+module Calc.Wasm.ToWasm.Expr (moduleToWasm) where
 
 import Calc.Types.FunctionName
 import Calc.Types.Op
 import Calc.Wasm.Allocator
-import Calc.Wasm.Types
+import Calc.Wasm.ToWasm.Types
 import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import qualified Data.Text.Lazy as TL
 import GHC.Natural

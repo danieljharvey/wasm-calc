@@ -1,3 +1,7 @@
+global i: Int32 = 100
+
+global mut j = True
+
 import imports.draw as draw(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
 ) -> Void
