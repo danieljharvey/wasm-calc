@@ -1,17 +1,17 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns   #-}
 
 module Calc.Wasm.FromExpr.Helpers (scalarFromType, getAllocationFunctionNumber, addLocal, lookupGlobal, lookupIdent, getGlobalMap, getFunctionMap, getImportMap, lookupFunction) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List as List
-import qualified Data.Map.Strict as M
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List                as List
+import qualified Data.Map.Strict          as M
+import           GHC.Natural
 
 -- | add a local type, returning a unique index
 addLocal ::
@@ -87,11 +87,12 @@ lookupIdent ident = do
         Nothing ->
           throwError $ IdentifierNotFound ident
 
--- | user defined functions live after any imports, and our alloc is the first
+-- | user defined functions live after any imports, and our alloc is the second
 -- function
 getAllocationFunctionNumber :: (MonadState FromExprState m) => m Natural
-getAllocationFunctionNumber =
-  gets (fromIntegral . length . fesImports)
+getAllocationFunctionNumber = do
+  firstFnIndex <- gets (fromIntegral . length . fesImports)
+  pure $ firstFnIndex
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
@@ -136,7 +137,7 @@ getFunctionMap offset mdFunctions =
           fefReturnType <- scalarFromType (getOuterAnnotation fnBody)
           pure
             ( fnFunctionName,
-              FromExprFunc {fefIndex = i + 1, fefArgs, fefReturnType}
+              FromExprFunc {fefIndex = i, fefArgs, fefReturnType}
             )
       )
       (zip [offset ..] mdFunctions)

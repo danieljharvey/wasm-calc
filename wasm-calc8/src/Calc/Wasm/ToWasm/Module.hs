@@ -2,15 +2,16 @@
 
 module Calc.Wasm.ToWasm.Module (moduleToWasm) where
 
-import Calc.Types.FunctionName
-import Calc.Wasm.Allocator
-import Calc.Wasm.ToWasm.Expr
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Data.Maybe (catMaybes, mapMaybe, maybeToList)
-import qualified Data.Text.Lazy as TL
-import GHC.Natural
-import qualified Language.Wasm.Structure as Wasm
+import           Calc.Types.FunctionName
+import           Calc.Utils
+import           Calc.Wasm.Allocator
+import           Calc.Wasm.ToWasm.Expr
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Data.Maybe               (catMaybes, mapMaybe, maybeToList)
+import qualified Data.Text.Lazy           as TL
+import           GHC.Natural
+import qualified Language.Wasm.Structure  as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
 mapWithIndex f = fmap f . zip [0 ..]
@@ -18,14 +19,14 @@ mapWithIndex f = fmap f . zip [0 ..]
 -- | turn types into wasm types
 -- void won't have a type, hence the Maybe
 fromType :: WasmType -> Maybe Wasm.ValueType
-fromType I8 = Just Wasm.I32
-fromType I16 = Just Wasm.I32
-fromType I32 = Just Wasm.I32
-fromType I64 = Just Wasm.I64
-fromType F32 = Just Wasm.F32
-fromType F64 = Just Wasm.F64
+fromType I8      = Just Wasm.I32
+fromType I16     = Just Wasm.I32
+fromType I32     = Just Wasm.I32
+fromType I64     = Just Wasm.I64
+fromType F32     = Just Wasm.F32
+fromType F64     = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
-fromType Void = Nothing
+fromType Void    = Nothing
 
 fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfExpr, wfLocals}) =
@@ -58,10 +59,13 @@ exportFromFunction wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic
   Just $ Wasm.Export (TL.fromStrict wfName) (Wasm.ExportFunc (fromIntegral wfIndex + fromIntegral functionOffset))
 exportFromFunction _ _ = Nothing
 
-allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function
-allocatorFunction offset mod' =
-  let (Wasm.Function _ a b) = head (Wasm.functions mod')
-   in Wasm.Function offset a b
+-- take all functions from the allocator module, and offset their function
+-- numbers so they live after the imports
+allocatorFunctions :: Natural -> Wasm.Module -> [Wasm.Function]
+allocatorFunctions offset mod' =
+  let addOffset (i,Wasm.Function _ a b) =
+        Wasm.Function (offset + i) a b
+   in addOffset <$> zip [0..] (Wasm.functions mod')
 
 -- add the global allocator position as a global
 -- we start at 32 + any manual memory space that has been set aside
@@ -70,7 +74,8 @@ globals :: WasmMemory -> [WasmGlobal] -> [Wasm.Global]
 globals (WasmMemory nat _) globs =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
-      [Wasm.I32Const (fromIntegral $ nat + 32)]
+      [Wasm.I32Const (fromIntegral $ nat + 32)],
+      Wasm.Global (Wasm.Mut Wasm.I32) [Wasm.I32Const 0]
   ]
     <> mapMaybe
       ( \WasmGlobal {wgExpr, wgType, wgMutable} ->
@@ -105,6 +110,16 @@ memoryImportsToWasm wasmMemory =
       ]
     (WasmMemory _ Nothing) -> mempty
 
+-- | we can't get these out of the file directly
+-- so these are
+-- alloc :: I32 -> I32
+-- free :: I32 -> void
+allocatorTypes :: [Wasm.FuncType]
+allocatorTypes = [
+  Wasm.FuncType [Wasm.I32] [Wasm.I32],
+  Wasm.FuncType [Wasm.I32] []
+                 ]
+
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
 moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmFunctions}) =
@@ -115,9 +130,9 @@ moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmFunctions}) =
       functionTypes = typeFromFunction <$> wmFunctions
       exports = mapMaybe (uncurry exportFromFunction) (zip [offset ..] wmFunctions)
       imports = memoryImportsToWasm wmMemory <> functionImports
-   in moduleWithAllocator
-        { Wasm.types = importTypes <> (head (Wasm.types moduleWithAllocator) : functionTypes),
-          Wasm.functions = allocatorFunction (fromIntegral offset) moduleWithAllocator : functions,
+   in ltrace "mod" $ moduleWithAllocator
+        { Wasm.types = importTypes <> allocatorTypes <> functionTypes,
+          Wasm.functions = allocatorFunctions (fromIntegral offset) moduleWithAllocator <> functions,
           Wasm.globals = globals wmMemory wmGlobals,
           Wasm.mems = memory wmMemory,
           Wasm.tables = mempty,
