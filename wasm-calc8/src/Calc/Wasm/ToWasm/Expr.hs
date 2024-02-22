@@ -3,6 +3,7 @@
 module Calc.Wasm.ToWasm.Expr (exprToWasm) where
 
 import Calc.Types.Op
+import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import GHC.Natural
 import qualified Language.Wasm.Structure as Wasm
@@ -97,7 +98,7 @@ exprToWasm (WIf tyReturn predExpr thenExpr elseExpr) =
            (exprToWasm elseExpr)
        ]
 exprToWasm (WVar i) = [Wasm.GetLocal i]
-exprToWasm (WGlobal i) = [Wasm.GetGlobal (i + 1)] -- add one as malloc function uses first global
+exprToWasm (WGlobal i) = [Wasm.GetGlobal (i + globalOffset)] -- add one as malloc function uses first global
 exprToWasm (WApply fnIndex args) =
   foldMap exprToWasm args <> [Wasm.Call fnIndex]
 exprToWasm (WAllocate fnIndex i) =
@@ -119,7 +120,7 @@ exprToWasm (WStore ty index expr) =
     <> exprToWasm expr
     <> [storeInstruction ty index]
 exprToWasm (WGlobalSet index expr) =
-  exprToWasm expr <> [Wasm.SetGlobal (index + 1)]
+  exprToWasm expr <> [Wasm.SetGlobal (index + globalOffset)]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of

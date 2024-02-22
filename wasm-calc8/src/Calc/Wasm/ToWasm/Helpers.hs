@@ -1,10 +1,28 @@
-module Calc.Wasm.ToWasm.Helpers (getOffsetList, boxed, memorySize, memorySizeForType, offsetForType) where
+module Calc.Wasm.ToWasm.Helpers
+  ( globalOffset,
+    functionOffset,
+    getOffsetList,
+    boxed,
+    memorySize,
+    memorySizeForType,
+    offsetForType,
+  )
+where
 
 import Calc.Types
 import Calc.Wasm.ToWasm.Types
 import qualified Data.List.NonEmpty as NE
 import Data.Monoid
 import GHC.Natural
+
+-- when should user-specified globals begin? after all the allocator ones!
+globalOffset :: Natural
+globalOffset = 1
+
+-- when should user-specified functions begin? after all the allocator
+-- functions!
+functionOffset :: Natural
+functionOffset = 1
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural

@@ -1,11 +1,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.ToWasm.Module (moduleToWasm) where
 
 import Calc.Types.FunctionName
 import Calc.Wasm.Allocator
 import Calc.Wasm.ToWasm.Expr
+import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Data.Maybe (catMaybes, mapMaybe, maybeToList)
 import qualified Data.Text.Lazy as TL
@@ -31,7 +31,7 @@ fromFunction :: Int -> WasmFunction -> Wasm.Function
 fromFunction wfIndex (WasmFunction {wfExpr, wfLocals}) =
   let locals = fromType <$> wfLocals
    in Wasm.Function
-        (fromIntegral $ wfIndex + 1)
+        (fromIntegral $ wfIndex + fromIntegral functionOffset)
         (catMaybes locals) -- we're dropping `Void` rather than erroring, perhaps this is bad
         (exprToWasm wfExpr)
 
@@ -55,7 +55,7 @@ typeFromImport (WasmImport {wiArgs, wiReturnType}) =
 -- for now, export everything
 exportFromFunction :: Int -> WasmFunction -> Maybe Wasm.Export
 exportFromFunction wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic = True}) =
-  Just $ Wasm.Export (TL.fromStrict wfName) (Wasm.ExportFunc (fromIntegral wfIndex + 1))
+  Just $ Wasm.Export (TL.fromStrict wfName) (Wasm.ExportFunc (fromIntegral wfIndex + fromIntegral functionOffset))
 exportFromFunction _ _ = Nothing
 
 allocatorFunction :: Natural -> Wasm.Module -> Wasm.Function
