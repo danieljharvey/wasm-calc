@@ -61,3 +61,6 @@ jobs:
 
       - name: Test wasm-calc7
         run: make test-wasm-calc7
+
+      - name: Test wasm-calc8
+        run: make test-wasm-calc8
