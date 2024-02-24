@@ -67,6 +67,9 @@
             pkgs.nodejs
             pkgs.watchexec
             pkgs.nodePackages_latest.serve
+            pkgs.wabt
+            pkgs.emscripten
+            pkgs.wasmtime
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};
