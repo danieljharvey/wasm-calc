@@ -10,7 +10,7 @@
     ;; (global $alloc.offset (mut i32) (i32.const 32))
 
     ;; allocator function
-    (func $alloc (param $size i32) (result (;pointer;) i32)
+    (func $alloc (param $size i32) (result i32)
         (local $this_alloc_ptr i32)
         (local $next_alloc_ptr i32)
         (local $current_capacity i32)

@@ -17,28 +17,39 @@
       )
     )
 
+    ;; start searching at the beginning
     (local.set $prev_ptr (i32.const 0))
     (local.set $current_ptr (global.get 0)) ;; 0 == $heap_start
 
     (loop
+      ;; if current_ptr is a block of size $size
       (if (i32.eq (i32.load (local.get $current_ptr)) (local.get $size))
         (then
+          ;; set allocated_ptr to current_ptr + 4
           (local.set $allocated_ptr (i32.add (local.get $current_ptr) (i32.const 4)))
+          ;; if this is the first block..
           (if (i32.eq (local.get $prev_ptr) (i32.const 0))
+
             (then
+              ;; set heap_start to whatever is it at current_ptr + 4
               (global.set 0 (i32.load (i32.add (local.get $current_ptr) (i32.const 4)))) ;; 0 == $heap_start
             )
             (else
+              ;; store current_ptr + 4 at prev_ptr
               (i32.store (local.get $prev_ptr) (i32.load (i32.add (local.get $current_ptr) (i32.const 4))))
             )
           )
+          ;; return allocator_ptr
           (return (local.get $allocated_ptr))
         )
       )
 
+      ;; if data at current_ptr = 0...
       (if (i32.eq (i32.load (local.get $current_ptr)) (i32.const 0))
         (then
+          ;; set allocated_ptr to heap_end
           (local.set $allocated_ptr (global.get 1)) ;; 1 == $heap_end
+          ;;
           (global.set 1 (i32.add (global.get 1) (i32.add (local.get $size) (i32.const 4)))) ;; 1 == $heap_end
           (i32.store (local.get $current_ptr) (local.get $size))
           (i32.store (i32.add (local.get $current_ptr) (i32.const 4)) (i32.const 0))
@@ -49,7 +60,7 @@
       (local.set $prev_ptr (local.get $current_ptr))
       (local.set $current_ptr (i32.add (i32.load (local.get $current_ptr)) (i32.const 8)))
     )
-    (local.get $prev_ptr)
+    (local.get $allocated_ptr)
   )
 
   (func $free (param $ptr i32)
