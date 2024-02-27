@@ -6,7 +6,8 @@ packages:
   wasm-calc5/wasm-calc5.cabal,
   wasm-calc6/wasm-calc6.cabal,
   wasm-calc7/wasm-calc7.cabal,
-  wasm-calc8/wasm-calc8.cabal
+  wasm-calc8/wasm-calc8.cabal,
+  wasm-calc9/wasm-calc9.cabal
 
 with-compiler: ghc-9.6.3
 

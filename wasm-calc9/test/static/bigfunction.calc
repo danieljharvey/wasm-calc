@@ -1,0 +1,18 @@
+function big(
+  a: Int32, 
+  b: Int32, 
+  c: Int32, 
+  d: Int32, 
+  e: Int32, 
+  f: Int32, 
+  g: Int32, 
+  h: Int32
+) -> Int32 { 
+  if 1 then
+    2
+  else
+    if 3 then
+      4
+    else
+      if 5 then 6 else if 7 then 8 else if 9 then 10 else 11
+}
