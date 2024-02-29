@@ -143,6 +143,12 @@ elaborateFunction ::
   Function ann ->
   TypecheckM ann (Function (Type ann))
 elaborateFunction (Function {fnPublic, fnAnn, fnArgs, fnGenerics, fnReturnType, fnFunctionName, fnBody}) = do
+  -- store current function so we can recursively call ourselves
+  storeFunction
+    fnFunctionName
+    (S.fromList fnGenerics)
+    (TFunction fnAnn (faType <$> fnArgs) fnReturnType)
+
   exprA <-
     withFunctionEnv
       fnArgs

@@ -8,11 +8,11 @@ module Calc.Wasm.ToWasm.Helpers
   )
 where
 
-import           Calc.Types
-import           Calc.Wasm.ToWasm.Types
-import qualified Data.List.NonEmpty     as NE
-import           Data.Monoid
-import           GHC.Natural
+import Calc.Types
+import Calc.Wasm.ToWasm.Types
+import qualified Data.List.NonEmpty as NE
+import Data.Monoid
+import GHC.Natural
 
 -- when should user-specified globals begin? after all the allocator ones!
 globalOffset :: Natural
@@ -20,14 +20,14 @@ globalOffset = 1
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
-memorySize I8      = 1
-memorySize I16     = 2
-memorySize I32     = 4
-memorySize I64     = 8
-memorySize F32     = 4
-memorySize F64     = 8
+memorySize I8 = 1
+memorySize I16 = 2
+memorySize I32 = 4
+memorySize I64 = 8
+memorySize F32 = 4
+memorySize F64 = 8
 memorySize Pointer = memorySize I32
-memorySize Void    = 0
+memorySize Void = 0
 
 -- | wrap a `WasmExpr` in a single item struct
 boxed :: Natural -> Natural -> WasmType -> WasmExpr -> WasmExpr

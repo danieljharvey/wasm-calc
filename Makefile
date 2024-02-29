@@ -122,6 +122,10 @@ run-wasm-calc9:
 run-build-drawing-demo-9:
 	cabal run wasm-calc9 -- build wasm-calc9/demo/draw.calc > wasm-calc9/demo/draw.wasm
 
+.PHONY: run-build-malloc-9
+run-build-malloc-9:
+	cabal run wasm-calc9 -- build wasm-calc9/static/malloc.calc > wasm-calc9/static/malloc.wasm
+
 .PHONY: format-all-files-9
 format-all-files-9:
 	find $(STATIC_FILES_9) -maxdepth 1 -type f -exec cabal run wasm-calc9 -- format {} \;

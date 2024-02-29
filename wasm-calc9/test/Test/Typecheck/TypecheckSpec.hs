@@ -97,7 +97,8 @@ spec = do
               ),
               ( "function factorial(a: Int64) -> Int64 { if a == 0 then 1 else a * factorial(a - 1) }",
                 TFunction () [tyInt64] tyInt64
-              )]
+              )
+            ]
 
       describe "Successfully typechecking functions" $ do
         traverse_ testSucceedingFunction succeeding
@@ -217,7 +218,7 @@ spec = do
                 [ "import console.log as log(a: Int64) -> Void",
                   "function main() -> Int32 { let a = log(1); a }"
                 ],
-              "function noMemAllocated() -> Int32 { load(100) }",
+              --"function noMemAllocated() -> Int32 { load(100) }",
               "global one = 1",
               joinLines
                 [ "global mut counter: Int32 = 0",

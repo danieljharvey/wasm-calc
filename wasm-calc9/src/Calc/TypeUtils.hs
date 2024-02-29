@@ -6,21 +6,21 @@ module Calc.TypeUtils
   )
 where
 
-import Calc.Types.Type
-import Control.Monad.Identity
+import           Calc.Types.Type
+import           Control.Monad.Identity
 
 getOuterTypeAnnotation :: Type ann -> ann
-getOuterTypeAnnotation (TPrim ann _) = ann
-getOuterTypeAnnotation (TFunction ann _ _) = ann
-getOuterTypeAnnotation (TContainer ann _) = ann
-getOuterTypeAnnotation (TVar ann _) = ann
+getOuterTypeAnnotation (TPrim ann _)           = ann
+getOuterTypeAnnotation (TFunction ann _ _)     = ann
+getOuterTypeAnnotation (TContainer ann _)      = ann
+getOuterTypeAnnotation (TVar ann _)            = ann
 getOuterTypeAnnotation (TUnificationVar ann _) = ann
 
 mapOuterTypeAnnotation :: (ann -> ann) -> Type ann -> Type ann
-mapOuterTypeAnnotation f (TPrim ann p) = TPrim (f ann) p
-mapOuterTypeAnnotation f (TFunction ann a b) = TFunction (f ann) a b
-mapOuterTypeAnnotation f (TContainer ann a) = TContainer (f ann) a
-mapOuterTypeAnnotation f (TVar ann v) = TVar (f ann) v
+mapOuterTypeAnnotation f (TPrim ann p)           = TPrim (f ann) p
+mapOuterTypeAnnotation f (TFunction ann a b)     = TFunction (f ann) a b
+mapOuterTypeAnnotation f (TContainer ann a)      = TContainer (f ann) a
+mapOuterTypeAnnotation f (TVar ann v)            = TVar (f ann) v
 mapOuterTypeAnnotation f (TUnificationVar ann v) = TUnificationVar (f ann) v
 
 mapType :: (Type ann -> Type ann) -> Type ann -> Type ann

@@ -1,0 +1,29 @@
+global mut location: Int32 = 0
+
+function or(a: Boolean, b: Boolean) -> Boolean { 
+  if a then True else b
+}
+
+function canUseLocation(
+  size: Int32, currentItem: Int32
+) -> Boolean { or(currentItem == 0, size == currentItem)}
+
+function incrementLocationBySize(size: Int32) -> Void { 
+  set(location, location + size + 4)
+}
+
+function malloc(size: Int32) -> Int32 { 
+  let currentItem = (load(location): Int32); 
+  if canUseLocation(size, currentItem) then
+    {
+      store(location, size); 
+      incrementLocationBySize(size); 
+      location + 4
+    }
+  else
+    { incrementLocationBySize(currentItem);  malloc(size) }
+}
+
+function drop(location: Int32) -> Void {
+
+}

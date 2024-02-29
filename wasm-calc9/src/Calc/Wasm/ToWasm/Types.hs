@@ -12,11 +12,11 @@ module Calc.Wasm.ToWasm.Types
   )
 where
 
-import Calc.Types.Function
-import Calc.Types.Op
-import qualified Data.Text as T
-import Data.Word
-import GHC.Natural
+import           Calc.Types.Function
+import           Calc.Types.Op
+import qualified Data.Text           as T
+import           Data.Word
+import           GHC.Natural
 
 data WasmType
   = I8
@@ -31,7 +31,7 @@ data WasmType
 
 data WasmMemory = WasmMemory
   { wmeMemoryStart :: Natural,
-    wmeImport :: Maybe (T.Text, T.Text)
+    wmeImport      :: Maybe (T.Text, T.Text)
   }
   deriving stock (Eq, Ord, Show)
 
@@ -43,29 +43,29 @@ data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports :: [WasmImport],
+    wmImports   :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemory :: WasmMemory,
+    wmMemory    :: WasmMemory,
     -- | which globals are defined?
-    wmGlobals :: [WasmGlobal]
+    wmGlobals   :: [WasmGlobal]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmFunction = WasmFunction
-  { wfName :: FunctionName,
-    wfExpr :: WasmExpr,
-    wfPublic :: Bool,
-    wfArgs :: [WasmType],
+  { wfName       :: FunctionName,
+    wfExpr       :: WasmExpr,
+    wfPublic     :: Bool,
+    wfArgs       :: [WasmType],
     wfReturnType :: WasmType,
-    wfLocals :: [WasmType]
+    wfLocals     :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmImport = WasmImport
-  { wiName :: FunctionName,
-    wiArgs :: [WasmType],
-    wiReturnType :: WasmType,
-    wiExternalModule :: T.Text,
+  { wiName             :: FunctionName,
+    wiArgs             :: [WasmType],
+    wiReturnType       :: WasmType,
+    wiExternalModule   :: T.Text,
     wiExternalFunction :: T.Text
   }
   deriving stock (Eq, Ord, Show)
@@ -90,7 +90,7 @@ data WasmExpr
   | WAllocate Natural Natural -- function number, size of allocation
   | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
   | WTupleAccess WasmType WasmExpr Natural
-  | WLoad WasmType Natural -- unsafe load from linear memory
-  | WStore WasmType Natural WasmExpr -- unsafe store from linear memory
+  | WLoad WasmType WasmExpr -- unsafe load from linear memory, index
+  | WStore WasmType WasmExpr WasmExpr -- unsafe store from linear memory, index, item
   | WGlobalSet Natural WasmExpr -- set global value
   deriving stock (Eq, Ord, Show)

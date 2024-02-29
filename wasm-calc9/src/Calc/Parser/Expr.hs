@@ -2,20 +2,20 @@
 
 module Calc.Parser.Expr (exprParser) where
 
-import Calc.Parser.Identifier
-import Calc.Parser.Pattern
-import Calc.Parser.Primitives
-import Calc.Parser.Shared
-import Calc.Parser.Type
-import Calc.Parser.Types
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Control.Monad.Combinators.Expr
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Text.Megaparsec
+import           Calc.Parser.Identifier
+import           Calc.Parser.Pattern
+import           Calc.Parser.Primitives
+import           Calc.Parser.Shared
+import           Calc.Parser.Type
+import           Calc.Parser.Types
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Control.Monad.Combinators.Expr
+import qualified Data.List.NonEmpty             as NE
+import qualified Data.Text                      as T
+import           Text.Megaparsec
 
 -- | expression, include lets
 exprParser :: Parser (Expr Annotation)
@@ -49,8 +49,17 @@ exprParserInternal =
           <|> setParser
           <|> try applyParser
           <|> try varParser
+          <|> blockParser
           <?> "term"
    in addLocation (makeExprParser parser table) <?> "expression"
+
+-- `{ let a = 1; True }`
+blockParser :: Parser (Expr Annotation)
+blockParser = label "block" $ addLocation $ do
+  stringLiteral "{"
+  expr <- exprParser
+  stringLiteral "}"
+  pure $ EBlock mempty expr
 
 data LetPart ann
   = LetPart ann (Pattern ann) (Expr ann)
@@ -135,7 +144,7 @@ tupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepBy1 exprParserInternal (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _ -> fail "Expected at least two items in a tuple"
+      _       -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 
@@ -153,7 +162,7 @@ loadParser = label "load" $
   addLocation $ do
     stringLiteral "load"
     stringLiteral "("
-    nat <- naturalParser
+    nat <- exprParserInternal
     stringLiteral ")"
     pure $ ELoad mempty nat
 
@@ -162,7 +171,7 @@ storeParser = label "store" $
   addLocation $ do
     stringLiteral "store"
     stringLiteral "("
-    nat <- naturalParser
+    nat <- exprParserInternal
     stringLiteral ","
     expr <- exprParserInternal
     stringLiteral ")"

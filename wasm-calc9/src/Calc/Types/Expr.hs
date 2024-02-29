@@ -1,19 +1,18 @@
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveTraversable  #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Types.Expr (Expr (..)) where
 
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Prim
-import Calc.Types.Type
-import qualified Data.List.NonEmpty as NE
-import GHC.Natural
-import Prettyprinter ((<+>))
-import qualified Prettyprinter as PP
+import           Calc.Types.FunctionName
+import           Calc.Types.Identifier
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Prim
+import           Calc.Types.Type
+import qualified Data.List.NonEmpty      as NE
+import           Prettyprinter           ((<+>))
+import qualified Prettyprinter           as PP
 
 data Expr ann
   = EPrim ann Prim
@@ -25,9 +24,10 @@ data Expr ann
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
   | EAnn ann (Type ann) (Expr ann)
-  | ELoad ann Natural
-  | EStore ann Natural (Expr ann)
+  | ELoad ann (Expr ann) -- index
+  | EStore ann (Expr ann) (Expr ann) -- index, value
   | ESet ann Identifier (Expr ann)
+  | EBlock ann (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- when on multilines, indent by `i`, if not then nothing
@@ -89,3 +89,5 @@ instance PP.Pretty (Expr ann) where
     "store(" <> PP.pretty index <> "," <+> PP.pretty expr <> ")"
   pretty (ESet _ ident expr) =
     "set(" <> PP.pretty ident <> "," <+> PP.pretty expr <> ")"
+  pretty (EBlock _ expr) =
+    PP.group ( "{" <> PP.line <> indentMulti 2 (PP.pretty expr) <> PP.line <> "}")

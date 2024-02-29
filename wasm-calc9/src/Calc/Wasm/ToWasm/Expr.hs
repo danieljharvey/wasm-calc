@@ -2,38 +2,38 @@
 
 module Calc.Wasm.ToWasm.Expr (exprToWasm) where
 
-import Calc.Types.Op
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import GHC.Natural
-import qualified Language.Wasm.Structure as Wasm
+import           Calc.Types.Op
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           GHC.Natural
+import qualified Language.Wasm.Structure  as Wasm
 
 -- | turn types into wasm types
 -- void won't have a type, hence the Maybe
 fromType :: WasmType -> Maybe Wasm.ValueType
-fromType I8 = Just Wasm.I32
-fromType I16 = Just Wasm.I32
-fromType I32 = Just Wasm.I32
-fromType I64 = Just Wasm.I64
-fromType F32 = Just Wasm.F32
-fromType F64 = Just Wasm.F64
+fromType I8      = Just Wasm.I32
+fromType I16     = Just Wasm.I32
+fromType I32     = Just Wasm.I32
+fromType I64     = Just Wasm.I64
+fromType F32     = Just Wasm.F32
+fromType F64     = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
-fromType Void = Nothing
+fromType Void    = Nothing
 
 bitsizeFromType :: WasmType -> Wasm.BitSize
-bitsizeFromType Void = error "bitsizeFromType Void"
-bitsizeFromType I8 = Wasm.BS32
-bitsizeFromType I16 = Wasm.BS32
-bitsizeFromType I32 = Wasm.BS32
-bitsizeFromType I64 = Wasm.BS64
-bitsizeFromType F32 = Wasm.BS32
-bitsizeFromType F64 = Wasm.BS64
+bitsizeFromType Void    = error "bitsizeFromType Void"
+bitsizeFromType I8      = Wasm.BS32
+bitsizeFromType I16     = Wasm.BS32
+bitsizeFromType I32     = Wasm.BS32
+bitsizeFromType I64     = Wasm.BS64
+bitsizeFromType F32     = Wasm.BS32
+bitsizeFromType F64     = Wasm.BS64
 bitsizeFromType Pointer = Wasm.BS32
 
 typeIsFloat :: WasmType -> Bool
 typeIsFloat F32 = True
 typeIsFloat F64 = True
-typeIsFloat _ = False
+typeIsFloat _   = False
 
 instructionFromOp :: WasmType -> Op -> Wasm.Instruction Natural
 instructionFromOp ty OpAdd =
@@ -114,32 +114,32 @@ exprToWasm (WSet index container items) =
 exprToWasm (WTupleAccess ty tup offset) =
   exprToWasm tup <> [loadInstruction ty offset]
 exprToWasm (WLoad ty index) =
-  [Wasm.I32Const 0, loadInstruction ty index]
+  exprToWasm index <> [loadInstruction ty 0]
 exprToWasm (WStore ty index expr) =
-  [Wasm.I32Const 0]
+  exprToWasm index
     <> exprToWasm expr
-    <> [storeInstruction ty index]
+    <> [storeInstruction ty 0]
 exprToWasm (WGlobalSet index expr) =
   exprToWasm expr <> [Wasm.SetGlobal (index + globalOffset)]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of
-  F32 -> Wasm.F32Load (Wasm.MemArg offset 0)
-  F64 -> Wasm.F64Load (Wasm.MemArg offset 0)
-  I8 -> Wasm.I32Load8S (Wasm.MemArg offset 0)
-  I16 -> Wasm.I32Load16S (Wasm.MemArg offset 0)
-  I32 -> Wasm.I32Load (Wasm.MemArg offset 0)
-  I64 -> Wasm.I64Load (Wasm.MemArg offset 0)
+  F32     -> Wasm.F32Load (Wasm.MemArg offset 0)
+  F64     -> Wasm.F64Load (Wasm.MemArg offset 0)
+  I8      -> Wasm.I32Load8S (Wasm.MemArg offset 0)
+  I16     -> Wasm.I32Load16S (Wasm.MemArg offset 0)
+  I32     -> Wasm.I32Load (Wasm.MemArg offset 0)
+  I64     -> Wasm.I64Load (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Load (Wasm.MemArg offset 0)
-  Void -> error "loadInstruction Void"
+  Void    -> error "loadInstruction Void"
 
 storeInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 storeInstruction ty offset = case ty of
-  F32 -> Wasm.F32Store (Wasm.MemArg offset 0)
-  F64 -> Wasm.F64Store (Wasm.MemArg offset 0)
-  I8 -> Wasm.I32Store8 (Wasm.MemArg offset 0)
-  I16 -> Wasm.I32Store16 (Wasm.MemArg offset 0)
-  I32 -> Wasm.I32Store (Wasm.MemArg offset 0)
-  I64 -> Wasm.I64Store (Wasm.MemArg offset 0)
+  F32     -> Wasm.F32Store (Wasm.MemArg offset 0)
+  F64     -> Wasm.F64Store (Wasm.MemArg offset 0)
+  I8      -> Wasm.I32Store8 (Wasm.MemArg offset 0)
+  I16     -> Wasm.I32Store16 (Wasm.MemArg offset 0)
+  I32     -> Wasm.I32Store (Wasm.MemArg offset 0)
+  I64     -> Wasm.I64Store (Wasm.MemArg offset 0)
   Pointer -> Wasm.I32Store (Wasm.MemArg offset 0)
-  Void -> error "storeInstruction Void"
+  Void    -> error "storeInstruction Void"

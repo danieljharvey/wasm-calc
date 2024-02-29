@@ -1,20 +1,20 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns   #-}
 
 module Calc.Wasm.FromExpr.Expr (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
 
 fromLet ::
   ( Show ann,
@@ -94,6 +94,9 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim ty prim) =
   WPrim <$> fromPrim ty prim
+fromExpr (EBlock _ expr) =
+  -- ignore block
+  fromExpr expr
 fromExpr (EAnn _ _ expr) =
   -- ignore type annotations
   fromExpr expr
@@ -138,10 +141,10 @@ fromExpr (EBox ty inner) = do
   boxed fnIndex index innerWasmType <$> fromExpr inner
 fromExpr (ELoad ty index) = do
   wasmType <- liftEither $ scalarFromType ty
-  pure $ WLoad wasmType (fromIntegral index)
+  WLoad wasmType <$> fromExpr index
 fromExpr (EStore _ index expr) = do
   wasmType <- liftEither $ scalarFromType (getOuterAnnotation expr)
-  WStore wasmType (fromIntegral index) <$> fromExpr expr
+  WStore wasmType <$> fromExpr index <*> fromExpr expr
 fromExpr (ESet _ ident expr) = do
   index <- lookupGlobal ident
   WGlobalSet index <$> fromExpr expr
@@ -244,7 +247,7 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
           }
       )
   let wgMutable = case glbMutability of
-        Mutable -> True
+        Mutable  -> True
         Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
