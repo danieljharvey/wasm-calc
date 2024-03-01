@@ -10,6 +10,7 @@ module Calc.Types
     module Calc.Types.Module,
     module Calc.Types.Pattern,
     module Calc.Types.Prim,
+    module Calc.Types.Test,
     module Calc.Types.Type,
     module Calc.Types.TypeVar,
   )
@@ -26,5 +27,6 @@ import Calc.Types.Module
 import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
+import Calc.Types.Test
 import Calc.Types.Type
 import Calc.Types.TypeVar

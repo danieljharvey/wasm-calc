@@ -4,26 +4,104 @@ function or(a: Boolean, b: Boolean) -> Boolean {
   if a then True else b
 }
 
+function and(a: Boolean, b: Boolean) -> Boolean { 
+  if a then b else False
+}
+
 function canUseLocation(
-  size: Int32, currentItem: Int32
-) -> Boolean { or(currentItem == 0, size == currentItem)}
+  size: Int32, currentItem: Int32, itemHasBeenUsed: Int32
+) -> Boolean { 
+  and(
+    itemHasBeenUsed == 0, 
+    or(currentItem == 0, size == currentItem)
+  )
+}
 
 function incrementLocationBySize(size: Int32) -> Void { 
-  set(location, location + size + 4)
+  set(location, location + size + 8)
 }
 
 function malloc(size: Int32) -> Int32 { 
-  let currentItem = (load(location): Int32); 
-  if canUseLocation(size, currentItem) then
+  let currentItem: Int32 = load(location); 
+  let itemHasBeenUsed: Int32 = load(location + 4); 
+  if canUseLocation(size, currentItem, itemHasBeenUsed) then
     {
+      let oldLocation = location; 
       store(location, size); 
+      store(location + 4, (1: Int32)); 
       incrementLocationBySize(size); 
-      location + 4
+      let newLocation = location; 
+      if (load(newLocation): Int32) == (0: Int32) then
+        {
+          store(newLocation, (0: Int32)); 
+          store(newLocation + 4, (0: Int32)); 
+          (1: Int32)
+        }
+      else
+        { (1: Int32) }; 
+      oldLocation + 8
     }
   else
     { incrementLocationBySize(currentItem);  malloc(size) }
 }
 
-function drop(location: Int32) -> Void {
-
+function drop(dropLocation: Int32) -> Void { 
+  let droppedSize: Int32 = load(dropLocation - 8); 
+  store(dropLocation - 4, (0: Int32)); 
+  let sizeOfNextBlock: Int32 = load(dropLocation + droppedSize); 
+  let nextBlockUsed: Int32 = load(dropLocation + droppedSize + 4); 
+  if nextBlockUsed == 0 then
+    {
+      let combinedSize = droppedSize + sizeOfNextBlock; 
+      store(dropLocation - 8, combinedSize); 
+      (1: Int32)
+    }
+  else
+    (1: Int32); 
+  set(location, dropLocation - 8)
 }
+
+test allocatingOnceReturnsZeroPlusFour = 
+  malloc(3) == 8
+
+test allocatingOnceMovesLocationToSizePlusFour = 
+  malloc(3); 
+  location == 11
+
+test allocatingTwiceMovesLocationMore = 
+  malloc(3); 
+  malloc(3); 
+  location == 22
+
+test allocatingTwice = 
+  malloc(3); 
+  malloc(3) == 19
+
+test allocatingTwiceWithLocationReset = 
+  malloc(3); 
+  store(location, (0: Int32)); 
+  malloc(3) == 19
+
+test droppingLeavesSizeButResetsUsed = 
+  let a = malloc(3); 
+  drop(a); 
+  let used: Int32 = load(4); 
+  let size: Int32 = load(0); 
+  and(used == 0, size == 3)
+
+test allocateWhereSizeIsAlreadySet = 
+  store(0, (3: Int32)); 
+  store(4, (0: Int32)); 
+  malloc(3) == 8
+
+test dropThenReallocate = 
+  let a = malloc(3); 
+  drop(a); 
+  malloc(3) == a
+
+test joinUnusedBlocksOnDrop = 
+  let a = malloc(3); 
+  let b = malloc(3); 
+  drop(b); 
+  drop(a); 
+  malloc(6) == a

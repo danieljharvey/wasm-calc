@@ -9,6 +9,7 @@ module Calc.Wasm.ToWasm.Types
     WasmFunction (..),
     WasmExpr (..),
     WasmImport (..),
+    WasmTest (..),
   )
 where
 
@@ -47,7 +48,9 @@ data WasmModule = WasmModule
     -- | where should memory allocation start?
     wmMemory    :: WasmMemory,
     -- | which globals are defined?
-    wmGlobals   :: [WasmGlobal]
+    wmGlobals   :: [WasmGlobal],
+    -- | which tests do we have?
+    wmTests     :: [WasmTest]
   }
   deriving stock (Eq, Ord, Show)
 
@@ -67,6 +70,13 @@ data WasmImport = WasmImport
     wiReturnType       :: WasmType,
     wiExternalModule   :: T.Text,
     wiExternalFunction :: T.Text
+  }
+  deriving stock (Eq, Ord, Show)
+
+data WasmTest = WasmTest
+  { wtName   :: T.Text,
+    wtExpr   :: WasmExpr,
+    wtLocals :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 

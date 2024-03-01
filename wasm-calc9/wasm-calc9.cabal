@@ -73,6 +73,7 @@ common shared
     Calc.PrettyPrint
     Calc.Repl
     Calc.SourceSpan
+    Calc.Test
     Calc.Typecheck
     Calc.Typecheck.Elaborate
     Calc.Typecheck.Error
@@ -95,6 +96,7 @@ common shared
     Calc.Types.Op
     Calc.Types.Pattern
     Calc.Types.Prim
+    Calc.Types.Test
     Calc.Types.Type
     Calc.Types.TypeVar
     Calc.TypeUtils
@@ -103,6 +105,7 @@ common shared
     Calc.Wasm.Allocator
     Calc.Wasm.FromExpr.Expr
     Calc.Wasm.FromExpr.Helpers
+    Calc.Wasm.FromExpr.Module
     Calc.Wasm.FromExpr.Patterns
     Calc.Wasm.FromExpr.Types
     Calc.Wasm.Run

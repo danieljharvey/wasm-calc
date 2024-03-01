@@ -1,8 +1,8 @@
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns             #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Function
   ( ArgumentName (..),
@@ -12,15 +12,15 @@ module Calc.Types.Function
   )
 where
 
-import           Calc.Types.Expr
-import           Calc.Types.FunctionName
-import           Calc.Types.Type
-import           Calc.Types.TypeVar
-import           Data.String
-import           Data.Text               (Text)
-import qualified Data.Text               as T
-import           Prettyprinter           ((<+>))
-import qualified Prettyprinter           as PP
+import Calc.Types.Expr
+import Calc.Types.FunctionName
+import Calc.Types.Type
+import Calc.Types.TypeVar
+import Data.String
+import Data.Text (Text)
+import qualified Data.Text as T
+import Prettyprinter ((<+>))
+import qualified Prettyprinter as PP
 
 -- when on multilines, indent by `i`, if not then nothing
 indentMulti :: Integer -> PP.Doc style -> PP.Doc style
@@ -40,13 +40,13 @@ instance PP.Pretty ArgumentName where
   pretty (ArgumentName t) = PP.pretty t
 
 data Function ann = Function
-  { fnAnn          :: ann,
-    fnGenerics     :: [TypeVar],
-    fnArgs         :: [FunctionArg ann],
+  { fnAnn :: ann,
+    fnGenerics :: [TypeVar],
+    fnArgs :: [FunctionArg ann],
     fnFunctionName :: FunctionName,
-    fnBody         :: Expr ann,
-    fnPublic       :: Bool,
-    fnReturnType   :: Type ann
+    fnBody :: Expr ann,
+    fnPublic :: Bool,
+    fnReturnType :: Type ann
   }
   deriving stock (Eq, Ord, Show, Functor)
 

@@ -1,20 +1,19 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns   #-}
 
-module Calc.Wasm.FromExpr.Expr (fromModule) where
+module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Helpers
-import           Calc.Wasm.FromExpr.Patterns
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Helpers
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad               (void)
-import           Control.Monad.Except
-import           Control.Monad.State
-import qualified Data.List.NonEmpty          as NE
-import qualified Data.Map.Strict             as M
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Patterns
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Types
+import Control.Monad (void)
+import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
 
 fromLet ::
   ( Show ann,
@@ -114,8 +113,8 @@ fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
 fromExpr (EApply _ funcName args) = do
-  fefIndex <- lookupFunction funcName
-  WApply fefIndex
+  fIndex <- lookupFunction funcName
+  WApply fIndex
     <$> traverse fromExpr args
 fromExpr (ETuple ty a as) = do
   wasmType <- liftEither $ scalarFromType ty
@@ -148,132 +147,3 @@ fromExpr (EStore _ index expr) = do
 fromExpr (ESet _ ident expr) = do
   index <- lookupGlobal ident
   WGlobalSet index <$> fromExpr expr
-
-fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
-fromImport
-  ( Import
-      { impReturnType,
-        impExternalModule = Identifier wiExternalModule,
-        impExternalFunction = Identifier wiExternalFunction,
-        impImportName,
-        impArgs
-      }
-    ) = do
-    args <-
-      traverse
-        ( \(ImportArg {iaName = ident, iaType}) -> do
-            wasmType <- scalarFromType iaType
-            pure (Just ident, wasmType)
-        )
-        impArgs
-
-    wiReturnType <- scalarFromType impReturnType
-
-    pure $
-      WasmImport
-        { wiName = impImportName,
-          wiArgs = snd <$> args,
-          wiExternalModule,
-          wiExternalFunction,
-          wiReturnType
-        }
-
-fromFunction ::
-  (Show ann) =>
-  M.Map FunctionName FromExprFunc ->
-  M.Map FunctionName FromExprImport ->
-  M.Map Identifier FromExprGlobal ->
-  Function (Type ann) ->
-  Either FromWasmError WasmFunction
-fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
-  args <-
-    traverse
-      ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
-          wasmType <- scalarFromType faType
-          pure (Identifier ident, wasmType)
-      )
-      fnArgs
-
-  (expr, fes) <-
-    runStateT
-      (fromExpr fnBody)
-      ( FromExprState
-          { fesVars = mempty,
-            fesArgs = args,
-            fesGlobals = globalMap,
-            fesImports = importMap,
-            fesFunctions = funcMap
-          }
-      )
-
-  retType <- scalarFromType (getOuterAnnotation fnBody)
-
-  pure $
-    WasmFunction
-      { wfName = fnFunctionName,
-        wfExpr = expr,
-        wfPublic = fnPublic,
-        wfArgs = snd <$> args,
-        wfReturnType = retType,
-        wfLocals = snd <$> fesVars fes
-      }
-
-fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
-fromMemory Nothing = WasmMemory 0 Nothing
-fromMemory (Just (LocalMemory {lmLimit})) =
-  WasmMemory lmLimit Nothing
-fromMemory
-  ( Just
-      ( ImportedMemory
-          { imExternalModule = Identifier imExternalModule,
-            imExternalMemoryName = Identifier imExternalMemoryName,
-            imLimit
-          }
-        )
-    ) =
-    WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
-
-fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
-fromGlobal (Global {glbExpr, glbMutability}) = do
-  (wgExpr, _) <-
-    runStateT
-      (fromExpr glbExpr)
-      ( FromExprState
-          { fesVars = mempty,
-            fesArgs = mempty,
-            fesGlobals = mempty,
-            fesImports = mempty,
-            fesFunctions = mempty
-          }
-      )
-  let wgMutable = case glbMutability of
-        Mutable  -> True
-        Constant -> False
-  wgType <- scalarFromType (getOuterAnnotation glbExpr)
-  pure $ WasmGlobal {wgExpr, wgType, wgMutable}
-
-fromModule ::
-  (Show ann) =>
-  Module (Type ann) ->
-  Either FromWasmError WasmModule
-fromModule (Module {mdMemory, mdGlobals, mdImports, mdFunctions}) = do
-  importMap <- getImportMap mdImports
-  funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
-  globalMap <- getGlobalMap mdGlobals
-
-  wasmGlobals <- traverse fromGlobal mdGlobals
-
-  wasmFunctions <-
-    traverse
-      (fromFunction funcMap importMap globalMap)
-      mdFunctions
-
-  wasmImports <- traverse fromImport mdImports
-
-  pure $
-    WasmModule
-      { wmFunctions = wasmFunctions,
-        wmImports = wasmImports,
-        wmMemory = fromMemory mdMemory,
-        wmGlobals = wasmGlobals
-      }

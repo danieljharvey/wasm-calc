@@ -21,8 +21,8 @@ function clamp(
 function drawBounded(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
 ) -> Void { 
-  let maximumWidth = 400; 
-  let maximumHeight = 300; 
+  let maximumWidth: Int64 = 400; 
+  let maximumHeight: Int64 = 300; 
   draw(
     clamp(0, maximumWidth, x), 
     clamp(0, maximumHeight, y), 

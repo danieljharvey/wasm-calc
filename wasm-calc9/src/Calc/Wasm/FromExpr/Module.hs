@@ -1,0 +1,169 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+
+module Calc.Wasm.FromExpr.Module (fromModule) where
+
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Expr
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad.State
+import qualified Data.Map.Strict            as M
+
+fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
+fromImport
+  ( Import
+      { impReturnType,
+        impExternalModule = Identifier wiExternalModule,
+        impExternalFunction = Identifier wiExternalFunction,
+        impImportName,
+        impArgs
+      }
+    ) = do
+    args <-
+      traverse
+        ( \(ImportArg {iaName = ident, iaType}) -> do
+            wasmType <- scalarFromType iaType
+            pure (Just ident, wasmType)
+        )
+        impArgs
+
+    wiReturnType <- scalarFromType impReturnType
+
+    pure $
+      WasmImport
+        { wiName = impImportName,
+          wiArgs = snd <$> args,
+          wiExternalModule,
+          wiExternalFunction,
+          wiReturnType
+        }
+
+-- | tests don't use imports
+fromTest ::
+  (Show ann) =>
+  M.Map FunctionName FromExprFunc ->
+  M.Map Identifier FromExprGlobal ->
+  Test (Type ann) ->
+  Either FromWasmError WasmTest
+fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
+  (expr, fes) <-
+    runStateT
+      (fromExpr tesExpr)
+      ( FromExprState
+          { fesVars = mempty,
+            fesArgs = mempty,
+            fesGlobals = globalMap,
+            fesImports = mempty,
+            fesFunctions = funcMap
+          }
+      )
+
+  pure $ WasmTest {wtName = testName, wtExpr = expr, wtLocals =
+    snd <$> fesVars fes
+}
+
+fromFunction ::
+  (Show ann) =>
+  M.Map FunctionName FromExprFunc ->
+  M.Map FunctionName FromExprImport ->
+  M.Map Identifier FromExprGlobal ->
+  Function (Type ann) ->
+  Either FromWasmError WasmFunction
+fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
+  args <-
+    traverse
+      ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
+          wasmType <- scalarFromType faType
+          pure (Identifier ident, wasmType)
+      )
+      fnArgs
+
+  (expr, fes) <-
+    runStateT
+      (fromExpr fnBody)
+      ( FromExprState
+          { fesVars = mempty,
+            fesArgs = args,
+            fesGlobals = globalMap,
+            fesImports = importMap,
+            fesFunctions = funcMap
+          }
+      )
+
+  retType <- scalarFromType (getOuterAnnotation fnBody)
+
+  pure $
+    WasmFunction
+      { wfName = fnFunctionName,
+        wfExpr = expr,
+        wfPublic = fnPublic,
+        wfArgs = snd <$> args,
+        wfReturnType = retType,
+        wfLocals = snd <$> fesVars fes
+      }
+
+fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
+fromMemory Nothing = WasmMemory 0 Nothing
+fromMemory (Just (LocalMemory {lmLimit})) =
+  WasmMemory lmLimit Nothing
+fromMemory
+  ( Just
+      ( ImportedMemory
+          { imExternalModule = Identifier imExternalModule,
+            imExternalMemoryName = Identifier imExternalMemoryName,
+            imLimit
+          }
+        )
+    ) =
+    WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
+
+fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
+fromGlobal (Global {glbExpr, glbMutability}) = do
+  (wgExpr, _) <-
+    runStateT
+      (fromExpr glbExpr)
+      ( FromExprState
+          { fesVars = mempty,
+            fesArgs = mempty,
+            fesGlobals = mempty,
+            fesImports = mempty,
+            fesFunctions = mempty
+          }
+      )
+  let wgMutable = case glbMutability of
+        Mutable  -> True
+        Constant -> False
+  wgType <- scalarFromType (getOuterAnnotation glbExpr)
+  pure $ WasmGlobal {wgExpr, wgType, wgMutable}
+
+fromModule ::
+  (Show ann) =>
+  Module (Type ann) ->
+  Either FromWasmError WasmModule
+fromModule (Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
+  importMap <- getImportMap mdImports
+  funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
+  globalMap <- getGlobalMap mdGlobals
+
+  wasmGlobals <- traverse fromGlobal mdGlobals
+
+  wasmFunctions <-
+    traverse
+      (fromFunction funcMap importMap globalMap)
+      mdFunctions
+
+  wasmImports <- traverse fromImport mdImports
+
+  wasmTests <- traverse (fromTest funcMap globalMap) mdTests
+
+  pure $
+    WasmModule
+      { wmFunctions = wasmFunctions,
+        wmImports = wasmImports,
+        wmMemory = fromMemory mdMemory,
+        wmGlobals = wasmGlobals,
+        wmTests = wasmTests
+      }

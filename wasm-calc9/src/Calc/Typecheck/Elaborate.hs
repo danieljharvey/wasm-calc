@@ -19,6 +19,7 @@ import Calc.Types.Global
 import Calc.Types.Import
 import Calc.Types.Memory
 import Calc.Types.Module
+import Calc.Types.Test
 import Calc.Types.Type
 import Control.Monad.State
 import Data.Functor
@@ -28,7 +29,7 @@ elaborateModule ::
   forall ann.
   Module ann ->
   Either (TypeError ann) (Module (Type ann))
-elaborateModule (Module {mdImports, mdGlobals, mdMemory, mdFunctions}) = do
+elaborateModule (Module {mdTests, mdImports, mdGlobals, mdMemory, mdFunctions}) = do
   let typecheckEnv =
         TypecheckEnv
           { tceVars = mempty,
@@ -70,13 +71,29 @@ elaborateModule (Module {mdImports, mdGlobals, mdMemory, mdFunctions}) = do
         )
         mdFunctions
 
+    tests <- traverse elaborateTest mdTests
+
     pure $
       Module
         { mdFunctions = functions,
           mdImports = imports,
           mdMemory = elaborateMemory <$> mdMemory,
-          mdGlobals = globals
+          mdGlobals = globals,
+          mdTests = tests
         }
+
+-- check a test expression has type `Bool`
+-- later we'll also check it does not use any imports
+elaborateTest :: Test ann -> TypecheckM ann (Test (Type ann))
+elaborateTest (Test {tesAnn, tesName, tesExpr}) = do
+  elabExpr <- check (TPrim tesAnn TBool) tesExpr
+
+  pure $
+    Test
+      { tesAnn = getOuterAnnotation elabExpr,
+        tesName,
+        tesExpr = elabExpr
+      }
 
 -- decorate a memory annotation with an arbitrary Void type
 elaborateMemory :: Memory ann -> Memory (Type ann)

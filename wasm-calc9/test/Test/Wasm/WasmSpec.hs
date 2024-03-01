@@ -6,7 +6,7 @@ import Calc.Linearity (validateModule)
 import Calc.Parser
 import Calc.Typecheck
 import Calc.Wasm
-import Calc.Wasm.FromExpr.Expr
+import Calc.Wasm.FromExpr.Module
 import Calc.Wasm.Run
 import Calc.Wasm.ToWasm.Module
 import Control.Monad.IO.Class
@@ -275,6 +275,13 @@ spec = do
                     asTest "factorial(4)"
                   ],
                 Wasm.VI64 24
+              ),
+              ( joinLines
+                  [ "export function testShouldntCollide() -> Int32 { 1 }",
+                    asTest "100",
+                    "test testShouldntCollide = True"
+                  ],
+                Wasm.VI64 100
               )
             ]
 

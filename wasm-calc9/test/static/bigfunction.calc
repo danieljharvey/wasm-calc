@@ -12,7 +12,7 @@ function big(
     2
   else
     {
-      let a = 100; 
+      let a: Int8 = 100; 
       if 3 then
         4
       else

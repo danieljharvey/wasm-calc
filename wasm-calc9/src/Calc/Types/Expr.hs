@@ -1,18 +1,18 @@
-{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Expr (Expr (..)) where
 
-import           Calc.Types.FunctionName
-import           Calc.Types.Identifier
-import           Calc.Types.Op
-import           Calc.Types.Pattern
-import           Calc.Types.Prim
-import           Calc.Types.Type
-import qualified Data.List.NonEmpty      as NE
-import           Prettyprinter           ((<+>))
-import qualified Prettyprinter           as PP
+import Calc.Types.FunctionName
+import Calc.Types.Identifier
+import Calc.Types.Op
+import Calc.Types.Pattern
+import Calc.Types.Prim
+import Calc.Types.Type
+import qualified Data.List.NonEmpty as NE
+import Prettyprinter ((<+>))
+import qualified Prettyprinter as PP
 
 data Expr ann
   = EPrim ann Prim
@@ -43,6 +43,16 @@ instance PP.Pretty (Expr ann) where
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
   pretty (ELet _ (PWildcard _) body rest) =
     PP.pretty body
+      <> ";"
+      <+> PP.line
+      <> PP.pretty rest
+  pretty (ELet _ ident (EAnn _ ty body) rest) =
+    "let"
+      <+> PP.pretty ident
+      <> ":"
+      <+> PP.pretty ty
+      <+> "="
+      <+> PP.pretty body
       <> ";"
       <+> PP.line
       <> PP.pretty rest
@@ -90,4 +100,4 @@ instance PP.Pretty (Expr ann) where
   pretty (ESet _ ident expr) =
     "set(" <> PP.pretty ident <> "," <+> PP.pretty expr <> ")"
   pretty (EBlock _ expr) =
-    PP.group ( "{" <> PP.line <> indentMulti 2 (PP.pretty expr) <> PP.line <> "}")
+    PP.group ("{" <> PP.line <> indentMulti 2 (PP.pretty expr) <> PP.line <> "}")

@@ -1,3 +1,6 @@
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Calc.Wasm.ToWasm.Helpers
   ( globalOffset,
     getOffsetList,
@@ -5,6 +8,7 @@ module Calc.Wasm.ToWasm.Helpers
     memorySize,
     memorySizeForType,
     offsetForType,
+    testName,
   )
 where
 
@@ -12,7 +16,12 @@ import Calc.Types
 import Calc.Wasm.ToWasm.Types
 import qualified Data.List.NonEmpty as NE
 import Data.Monoid
+import qualified Data.Text as T
 import GHC.Natural
+
+-- what do we call tests in Wasm exports
+testName :: WasmTest -> T.Text
+testName (WasmTest {wtName}) = "_test_" <> wtName
 
 -- when should user-specified globals begin? after all the allocator ones!
 globalOffset :: Natural

@@ -18,7 +18,7 @@ import Calc.Linearity
 import Calc.Parser
 import Calc.Parser.Types
 import Calc.Typecheck
-import Calc.Wasm.FromExpr.Expr
+import Calc.Wasm.FromExpr.Module
 import Calc.Wasm.Run
 import Calc.Wasm.ToWasm.Module
 import Calc.Wasm.ToWasm.Types

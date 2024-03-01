@@ -16,6 +16,7 @@ import Calc.Types.Expr
 import Calc.Types.Global
 import Calc.Types.Memory
 import Calc.Types.Module
+import Calc.Types.Test
 import Text.Megaparsec
 
 -- `memory 1000`
@@ -52,6 +53,8 @@ mutabilityParser = myLexeme $ do
     Just _ -> pure Mutable
     Nothing -> pure Constant
 
+-- `global dog = True`
+-- `global mut counter: Int32 = 0`
 globalParser :: Parser (Global Annotation)
 globalParser = myLexeme
   $ withLocation
@@ -73,16 +76,33 @@ globalParser = myLexeme
           Nothing -> expr
       )
 
+-- `test constTrue = True`
+testParser :: Parser (Test Annotation)
+testParser = myLexeme
+  $ withLocation
+    ( \tesAnn (tesName, tesExpr) ->
+        Test {tesAnn, tesName, tesExpr}
+    )
+  $ do
+    stringLiteral "test"
+    tesName <- identifierParser
+    stringLiteral "="
+    (,) tesName <$> exprParser
+
+-- we really need to parse all the different parts in any order then put them
+-- together in here
 moduleParser :: Parser (Module Annotation)
 moduleParser = do
   memory <- optional (try memoryParser)
   globals <- many globalParser
   imports <- many importParser
   funcs <- many functionParser
+  tests <- many testParser
   pure $
     Module
       { mdFunctions = funcs,
         mdImports = imports,
         mdMemory = memory,
-        mdGlobals = globals
+        mdGlobals = globals,
+        mdTests = tests
       }
