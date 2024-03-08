@@ -2,18 +2,18 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
 
 fromLet ::
   ( Show ann,
@@ -56,6 +56,12 @@ fromLet pat expr rest = do
       -- convert the rest
       wasmRest <- fromExpr rest
 
+      -- if we're matching on an object, drop it when we're done
+      let restWithDrop =
+            case wasmType of
+              Pointer -> wasmRest -- WSequence wasmType (WDrop 0 wasmExpr) wasmRest
+              _       -> wasmRest
+
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
         WLet index wasmExpr $
@@ -63,7 +69,7 @@ fromLet pat expr rest = do
             ( \(bindingIndex, fetchExpr) thisExpr ->
                 WLet bindingIndex fetchExpr thisExpr
             )
-            wasmRest
+            restWithDrop
             indexes
 
 -- | we use a combination of the value and the type

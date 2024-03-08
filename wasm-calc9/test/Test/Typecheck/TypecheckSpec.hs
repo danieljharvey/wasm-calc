@@ -1,24 +1,24 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either         (isLeft)
+import           Data.Foldable       (traverse_)
+import qualified Data.List           as List
+import qualified Data.List.NonEmpty  as NE
+import           Data.Text           (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -259,7 +259,9 @@ spec = do
               ("Box((1: Int64))", "Box(Int64)"),
               ("let Box(a) = Box((1: Int64)); a", "Int64"),
               ("let a: Int64 = 100; a", "Int64"),
-              ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64")
+              ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
+              ("True && True", "Boolean"),
+              ("False || True", "Boolean")
             ]
 
       describe "Successfully typechecking expressions" $ do
@@ -273,6 +275,8 @@ spec = do
               ("True + False", InfixTypeMismatch OpAdd tyBool tyBool),
               ("(1 : Int64) * False", InfixTypeMismatch OpMultiply tyInt64 tyBool),
               ("True - (1 : Int64)", InfixTypeMismatch OpSubtract tyBool tyInt64),
+              ("True && (1 : Int64)", TypeMismatch tyBool tyInt64),
+              ("True || (1 : Int64)", TypeMismatch tyBool tyInt64),
               ( "let (a,b) = (1 : Int64); a + b",
                 PatternMismatch
                   tyInt64

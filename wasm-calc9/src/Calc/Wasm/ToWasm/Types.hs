@@ -98,6 +98,7 @@ data WasmExpr
   | WGlobal Natural
   | WApply Natural [WasmExpr]
   | WAllocate Natural Natural -- function number, size of allocation
+  | WDrop Natural WasmExpr -- function number, address to drop
   | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
   | WTupleAccess WasmType WasmExpr Natural
   | WLoad WasmType WasmExpr -- unsafe load from linear memory, index

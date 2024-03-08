@@ -1,20 +1,9 @@
 global mut location: Int32 = 0
 
-function or(a: Boolean, b: Boolean) -> Boolean { 
-  if a then True else b
-}
-
-function and(a: Boolean, b: Boolean) -> Boolean { 
-  if a then b else False
-}
-
 function canUseLocation(
   size: Int32, currentItem: Int32, itemHasBeenUsed: Int32
 ) -> Boolean { 
-  and(
-    itemHasBeenUsed == 0, 
-    or(currentItem == 0, size == currentItem)
-  )
+  itemHasBeenUsed == 0 && currentItem == 0 || size == currentItem
 }
 
 function incrementLocationBySize(size: Int32) -> Void { 
@@ -87,7 +76,7 @@ test droppingLeavesSizeButResetsUsed =
   drop(a); 
   let used: Int32 = load(4); 
   let size: Int32 = load(0); 
-  and(used == 0, size == 3)
+  used == 0 && size == 3
 
 test allocateWhereSizeIsAlreadySet = 
   store(0, (3: Int32)); 

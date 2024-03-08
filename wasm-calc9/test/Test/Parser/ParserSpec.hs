@@ -2,13 +2,13 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import Calc
-import Data.Foldable (traverse_)
-import Data.Functor
+import           Calc
+import           Data.Foldable      (traverse_)
+import           Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 spec :: Spec
 spec = do
@@ -27,7 +27,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -222,7 +222,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -295,7 +295,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e -> error (T.unpack e)
+              Left e         -> error (T.unpack e)
         )
         strings
 
@@ -309,7 +309,7 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e -> error (T.unpack e)
+              Left e              -> error (T.unpack e)
         )
         strings
 
@@ -334,6 +334,8 @@ spec = do
               ),
               ("1 == 2", EInfix () OpEquals (int 1) (int 2)),
               ("1.0 + 1.0", EInfix () OpAdd (float 1.0) (float 1.0)),
+              ("True && True", EInfix () OpAnd (bool True) (bool True)),
+              ("True || False", EInfix () OpOr (bool True) (bool False)),
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2)", EApply () "add" [int 1, int 2]),
@@ -367,7 +369,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
