@@ -18,6 +18,7 @@ import           Calc.Parser.Types
 import           Calc.PrettyPrint                 (format)
 import           Calc.Test
 import           Calc.Typecheck
+import           Calc.Types.Module
 import           Calc.Wasm.FromExpr.Module
 import           Calc.Wasm.ToWasm.Module
 import           Calc.Wasm.WriteModule
@@ -58,7 +59,7 @@ doBuild filePath = do
               then do
                 printTestResults testResults
                 pure (ExitFailure 1)
-              else case fromModule typedMod of
+              else case fromModule (removeTests typedMod) of
                 Left fromWasmError -> do
                   liftIO (print fromWasmError)
                     >> pure (ExitFailure 1)
@@ -67,6 +68,9 @@ doBuild filePath = do
                   -- print module to stdout
                   liftIO $ printModule (moduleToWasm wasmMod)
                   pure ExitSuccess
+
+removeTests :: Module a -> Module a
+removeTests myMod = myMod { mdTests = mempty }
 
 testsAllPass :: [(a, Bool)] -> Bool
 testsAllPass = getAll . foldMap (All . snd)

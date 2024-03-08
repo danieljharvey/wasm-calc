@@ -1,24 +1,14 @@
 global mut location: Int32 = 0
 
-function canUseLocation(
-  size: Int32, currentItem: Int32, itemHasBeenUsed: Int32
-) -> Boolean { 
-  itemHasBeenUsed == 0 && currentItem == 0 || size == currentItem
-}
-
-function incrementLocationBySize(size: Int32) -> Void { 
-  set(location, location + size + 8)
-}
-
 function malloc(size: Int32) -> Int32 { 
   let currentItem: Int32 = load(location); 
   let itemHasBeenUsed: Int32 = load(location + 4); 
-  if canUseLocation(size, currentItem, itemHasBeenUsed) then
+  if itemHasBeenUsed == 0 && currentItem == 0 || size == currentItem then
     {
       let oldLocation = location; 
       store(location, size); 
       store(location + 4, (1: Int32)); 
-      incrementLocationBySize(size); 
+      set(location, location + size + 8); 
       let newLocation = location; 
       if (load(newLocation): Int32) == (0: Int32) then
         {
@@ -31,7 +21,10 @@ function malloc(size: Int32) -> Int32 {
       oldLocation + 8
     }
   else
-    { incrementLocationBySize(currentItem);  malloc(size) }
+    {
+      set(location, location + currentItem + 8); 
+      malloc(size)
+    }
 }
 
 function drop(dropLocation: Int32) -> Void { 
