@@ -93,10 +93,10 @@ allocatorFunctions offset mod' =
 -- we start at 32 + any manual memory space that has been set aside
 -- for messing around
 globals :: WasmMemory -> [WasmGlobal] -> [Wasm.Global]
-globals (WasmMemory nat _) globs =
+globals (WasmMemory _nat _) globs =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
-      [Wasm.I32Const (fromIntegral $ nat + 32)]
+      [Wasm.I32Const 0] -- (fromIntegral $ nat + 32)]
   ]
     <> mapMaybe
       ( \WasmGlobal {wgExpr, wgType, wgMutable} ->
@@ -134,9 +134,11 @@ memoryImportsToWasm wasmMemory =
 -- | we can't get these out of the file directly
 -- so these are
 -- alloc :: I32 -> I32
+-- drop: I32 -> void
 allocatorTypes :: [Wasm.FuncType]
 allocatorTypes =
-  [ Wasm.FuncType [Wasm.I32] [Wasm.I32]
+  [ Wasm.FuncType [Wasm.I32] [Wasm.I32],
+    Wasm.FuncType [Wasm.I32] []
   ]
 
 -- | we load the bump allocator module and build on top of it

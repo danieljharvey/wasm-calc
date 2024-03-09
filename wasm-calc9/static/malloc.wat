@@ -3,12 +3,12 @@
   (type (;1;) (func (param i32)))
   (func (;0;) (type 0) (param i32) (result i32)
     (local i32 i32 i32 i32 i32 i32 i32 i32)
-    global.get 1
+    global.get 0
     i32.load align=1
     local.set 1
     local.get 1
     local.set 2
-    global.get 1
+    global.get 0
     i32.const 4
     i32.add
     i32.load align=1
@@ -27,25 +27,25 @@
     i32.eq
     i32.or
     if (result i32)  ;; label = @1
-      global.get 1
+      global.get 0
       local.set 5
       local.get 5
       local.set 6
-      global.get 1
+      global.get 0
       local.get 0
       i32.store align=1
-      global.get 1
+      global.get 0
       i32.const 4
       i32.add
       i32.const 1
       i32.store align=1
-      global.get 1
+      global.get 0
       local.get 0
       i32.add
       i32.const 8
       i32.add
-      global.set 1
-      global.get 1
+      global.set 0
+      global.get 0
       local.set 7
       local.get 7
       local.set 8
@@ -71,14 +71,14 @@
       i32.const 8
       i32.add
     else
-      global.get 1
+      global.get 0
       local.get 2
       i32.add
       i32.const 8
       i32.add
-      global.set 1
+      global.set 0
       local.get 0
-      call 1
+      call 0
     end)
   (func (;1;) (type 1) (param i32)
     (local i32 i32 i32 i32 i32 i32 i32 i32)
@@ -133,7 +133,7 @@
     local.get 0
     i32.const 8
     i32.sub
-    global.set 1)
+    global.set 0)
   (memory (;0;) 1)
-  (global (;0;) (mut i32) (i32.const 32))
-  (global (;1;) (mut i32) (i32.const 0)))
+  (global (;0;) (mut i32) (i32.const 0))
+  )
