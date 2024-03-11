@@ -87,7 +87,24 @@ allocatorFunctions :: Natural -> Wasm.Module -> [Wasm.Function]
 allocatorFunctions offset mod' =
   let addOffset (i, Wasm.Function _ a b) =
         Wasm.Function (offset + i) a b
-   in addOffset <$> zip [0 ..] (Wasm.functions mod')
+      numberedFunctions = zip [0 ..] (Wasm.functions mod')
+  in case addOffset <$> numberedFunctions of
+       headF : tailF -> fixAllocatorFunction offset headF : tailF
+       []            -> []
+
+fixAllocatorFunction :: Natural -> Wasm.Function -> Wasm.Function
+fixAllocatorFunction offset (Wasm.Function a b items)
+  = let fixExpr item = case item of
+               Wasm.Call _ ->
+                 Wasm.Call offset
+               Wasm.Block bt body ->
+                 Wasm.Block bt (fixExpr <$> body)
+               Wasm.Loop bt body ->
+                 Wasm.Loop bt (fixExpr <$> body)
+               Wasm.If bt trueE falseE ->
+                 Wasm.If bt (fixExpr <$> trueE) (fixExpr <$> falseE)
+               other       -> other
+    in Wasm.Function a b (fixExpr <$> items)
 
 -- add the global allocator position as a global
 -- we start at 32 + any manual memory space that has been set aside
