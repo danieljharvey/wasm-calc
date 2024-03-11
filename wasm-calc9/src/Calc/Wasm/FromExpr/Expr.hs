@@ -59,7 +59,7 @@ fromLet pat expr rest = do
       -- if we're matching on an object, drop it when we're done
       let restWithDrop =
             case wasmType of
-              Pointer -> wasmRest -- WSequence wasmType (WDrop 1 wasmExpr) wasmRest
+              Pointer -> WSequence Void (WDrop wasmExpr) wasmRest
               _ -> wasmRest
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`

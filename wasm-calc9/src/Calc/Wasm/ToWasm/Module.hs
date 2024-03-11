@@ -107,10 +107,10 @@ fixAllocatorFunction offset (Wasm.Function a b items) =
 
 -- | manually creating the global needed by the allocator
 allocatorGlobals :: WasmMemory -> [Wasm.Global]
-allocatorGlobals (WasmMemory _nat _) =
+allocatorGlobals (WasmMemory nat _) =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
-      [Wasm.I32Const 0] -- (fromIntegral $ nat + 32)]
+      [Wasm.I32Const (fromIntegral $ nat + 32)]
   ]
 
 -- add the global allocator position as a global
