@@ -84,6 +84,7 @@ common shared
     Calc.Typecheck.Types
     Calc.Typecheck.Unify
     Calc.Types
+    Calc.Types.Ability
     Calc.Types.Annotation
     Calc.Types.Expr
     Calc.Types.Function

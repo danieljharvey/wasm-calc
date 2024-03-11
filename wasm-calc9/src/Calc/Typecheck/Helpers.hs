@@ -32,20 +32,23 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as S
 import GHC.Natural
 
+-- | run a typechecking computation, discarding any Writer output
 runTypecheckM ::
   TypecheckEnv ann ->
   TypecheckM ann a ->
   Either (TypeError ann) a
 runTypecheckM env action =
-  evalStateT
-    (runReaderT (getTypecheckM action) env)
-    ( TypecheckState
-        { tcsFunctions = mempty,
-          tcsGlobals = mempty,
-          tcsUnique = 0,
-          tcsUnified = mempty
-        }
-    )
+  let typecheckState =
+        TypecheckState
+          { tcsFunctions = mempty,
+            tcsGlobals = mempty,
+            tcsUnique = 0,
+            tcsUnified = mempty
+          }
+   in evalStateT
+        ( runReaderT (getTypecheckM action) env
+        )
+        typecheckState
 
 storeFunction ::
   FunctionName ->
