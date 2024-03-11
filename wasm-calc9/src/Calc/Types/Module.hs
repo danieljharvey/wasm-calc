@@ -1,23 +1,23 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Types.Module (Module (..)) where
 
-import           Calc.Types.Function
-import           Calc.Types.Global
-import           Calc.Types.Import
-import           Calc.Types.Memory
-import           Calc.Types.Test
-import           Data.Maybe          (maybeToList)
-import qualified Prettyprinter       as PP
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Import
+import Calc.Types.Memory
+import Calc.Types.Test
+import Data.Maybe (maybeToList)
+import qualified Prettyprinter as PP
 
 data Module ann = Module
   { mdFunctions :: [Function ann],
-    mdImports   :: [Import ann],
-    mdMemory    :: Maybe (Memory ann),
-    mdGlobals   :: [Global ann],
-    mdTests     :: [Test ann]
+    mdImports :: [Import ann],
+    mdMemory :: Maybe (Memory ann),
+    mdGlobals :: [Global ann],
+    mdTests :: [Test ann]
   }
   deriving stock (Eq, Ord, Show, Functor)
 

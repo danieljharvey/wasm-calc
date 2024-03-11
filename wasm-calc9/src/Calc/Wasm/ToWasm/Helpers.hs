@@ -1,31 +1,45 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.ToWasm.Helpers
-  ( globalOffset,
-    getOffsetList,
+  ( getOffsetList,
     boxed,
     memorySize,
     memorySizeForType,
     offsetForType,
     testName,
+    allocIndex,
+    dropIndex,
+    functionOffset,
+    globalOffset,
   )
 where
 
 import Calc.Types
 import Calc.Wasm.ToWasm.Types
+import Control.Monad.Reader
 import qualified Data.List.NonEmpty as NE
 import Data.Monoid
 import qualified Data.Text as T
 import GHC.Natural
 
+allocIndex :: (MonadReader ToWasmEnv m) => m Natural
+allocIndex = asks tweImportsOffset
+
+dropIndex :: (MonadReader ToWasmEnv m) => m Natural
+dropIndex = (+ 1) <$> asks tweImportsOffset
+
+functionOffset :: ToWasmEnv -> Natural
+functionOffset
+  twe = tweImportsOffset twe + tweFunctionsOffset twe
+
+globalOffset :: (MonadReader ToWasmEnv m) => m Natural
+globalOffset = asks tweGlobalOffset
+
 -- what do we call tests in Wasm exports
 testName :: WasmTest -> T.Text
 testName (WasmTest {wtName}) = "_test_" <> wtName
-
--- when should user-specified globals begin? after all the allocator ones!
-globalOffset :: Natural
-globalOffset = 1
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
@@ -39,9 +53,9 @@ memorySize Pointer = memorySize I32
 memorySize Void = 0
 
 -- | wrap a `WasmExpr` in a single item struct
-boxed :: Natural -> Natural -> WasmType -> WasmExpr -> WasmExpr
-boxed importsSize index ty wExpr =
-  let allocate = WAllocate importsSize (memorySize ty)
+boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
+boxed index ty wExpr =
+  let allocate = WAllocate (memorySize ty)
    in WSet index allocate [(0, ty, wExpr)]
 
 getOffsetList :: Type ann -> [Natural]

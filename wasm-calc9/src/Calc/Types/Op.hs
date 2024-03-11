@@ -1,5 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Op (Op (..)) where
 
@@ -20,13 +20,13 @@ data Op
 
 -- how to print `Op` values
 instance PP.Pretty Op where
-  pretty OpAdd                  = "+"
-  pretty OpMultiply             = "*"
-  pretty OpSubtract             = "-"
-  pretty OpEquals               = "=="
-  pretty OpGreaterThan          = ">"
+  pretty OpAdd = "+"
+  pretty OpMultiply = "*"
+  pretty OpSubtract = "-"
+  pretty OpEquals = "=="
+  pretty OpGreaterThan = ">"
   pretty OpGreaterThanOrEqualTo = ">="
-  pretty OpLessThan             = "<"
-  pretty OpLessThanOrEqualTo    = "<="
-  pretty OpAnd                  = "&&"
-  pretty OpOr                   = "||"
+  pretty OpLessThan = "<"
+  pretty OpLessThanOrEqualTo = "<="
+  pretty OpAnd = "&&"
+  pretty OpOr = "||"

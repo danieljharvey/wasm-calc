@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,26 +11,28 @@ module Calc.Build
   )
 where
 
-import           Calc.Linearity                   (linearityErrorDiagnostic,
-                                                   validateModule)
-import           Calc.Parser
-import           Calc.Parser.Types
-import           Calc.PrettyPrint                 (format)
-import           Calc.Test
-import           Calc.Typecheck
-import           Calc.Types.Module
-import           Calc.Wasm.FromExpr.Module
-import           Calc.Wasm.ToWasm.Module
-import           Calc.Wasm.WriteModule
-import           Control.Monad.IO.Class
-import           Data.Foldable                    (traverse_)
-import           Data.Monoid
-import           Data.Text                        (Text)
-import qualified Data.Text                        as T
-import qualified Error.Diagnose                   as Diag
-import           Error.Diagnose.Compat.Megaparsec
-import           System.Exit
-import           System.IO                        (hPutStrLn)
+import Calc.Linearity
+  ( linearityErrorDiagnostic,
+    validateModule,
+  )
+import Calc.Parser
+import Calc.Parser.Types
+import Calc.PrettyPrint (format)
+import Calc.Test
+import Calc.Typecheck
+import Calc.Types.Module
+import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.ToWasm.Module
+import Calc.Wasm.WriteModule
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Error.Diagnose as Diag
+import Error.Diagnose.Compat.Megaparsec
+import System.Exit
+import System.IO (hPutStrLn)
 
 build :: FilePath -> IO ()
 build filePath =
@@ -70,7 +72,7 @@ doBuild filePath = do
                   pure ExitSuccess
 
 removeTests :: Module a -> Module a
-removeTests myMod = myMod { mdTests = mempty }
+removeTests myMod = myMod {mdTests = mempty}
 
 testsAllPass :: [(a, Bool)] -> Bool
 testsAllPass = getAll . foldMap (All . snd)

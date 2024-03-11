@@ -2,22 +2,22 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr.Module
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm.Module
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm.Module
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -31,7 +31,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter
@@ -102,10 +102,10 @@ spec = do
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
               (asTest "100 - 1", Wasm.VI64 99),
-              (asTest "True && True" , Wasm.VI32 1),
-              (asTest "True && False" , Wasm.VI32 0),
-              (asTest "True || False" , Wasm.VI32 1),
-              (asTest "False || False" , Wasm.VI32 0),
+              (asTest "True && True", Wasm.VI32 1),
+              (asTest "True && False", Wasm.VI32 0),
+              (asTest "True || False", Wasm.VI32 1),
+              (asTest "False || False", Wasm.VI32 0),
               ( "export function test() -> Float64 { 100.0 + 1.0 }",
                 Wasm.VF64 101.0
               ),

@@ -1,10 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Wasm.FromExpr.Helpers
-  ( functionOffset,
-    scalarFromType,
-    getAllocationFunctionNumber,
+  ( scalarFromType,
     addLocal,
     lookupGlobal,
     lookupIdent,
@@ -15,20 +13,15 @@ module Calc.Wasm.FromExpr.Helpers
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad.Except
-import           Control.Monad.State
-import qualified Data.List                as List
-import qualified Data.Map.Strict          as M
-import           GHC.Natural
-
--- when should user-specified functions begin? after all the allocator
--- functions!
-functionOffset :: Natural
-functionOffset = 2
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Types
+import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.List as List
+import qualified Data.Map.Strict as M
+import GHC.Natural
 
 -- | add a local type, returning a unique index
 addLocal ::
@@ -104,24 +97,18 @@ lookupIdent ident = do
         Nothing ->
           throwError $ IdentifierNotFound ident
 
--- | user defined functions live after any imports, and our alloc is the second
--- function
-getAllocationFunctionNumber :: (MonadState FromExprState m) => m Natural
-getAllocationFunctionNumber = do
-  gets (fromIntegral . length . fesImports)
-
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   FunctionName ->
-  m Natural
+  m WasmFunctionRef
 lookupFunction functionName = do
   maybeFunc <- gets (M.lookup functionName . fesFunctions)
   case maybeFunc of
-    Just (FromExprFunc {fefIndex}) -> pure (fefIndex + functionOffset)
+    Just (FromExprFunc {fefIndex}) -> pure (WasmFunctionRef fefIndex)
     Nothing -> do
       maybeImport <- gets (M.lookup functionName . fesImports)
       case maybeImport of
-        Just (FromExprImport {feiIndex}) -> pure feiIndex
+        Just (FromExprImport {feiIndex}) -> pure (WasmImportRef feiIndex)
         Nothing ->
           throwError $ FunctionNotFound functionName
 

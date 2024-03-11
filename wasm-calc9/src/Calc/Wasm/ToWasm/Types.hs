@@ -9,15 +9,23 @@ module Calc.Wasm.ToWasm.Types
     WasmFunction (..),
     WasmExpr (..),
     WasmImport (..),
+    WasmFunctionRef (..),
     WasmTest (..),
+    ToWasmEnv (..),
   )
 where
 
-import           Calc.Types.Function
-import           Calc.Types.Op
-import qualified Data.Text           as T
-import           Data.Word
-import           GHC.Natural
+import Calc.Types.Function
+import Calc.Types.Op
+import qualified Data.Text as T
+import Data.Word
+import GHC.Natural
+
+data ToWasmEnv = ToWasmEnv
+  { tweImportsOffset :: Natural,
+    tweGlobalOffset :: Natural,
+    tweFunctionsOffset :: Natural
+  }
 
 data WasmType
   = I8
@@ -32,7 +40,7 @@ data WasmType
 
 data WasmMemory = WasmMemory
   { wmeMemoryStart :: Natural,
-    wmeImport      :: Maybe (T.Text, T.Text)
+    wmeImport :: Maybe (T.Text, T.Text)
   }
   deriving stock (Eq, Ord, Show)
 
@@ -44,38 +52,38 @@ data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
     wmFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports   :: [WasmImport],
+    wmImports :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemory    :: WasmMemory,
+    wmMemory :: WasmMemory,
     -- | which globals are defined?
-    wmGlobals   :: [WasmGlobal],
+    wmGlobals :: [WasmGlobal],
     -- | which tests do we have?
-    wmTests     :: [WasmTest]
+    wmTests :: [WasmTest]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmFunction = WasmFunction
-  { wfName       :: FunctionName,
-    wfExpr       :: WasmExpr,
-    wfPublic     :: Bool,
-    wfArgs       :: [WasmType],
+  { wfName :: FunctionName,
+    wfExpr :: WasmExpr,
+    wfPublic :: Bool,
+    wfArgs :: [WasmType],
     wfReturnType :: WasmType,
-    wfLocals     :: [WasmType]
+    wfLocals :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmImport = WasmImport
-  { wiName             :: FunctionName,
-    wiArgs             :: [WasmType],
-    wiReturnType       :: WasmType,
-    wiExternalModule   :: T.Text,
+  { wiName :: FunctionName,
+    wiArgs :: [WasmType],
+    wiReturnType :: WasmType,
+    wiExternalModule :: T.Text,
     wiExternalFunction :: T.Text
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmTest = WasmTest
-  { wtName   :: T.Text,
-    wtExpr   :: WasmExpr,
+  { wtName :: T.Text,
+    wtExpr :: WasmExpr,
     wtLocals :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
@@ -88,6 +96,11 @@ data WasmPrim
   | WPBool Bool
   deriving stock (Eq, Ord, Show)
 
+data WasmFunctionRef
+  = WasmFunctionRef Natural
+  | WasmImportRef Natural
+  deriving stock (Eq, Ord, Show)
+
 data WasmExpr
   = WPrim WasmPrim
   | WInfix WasmType Op WasmExpr WasmExpr
@@ -96,9 +109,9 @@ data WasmExpr
   | WIf WasmType WasmExpr WasmExpr WasmExpr -- return type, pred, then, else
   | WVar Natural
   | WGlobal Natural
-  | WApply Natural [WasmExpr]
-  | WAllocate Natural Natural -- function number, size of allocation
-  | WDrop Natural WasmExpr -- function number, address to drop
+  | WApply WasmFunctionRef [WasmExpr]
+  | WAllocate Natural -- size of allocation
+  | WDrop WasmExpr -- address to drop
   | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
   | WTupleAccess WasmType WasmExpr Natural
   | WLoad WasmType WasmExpr -- unsafe load from linear memory, index
