@@ -53,6 +53,7 @@ common shared
 
   other-modules:
     Calc
+    Calc.Ability.Check
     Calc.Build
     Calc.ExprUtils
     Calc.Linearity
@@ -141,6 +142,7 @@ test-suite wasm-calc9-tests
   main-is:          Main.hs
   default-language: Haskell2010
   other-modules:
+    Test.Ability.AbilitySpec
     Test.Helpers
     Test.Linearity.LinearitySpec
     Test.Parser.ParserSpec
