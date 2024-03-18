@@ -16,30 +16,15 @@ import Test.Hspec
 spec :: Spec
 spec = do
   fdescribe "AbilitySpec" $ do
-    describe "getExprAbilities" $ do
-      let strings =
-            [ ( "1 + 2",
-                mempty
-              ),
-              ( "set(myGlobal, 1)",
-                S.singleton (MutateGlobal () "myGlobal")
-              ),
-              ( "(1,2,3)",
-                S.singleton (AllocateMemory ())
-              )
-            ]
-      traverse_
-        ( \(str, abilityResult) -> it (T.unpack str) $ do
-            case parseExprAndFormatError str of
-              Right parsedExpr -> do
-                S.map void (abilityCheckExpr (AbilityEnv mempty) parsedExpr) `shouldBe` abilityResult
-              Left e -> error (T.unpack e)
-        )
-        strings
-
     describe "getModuleAbilities" $ do
       let strings =
-            [ ( "import console.log as consoleLog(number: Int64) -> Void",
+            [ ( "function main() -> Void { set(myGlobal, 1) }",
+                ModuleAbilities {maFunctions = M.singleton "main" (S.singleton (MutateGlobal () "myGlobal"))}
+              ),
+              ( "function main() -> (Int32, Int32, Int32) { (1,2,3) }",
+                ModuleAbilities {maFunctions = M.singleton "main" (S.singleton (AllocateMemory ()))}
+              ),
+              ( "import console.log as consoleLog(number: Int64) -> Void",
                 ModuleAbilities {maFunctions = mempty}
               ),
               ( "function main() -> Int32 { 1 }",

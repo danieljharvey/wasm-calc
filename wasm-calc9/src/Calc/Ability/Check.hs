@@ -1,25 +1,25 @@
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Calc.Ability.Check (AbilityEnv (..), ModuleAbilities (..), abilityCheckModule, abilityCheckExpr) where
+module Calc.Ability.Check (AbilityEnv (..), ModuleAbilities (..), abilityCheckModule) where
 
 import Calc.ExprUtils
 import Calc.Types.Ability
 import Calc.Types.Expr
 import Calc.Types.Function
-import Calc.Types.Identifier
 import Calc.Types.Import
 import Calc.Types.Module
-import Control.Monad (when)
+import Control.Monad.Identity
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Writer
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
 data ModuleAbilities ann = ModuleAbilities
-  { maFunctions :: M.Map Identifier (S.Set (Ability ann))
+  { maFunctions :: M.Map FunctionName (S.Set (Ability ann))
   }
   deriving stock (Eq, Ord, Show)
 
@@ -28,9 +28,15 @@ data AbilityEnv = AbilityEnv
     aeImportNames :: S.Set FunctionName
   }
 
--- | simplified typechecking, we find out which abilities each function uses
-abilityCheckExpr :: (Ord ann) => AbilityEnv -> Expr ann -> S.Set (Ability ann)
-abilityCheckExpr env = snd . runWriter . flip runReaderT env . abilityExpr
+newtype AbilityM ann a = AbilityM (StateT (ModuleAbilities ann) (ReaderT AbilityEnv (Writer (S.Set (Ability ann)))) a)
+  deriving newtype
+    ( Functor,
+      Applicative,
+      Monad,
+      MonadState (ModuleAbilities ann),
+      MonadReader AbilityEnv,
+      MonadWriter (S.Set (Ability ann))
+    )
 
 abilityCheckModule :: (Ord ann) => Module ann -> ModuleAbilities ann
 abilityCheckModule (Module {mdImports, mdFunctions}) =
@@ -38,15 +44,39 @@ abilityCheckModule (Module {mdImports, mdFunctions}) =
 
       abilityEnv = AbilityEnv {aeImportNames = importNames}
 
-      checkFunction (Function {fnFunctionName = FunctionName ident, fnBody}) =
-        (Identifier ident, abilityCheckExpr abilityEnv fnBody)
-   in ModuleAbilities
-        { maFunctions = M.fromList (checkFunction <$> mdFunctions)
-        }
+      checkFunction (Function {fnFunctionName, fnBody}) = do
+        functionAbilities <- execWriterT (abilityExpr fnBody)
+        -- store abilities found thus far
+        modify
+          ( \ma ->
+              ma
+                { maFunctions =
+                    M.insert fnFunctionName functionAbilities (maFunctions ma)
+                }
+          )
+   in runAbilityM (ModuleAbilities mempty) abilityEnv $ traverse checkFunction mdFunctions
+
+-- | get the abilities out of our pile o' monads
+runAbilityM :: (Ord ann) => ModuleAbilities ann -> AbilityEnv -> AbilityM ann a -> ModuleAbilities ann
+runAbilityM moduleAbilities abilityEnv (AbilityM action) =
+  fst $ runIdentity $ runWriterT $ runReaderT (execStateT action moduleAbilities) abilityEnv
+
+lookupFunctionAbilities ::
+  (Ord ann) =>
+  (MonadState (ModuleAbilities ann) m) =>
+  FunctionName ->
+  m (S.Set (Ability ann))
+lookupFunctionAbilities fnName = do
+  functionAbilities <- gets (M.lookup fnName . maFunctions)
+  case functionAbilities of
+    Just abilities -> pure abilities
+    Nothing -> pure mempty
 
 abilityExpr ::
-  ( MonadReader AbilityEnv m,
-    MonadWriter (S.Set (Ability ann)) m
+  ( MonadState (ModuleAbilities ann) m,
+    MonadReader AbilityEnv m,
+    MonadWriter (S.Set (Ability ann)) m,
+    Ord ann
   ) =>
   Expr ann ->
   m (Expr ann)
@@ -59,7 +89,11 @@ abilityExpr (ETuple ann a b) = do
   pure (ETuple ann a b)
 abilityExpr (EApply ann fn args) = do
   isImport <- asks (S.member fn . aeImportNames)
-  when isImport $
-    tell (S.singleton $ CallImportedFunction ann fn)
+  if isImport
+    then tell (S.singleton $ CallImportedFunction ann fn)
+    else do
+      -- whatever abilities this function uses, we now use
+      functionAbilities <- lookupFunctionAbilities fn
+      tell functionAbilities
   pure (EApply ann fn args)
 abilityExpr other = bindExpr abilityExpr other
