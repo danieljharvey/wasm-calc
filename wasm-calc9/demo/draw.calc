@@ -2,29 +2,29 @@ import imports.draw as draw(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
 ) -> Void
 
-function min(floor: Int64, value: Int64) { 
+function min(floor: Int64, value: Int64) -> Int64 { 
   if value > floor then value else floor
 }
 
-function max(ceiling: Int64, value: Int64) { 
+function max(ceiling: Int64, value: Int64) -> Int64 { 
   if value < ceiling then value else ceiling
 }
 
 function clamp(
   floor: Int64, ceiling: Int64, value: Int64
-) { min(floor, max(ceiling, value))}
+) -> Int64 { min(floor, max(ceiling, value))}
 
 function drawBounded(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
-) { 
-  let maxWidth = 400; 
-  let maxHeight = 300; 
+) -> Void { 
+  let maxWidth: Int64 = 400; 
+  let maxHeight: Int64 = 300; 
   draw(
     clamp(0, maxWidth, x), clamp(0, maxHeight, y), r, g, b
   )
 }
 
-export function test(index: Int64) { 
+export function test(index: Int64) -> Void { 
   let r = clamp(0, 255, index * 2); 
   let g = clamp(0, 255, 255 - r); 
   let b = clamp(0, 255, r * 3); 
@@ -32,4 +32,8 @@ export function test(index: Int64) {
   drawBounded(100 - index, index * 3, b, g, r); 
   drawBounded(10 + index * 3, 50 - index * 2, g, r, b); 
   drawBounded(index * 4, 200 - index * 3, b, r, g)
+}
+
+test whoa = {
+  True
 }

@@ -54,6 +54,7 @@ common shared
   other-modules:
     Calc
     Calc.Ability.Check
+    Calc.Ability.Error
     Calc.Build
     Calc.ExprUtils
     Calc.Linearity

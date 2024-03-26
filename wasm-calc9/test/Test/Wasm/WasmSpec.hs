@@ -4,6 +4,7 @@ module Test.Wasm.WasmSpec (spec) where
 
 import Calc.Linearity (validateModule)
 import Calc.Parser
+import Calc.Test
 import Calc.Typecheck
 import Calc.Wasm
 import Calc.Wasm.FromExpr.Module
@@ -40,6 +41,18 @@ testWithInterpreter (input, result) = it (show input) $ do
   let actualWasmModule = compile input
   resp <- runWasm "test" actualWasmModule
   resp `shouldBe` Just [result]
+
+-- | in fear of getting incredibly meta, run the tests from this module
+-- using the built-in `wasm` interpreter
+runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
+runTestsWithInterpreter (input, result) = it (show input) $ do
+  case parseModuleAndFormatError input of
+    Left e -> error (show e)
+    Right expr -> case elaborateModule expr of
+      Left typeErr -> error (show typeErr)
+      Right typedMod -> do
+        resp <- testModule typedMod
+        resp `shouldBe` result
 
 -- | output actual WASM files for testing
 -- test them with node
@@ -291,3 +304,43 @@ spec = do
 
       describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
+
+    describe "Run tests" $ do
+      let testVals =
+            [ ( "test result = True",
+                [("result", True)]
+              ),
+              ( joinLines
+                  [ "import my.import as myImport(x: Int64) -> Void",
+                    "test dontExplodePlease = True"
+                  ],
+                [ ( "dontExplodePlease",
+                    True
+                  )
+                ]
+              ),
+              ( joinLines
+                  [ "import my.import as myImport(x: Int64) -> Void",
+                    "export function usesImport() -> Void { myImport(100) }",
+                    "test dontExplodePlease = True"
+                  ],
+                [ ( "dontExplodePlease",
+                    True
+                  )
+                ]
+              ),
+              ( joinLines
+                  [ "import my.import as myImport(x: Int64) -> Void",
+                    "export function usesImport() -> Void { myImport(100) }",
+                    "function returnTrue() -> Boolean { True }",
+                    "test dontExplodePlease = { returnTrue() }"
+                  ],
+                [ ( "dontExplodePlease",
+                    True
+                  )
+                ]
+              )
+            ]
+
+      describe "From tests" $ do
+        traverse_ runTestsWithInterpreter testVals

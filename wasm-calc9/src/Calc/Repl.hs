@@ -11,6 +11,7 @@ module Calc.Repl
   )
 where
 
+import Calc.Ability.Check
 import Calc.Linearity
   ( linearityErrorDiagnostic,
     validateModule,
@@ -51,7 +52,7 @@ repl = do
             Left bundle -> do
               printDiagnostic (fromErrorBundle bundle input)
               loop
-            Right expr -> case elaborateModule expr of
+            Right parsedModule -> case elaborateModule parsedModule of
               Left typeErr -> do
                 printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
                 loop
@@ -60,15 +61,20 @@ repl = do
                   Left linearityError -> do
                     printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
                     loop
-                  Right _ ->
-                    case fromModule typedMod of
-                      Left _fromWasmError -> do
-                        -- printDiagnostic "From Wasm Error"
+                  Right _ -> do
+                    case abilityCheckModule parsedModule of
+                      Left abilityError -> do
+                        printDiagnostic (abilityErrorDiagnostic (T.pack input) abilityError)
                         loop
-                      Right wasmMod -> do
-                        resp <- liftIO $ runWasmModule wasmMod
-                        liftIO $ putStrLn resp
-                        loop
+                      Right _ ->
+                        case fromModule typedMod of
+                          Left _fromWasmError -> do
+                            -- printDiagnostic "From Wasm Error"
+                            loop
+                          Right wasmMod -> do
+                            resp <- liftIO $ runWasmModule wasmMod
+                            liftIO $ putStrLn resp
+                            loop
 
 -- if input does not include `function`, wrap it in
 -- `function main() { <input> }`

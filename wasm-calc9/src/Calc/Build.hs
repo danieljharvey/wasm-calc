@@ -11,6 +11,7 @@ module Calc.Build
   )
 where
 
+import Calc.Ability.Check
 import Calc.Linearity
   ( linearityErrorDiagnostic,
     validateModule,
@@ -56,21 +57,27 @@ doBuild filePath = do
             printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
               >> pure (ExitFailure 1)
           Right _ -> do
-            testResults <- liftIO $ testModule typedMod
-            if not (testsAllPass testResults)
-              then do
-                printTestResults testResults
-                pure (ExitFailure 1)
-              else case fromModule (removeTests typedMod) of
-                Left fromWasmError -> do
-                  liftIO (print fromWasmError)
-                    >> pure (ExitFailure 1)
-                Right wasmMod -> do
-                  format filePath (T.pack input) parsedModule
-                  -- print module to stdout
-                  liftIO $ printModule (moduleToWasm wasmMod)
-                  pure ExitSuccess
+            case abilityCheckModule parsedModule of
+              Left abilityError ->
+                printDiagnostic (abilityErrorDiagnostic (T.pack input) abilityError)
+                  >> pure (ExitFailure 1)
+              Right _ -> do
+                testResults <- liftIO $ testModule typedMod
+                if not (testsAllPass testResults)
+                  then do
+                    printTestResults testResults
+                    pure (ExitFailure 1)
+                  else case fromModule (removeTests typedMod) of
+                    Left fromWasmError -> do
+                      liftIO (print fromWasmError)
+                        >> pure (ExitFailure 1)
+                    Right wasmMod -> do
+                      format filePath (T.pack input) parsedModule
+                      -- print module to stdout
+                      liftIO $ printModule (moduleToWasm wasmMod)
+                      pure ExitSuccess
 
+-- | when doing regular builds, remove tests from compiler output
 removeTests :: Module a -> Module a
 removeTests myMod = myMod {mdTests = mempty}
 

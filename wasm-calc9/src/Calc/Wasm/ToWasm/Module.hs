@@ -180,7 +180,7 @@ moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFunctions})
       functions =
         uncurry (fromFunction env) <$> zip [0 ..] wmFunctions
       testsOffset =
-        importOffset + length functions
+        length functions
       tests =
         uncurry (fromTest env) <$> zip [testsOffset ..] wmTests
       importTypes =
