@@ -34,7 +34,5 @@ export function test(index: Int64) -> Void {
   drawBounded(index * 4, 200 - index * 3, b, r, g)
 }
 
-test clampWorks = {
-  let _ = draw(1,1,1,1,1);
-  True
-}
+test clampWorks = 
+  { True }

@@ -6,9 +6,10 @@
 
 module Calc.Ability.Check
   ( AbilityEnv (..),
-    ModuleAbilities (..),
+    ModuleAbilities,
     abilityCheckModule,
     module Calc.Ability.Error,
+    module Calc.Types.ModuleAnnotations,
   )
 where
 
@@ -17,9 +18,9 @@ import Calc.ExprUtils
 import Calc.Types.Ability
 import Calc.Types.Expr
 import Calc.Types.Function
-import Calc.Types.Identifier
 import Calc.Types.Import
 import Calc.Types.Module
+import Calc.Types.ModuleAnnotations
 import Calc.Types.Test
 import Control.Monad.Identity
 import Control.Monad.Reader
@@ -30,11 +31,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
-data ModuleAbilities ann = ModuleAbilities
-  { maFunctions :: M.Map FunctionName (S.Set (Ability ann)),
-    maTests :: M.Map Identifier (S.Set (Ability ann))
-  }
-  deriving stock (Eq, Ord, Show)
+type ModuleAbilities ann = ModuleAnnotations (S.Set (Ability ann))
 
 data AbilityEnv = AbilityEnv
   { -- | which functions are in fact imports?
@@ -74,7 +71,7 @@ getAbilitiesForModule (Module {mdImports, mdFunctions, mdTests}) =
 
       abilityEnv = AbilityEnv {aeImportNames = importNames}
 
-      initialState = ModuleAbilities mempty mempty
+      initialState = ModuleAnnotations mempty mempty
 
       getAbilitiesForFunction (Function {fnFunctionName, fnBody}) = do
         functionAbilities <- execWriterT (abilityExpr fnBody)

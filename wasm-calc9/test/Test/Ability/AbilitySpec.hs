@@ -37,7 +37,7 @@ spec = do
     describe "abilityCheckModule" $ do
       describe "Success" $ do
         let emptyModuleAbilities =
-              ModuleAbilities
+              ModuleAnnotations
                 { maFunctions = mempty,
                   maTests = mempty
                 }

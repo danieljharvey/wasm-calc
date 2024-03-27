@@ -56,6 +56,7 @@ common shared
     Calc.Ability.Check
     Calc.Ability.Error
     Calc.Build
+    Calc.Dependencies
     Calc.ExprUtils
     Calc.Linearity
     Calc.Linearity.Error
@@ -96,6 +97,7 @@ common shared
     Calc.Types.Import
     Calc.Types.Memory
     Calc.Types.Module
+    Calc.Types.ModuleAnnotations
     Calc.Types.Op
     Calc.Types.Pattern
     Calc.Types.Prim
