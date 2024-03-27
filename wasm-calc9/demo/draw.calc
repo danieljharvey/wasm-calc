@@ -33,6 +33,3 @@ export function test(index: Int64) -> Void {
   drawBounded(10 + index * 3, 50 - index * 2, g, r, b); 
   drawBounded(index * 4, 200 - index * 3, b, r, g)
 }
-
-test clampWorks = 
-  { True }

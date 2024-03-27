@@ -1,21 +1,22 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Dependencies (Dependency (..), treeShakeModule, trimDependencies, combineDependencies, getModuleDependencies) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Types.ModuleAnnotations
-import Control.Monad.Writer
-import qualified Data.Map.Strict as M
-import Data.Maybe (mapMaybe)
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Types.ModuleAnnotations
+import           Control.Monad.Writer
+import qualified Data.Map.Strict              as M
+import           Data.Maybe                   (mapMaybe)
+import qualified Data.Set                     as S
 
 data Dependency
   = DepFunction FunctionName
   | DepTest Identifier
   | DepImport FunctionName
+  | DepGlobal Identifier
   deriving stock (Eq, Ord, Show)
 
 -- | remove anything that is not used by an exported function
@@ -40,7 +41,12 @@ trimDependencies deps moduleAnnotations wholeMod =
           (mdFunctions wholeMod)
       filteredTests = filter (\Test {tesName} -> S.member (DepTest tesName) requiredDependencies) (mdTests wholeMod)
       filteredImports = filter (\Import {impImportName} -> S.member (DepImport impImportName) requiredDependencies) (mdImports wholeMod)
-   in wholeMod {mdFunctions = filteredFunctions, mdTests = filteredTests, mdImports = filteredImports}
+      filteredGlobals = filter (\Global {glbIdentifier} -> S.member (DepGlobal glbIdentifier) requiredDependencies) (mdGlobals wholeMod)
+
+
+   in wholeMod {mdFunctions = filteredFunctions,
+      mdTests = filteredTests, mdImports = filteredImports,
+                mdGlobals = filteredGlobals}
 
 -- | recursively look through ModuleAnnotations to get complete set of
 -- dependencies
@@ -49,11 +55,12 @@ combineDependencies deps _ | S.null deps = mempty
 combineDependencies deps annotatedModule =
   let getChildDeps (DepFunction fnName) = case M.lookup fnName (maFunctions annotatedModule) of
         Just functionDeps -> functionDeps
-        Nothing -> error $ "Internal error looking up " <> show fnName
+        Nothing           -> error $ "Internal error looking up " <> show fnName
       getChildDeps (DepTest identifier) = case M.lookup identifier (maTests annotatedModule) of
         Just testDeps -> testDeps
-        Nothing -> error $ "Internal error looking up " <> show identifier
+        Nothing       -> error $ "Internal error looking up " <> show identifier
       getChildDeps (DepImport _) = mempty
+      getChildDeps (DepGlobal _) = mempty
 
       childDeps = foldMap getChildDeps deps
       newDeps = S.difference childDeps deps -- what new dependencies have we uncovered?

@@ -37,7 +37,8 @@ testModule typedMod@(Module {mdTests}) =
                   if singleResult == Wasm.VI32 1
                     then pure (wtName, True)
                     else pure (wtName, False)
-                _ -> error "Wasm interpreter failed"
+                Just _ -> error "Incorrect number of results returned"
+                Nothing -> error "Wasm interpreter failed"
           )
           (wmTests wasmMod)
 
