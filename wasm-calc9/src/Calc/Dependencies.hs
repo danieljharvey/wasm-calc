@@ -7,6 +7,7 @@ module Calc.Dependencies (Dependency (..), treeShakeModule, trimDependencies, co
 import           Calc.ExprUtils
 import           Calc.Types
 import           Calc.Types.ModuleAnnotations
+import           Control.Monad                (when)
 import           Control.Monad.Writer
 import qualified Data.Map.Strict              as M
 import           Data.Maybe                   (mapMaybe)
@@ -67,26 +68,34 @@ combineDependencies deps annotatedModule =
    in deps <> childDeps <> combineDependencies newDeps annotatedModule
 
 getModuleDependencies :: Module ann -> ModuleAnnotations (S.Set Dependency)
-getModuleDependencies (Module {mdTests, mdFunctions, mdImports}) =
+getModuleDependencies (Module {mdTests, mdFunctions, mdImports, mdGlobals}) =
   let importNames = S.fromList $ (\Import {impImportName} -> impImportName) <$> mdImports
-      maTests = M.fromList $ getTestDependencies <$> mdTests
-      maFunctions = M.fromList $ getFunctionDependencies importNames <$> mdFunctions
+      globalNames = S.fromList $ (\Global {glbIdentifier} -> glbIdentifier) <$> mdGlobals
+      maTests = M.fromList $ getTestDependencies globalNames <$> mdTests
+      maFunctions = M.fromList $ getFunctionDependencies globalNames importNames <$> mdFunctions
    in ModuleAnnotations {maFunctions, maTests}
 
-getTestDependencies :: Test ann -> (Identifier, S.Set Dependency)
-getTestDependencies (Test {tesName, tesExpr}) =
-  (tesName, getExprDependencies mempty tesExpr)
+getTestDependencies :: S.Set Identifier -> Test ann -> (Identifier, S.Set Dependency)
+getTestDependencies globalNames (Test {tesName, tesExpr}) =
+  (tesName, getExprDependencies globalNames mempty tesExpr)
 
-getFunctionDependencies :: S.Set FunctionName -> Function ann -> (FunctionName, S.Set Dependency)
-getFunctionDependencies importNames (Function {fnFunctionName, fnBody}) =
-  (fnFunctionName, getExprDependencies importNames fnBody)
+getFunctionDependencies :: S.Set Identifier -> S.Set FunctionName -> Function ann -> (FunctionName, S.Set Dependency)
+getFunctionDependencies globalNames importNames (Function {fnFunctionName, fnBody}) =
+  (fnFunctionName, getExprDependencies globalNames importNames fnBody)
 
-getExprDependencies :: S.Set FunctionName -> Expr ann -> S.Set Dependency
-getExprDependencies importNames = snd . runWriter . go
+getExprDependencies :: S.Set Identifier -> S.Set FunctionName -> Expr ann -> S.Set Dependency
+getExprDependencies globalNames importNames = snd . runWriter . go
   where
     go (EApply ann fnName args) = do
       if S.member fnName importNames
-        then tell (S.singleton (DepImport fnName))
-        else tell (S.singleton (DepFunction fnName))
+        then tell (S.singleton $ DepImport fnName)
+        else tell (S.singleton $ DepFunction fnName)
       EApply ann fnName <$> traverse go args
+    go (ESet ann globalName value) = do
+      tell (S.singleton $ DepGlobal globalName)
+      ESet ann globalName <$> go value
+    go (EVar ann identifier) = do
+      when (S.member identifier globalNames)
+         $ tell (S.singleton $ DepGlobal identifier)
+      pure (EVar ann identifier)
     go other = bindExpr go other
