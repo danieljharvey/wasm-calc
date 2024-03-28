@@ -159,41 +159,53 @@ checkAndSubstitute ty expr = do
 elaborateFunction ::
   Function ann ->
   TypecheckM ann (Function (Type ann))
-elaborateFunction (Function {fnPublic, fnAnn, fnArgs, fnGenerics, fnReturnType, fnFunctionName, fnBody}) = do
-  -- store current function so we can recursively call ourselves
-  storeFunction
-    fnFunctionName
-    (S.fromList fnGenerics)
-    (TFunction fnAnn (faType <$> fnArgs) fnReturnType)
-
-  exprA <-
-    withFunctionEnv
-      fnArgs
+elaborateFunction
+  ( Function
+      { fnPublic,
+        fnAnn,
+        fnArgs,
+        fnAbilityConstraints,
+        fnGenerics,
+        fnReturnType,
+        fnFunctionName,
+        fnBody
+      }
+    ) = do
+    -- store current function so we can recursively call ourselves
+    storeFunction
+      fnFunctionName
       (S.fromList fnGenerics)
-      (checkAndSubstitute fnReturnType fnBody)
+      (TFunction fnAnn (faType <$> fnArgs) fnReturnType)
 
-  let argsA =
-        ( \FunctionArg {faName, faType, faAnn} ->
-            FunctionArg
-              { faName,
-                faType = fmap (const faType) faType,
-                faAnn = fmap (const faAnn) faType
-              }
-        )
-          <$> fnArgs
-  let tyFn =
-        TFunction
-          fnAnn
-          (faType <$> fnArgs)
-          (getOuterAnnotation exprA)
-  pure
-    ( Function
-        { fnAnn = tyFn,
-          fnGenerics,
-          fnArgs = argsA,
-          fnFunctionName = fnFunctionName,
-          fnBody = exprA,
-          fnPublic = fnPublic,
-          fnReturnType = fnReturnType $> fnReturnType
-        }
-    )
+    exprA <-
+      withFunctionEnv
+        fnArgs
+        (S.fromList fnGenerics)
+        (checkAndSubstitute fnReturnType fnBody)
+
+    let argsA =
+          ( \FunctionArg {faName, faType, faAnn} ->
+              FunctionArg
+                { faName,
+                  faType = fmap (const faType) faType,
+                  faAnn = fmap (const faAnn) faType
+                }
+          )
+            <$> fnArgs
+    let tyFn =
+          TFunction
+            fnAnn
+            (faType <$> fnArgs)
+            (getOuterAnnotation exprA)
+    pure
+      ( Function
+          { fnAnn = tyFn,
+            fnGenerics,
+            fnArgs = argsA,
+            fnFunctionName = fnFunctionName,
+            fnBody = exprA,
+            fnPublic = fnPublic,
+            fnReturnType = fnReturnType $> fnReturnType,
+            fnAbilityConstraints = fnAbilityConstraints
+          }
+      )

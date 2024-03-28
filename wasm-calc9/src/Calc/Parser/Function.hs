@@ -1,19 +1,20 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Function (functionParser, functionNameParser) where
 
-import Calc.Parser.Expr
-import Calc.Parser.Identifier
-import Calc.Parser.Shared
-import Calc.Parser.Type
-import Calc.Parser.Types
-import Calc.Types.Annotation
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.TypeVar
-import Data.Functor (($>))
-import Text.Megaparsec
+import           Calc.Parser.Expr
+import           Calc.Parser.Identifier
+import           Calc.Parser.Shared
+import           Calc.Parser.Type
+import           Calc.Parser.Types
+import           Calc.Types.Annotation
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.TypeVar
+import           Data.Functor           (($>))
+import qualified Data.Set               as S
+import           Text.Megaparsec
 
 argumentNameParser :: Parser ArgumentName
 argumentNameParser = do
@@ -27,7 +28,7 @@ exportParser =
 functionParser :: Parser (Function Annotation)
 functionParser =
   withLocation
-    ( \fnAnn (fnPublic, fnFunctionName, fnGenerics, fnArgs, fnReturnType, fnBody) ->
+    ( \fnAnn (fnPublic, fnFunctionName, fnGenerics, fnArgs, fnReturnType, fnBody, fnAbilityConstraints) ->
         Function
           { fnPublic,
             fnAnn,
@@ -35,7 +36,8 @@ functionParser =
             fnGenerics,
             fnFunctionName,
             fnReturnType,
-            fnBody
+            fnBody,
+            fnAbilityConstraints
           }
     )
     innerParser
@@ -43,6 +45,7 @@ functionParser =
     innerParser = do
       public <- exportParser
       stringLiteral "function"
+      abilityConstraints <- try abilityConstraintsParser <|> pure mempty
       fnName <- functionNameParser
       generics <- try genericsParser <|> pure mempty
       stringLiteral "("
@@ -53,7 +56,26 @@ functionParser =
       stringLiteral "{"
       expr <- exprParser
       stringLiteral "}"
-      pure (public, fnName, generics, args, returnType, expr)
+      pure
+        ( public,
+          fnName,
+          generics,
+          args,
+          returnType,
+          expr,
+          abilityConstraints
+        )
+
+abilityConstraintsParser :: Parser (S.Set AbilityConstraint)
+abilityConstraintsParser = myLexeme $ do
+  let constraintParser =
+        (stringLiteral "noallocate" $> NoAllocate)
+          <|> (stringLiteral "noglobalmutate" $> NoGlobalMutate)
+          <|> (stringLiteral "noimports" $> NoImports)
+  stringLiteral "["
+  constraints <- many (myLexeme constraintParser)
+  stringLiteral "]"
+  pure (S.fromList constraints)
 
 genericsParser :: Parser [TypeVar]
 genericsParser = do

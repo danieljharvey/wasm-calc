@@ -2,24 +2,24 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Dependencies
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Test
-import           Calc.Typecheck
-import           Calc.Wasm
-import           Calc.Wasm.FromExpr.Module
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm.Module
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Dependencies
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Test
+import Calc.Typecheck
+import Calc.Wasm
+import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm.Module
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -33,7 +33,7 @@ compile input =
           Left e -> error (show e)
           Right _ ->
             case fromModule typedMod of
-              Left e        -> error (show e)
+              Left e -> error (show e)
               Right wasmMod -> moduleToWasm wasmMod
 
 -- | test using the built-in `wasm` package interpreter

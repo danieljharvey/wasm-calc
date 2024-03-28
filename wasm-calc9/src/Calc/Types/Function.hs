@@ -5,7 +5,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Types.Function
-  ( ArgumentName (..),
+  ( AbilityConstraint (..),
+    ArgumentName (..),
     FunctionName (..),
     Function (..),
     FunctionArg (..),
@@ -16,6 +17,7 @@ import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Type
 import Calc.Types.TypeVar
+import qualified Data.Set as S
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -29,6 +31,12 @@ indentMulti i doc =
 
 newlines :: PP.Doc style -> PP.Doc style
 newlines a = PP.line' <> a <> PP.line'
+
+data AbilityConstraint
+  = NoGlobalMutate
+  | NoAllocate
+  | NoImports
+  deriving stock (Eq, Ord, Show)
 
 newtype ArgumentName = ArgumentName Text
   deriving newtype (Eq, Ord, Show)
@@ -46,7 +54,8 @@ data Function ann = Function
     fnFunctionName :: FunctionName,
     fnBody :: Expr ann,
     fnPublic :: Bool,
-    fnReturnType :: Type ann
+    fnReturnType :: Type ann,
+    fnAbilityConstraints :: S.Set AbilityConstraint
   }
   deriving stock (Eq, Ord, Show, Functor)
 

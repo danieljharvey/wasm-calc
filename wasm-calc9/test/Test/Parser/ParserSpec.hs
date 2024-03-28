@@ -2,13 +2,27 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import Calc
-import Data.Foldable (traverse_)
-import Data.Functor
+import           Calc
+import           Data.Foldable      (traverse_)
+import           Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
+
+emptyFunction :: Function ()
+emptyFunction =
+  Function
+    { fnPublic = False,
+      fnAnn = (),
+      fnArgs = [],
+      fnFunctionName = "",
+      fnBody = bool True,
+      fnGenerics = mempty,
+      fnReturnType = tyInt64,
+      fnAbilityConstraints = mempty
+    }
 
 spec :: Spec
 spec = do
@@ -27,7 +41,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -44,9 +58,8 @@ spec = do
             [ ( "export function increment(a: Int64) -> Int64 { a + 1 }",
                 emptyModule
                   { mdFunctions =
-                      [ Function
+                      [ emptyFunction
                           { fnPublic = True,
-                            fnAnn = (),
                             fnArgs =
                               [ FunctionArg
                                   { faName = "a",
@@ -56,7 +69,6 @@ spec = do
                               ],
                             fnFunctionName = "increment",
                             fnBody = EInfix () OpAdd (var "a") (int 1),
-                            fnGenerics = mempty,
                             fnReturnType = tyInt64
                           }
                       ]
@@ -65,10 +77,8 @@ spec = do
               ( "function increment(a: Int64) -> Int64 { a + 1 } function decrement(a: Int64) -> Int64 { a - 1}",
                 emptyModule
                   { mdFunctions =
-                      [ Function
-                          { fnPublic = False,
-                            fnAnn = (),
-                            fnArgs =
+                      [ emptyFunction
+                          { fnArgs =
                               [ FunctionArg
                                   { faName = "a",
                                     faType = tyInt64,
@@ -77,13 +87,10 @@ spec = do
                               ],
                             fnFunctionName = "increment",
                             fnBody = EInfix () OpAdd (var "a") (int 1),
-                            fnGenerics = mempty,
                             fnReturnType = tyInt64
                           },
-                        Function
-                          { fnPublic = False,
-                            fnAnn = (),
-                            fnArgs =
+                        emptyFunction
+                          { fnArgs =
                               [ FunctionArg
                                   { faName = "a",
                                     faType = tyInt64,
@@ -92,7 +99,6 @@ spec = do
                               ],
                             fnFunctionName = "decrement",
                             fnBody = EInfix () OpSubtract (var "a") (int 1),
-                            fnGenerics = mempty,
                             fnReturnType = tyInt64
                           }
                       ]
@@ -130,13 +136,9 @@ spec = do
                   ],
                 emptyModule
                   { mdFunctions =
-                      [ Function
-                          { fnPublic = False,
-                            fnAnn = (),
-                            fnArgs = [],
-                            fnFunctionName = "main",
+                      [ emptyFunction
+                          { fnFunctionName = "main",
                             fnBody = int 100,
-                            fnGenerics = mempty,
                             fnReturnType = tyInt32
                           }
                       ],
@@ -192,12 +194,8 @@ spec = do
                           }
                       ],
                     mdFunctions =
-                      [ Function
-                          { fnAnn = (),
-                            fnGenerics = mempty,
-                            fnArgs = mempty,
-                            fnFunctionName = "main",
-                            fnPublic = False,
+                      [ emptyFunction
+                          { fnFunctionName = "main",
                             fnReturnType = tyVoid,
                             fnBody = ESet () "counter" (int 1)
                           }
@@ -222,28 +220,22 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
     describe "Function" $ do
       let strings =
             [ ( "function one() -> Int64 { 1 }",
-                Function
-                  { fnPublic = False,
-                    fnAnn = (),
-                    fnArgs = [],
-                    fnFunctionName = "one",
+                emptyFunction
+                  { fnFunctionName = "one",
                     fnBody = int 1,
-                    fnGenerics = mempty,
                     fnReturnType = tyInt64
                   }
               ),
               ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
-                Function
-                  { fnPublic = False,
-                    fnAnn = (),
-                    fnArgs =
+                emptyFunction
+                  { fnArgs =
                       [ FunctionArg
                           { faName = "a",
                             faType = tyInt64,
@@ -257,15 +249,12 @@ spec = do
                       ],
                     fnFunctionName = "sum",
                     fnBody = EInfix () OpAdd (var "a") (var "b"),
-                    fnGenerics = mempty,
                     fnReturnType = tyInt64
                   }
               ),
               ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
-                Function
-                  { fnPublic = False,
-                    fnAnn = (),
-                    fnArgs =
+                emptyFunction
+                  { fnArgs =
                       [ FunctionArg
                           { faName = "a",
                             faType = tyVar "a",
@@ -280,14 +269,33 @@ spec = do
                   }
               ),
               ( "function horse() -> Int64 { let a = 100; a }",
-                Function
-                  { fnPublic = False,
-                    fnAnn = (),
-                    fnArgs = [],
-                    fnFunctionName = "horse",
+                emptyFunction
+                  { fnFunctionName = "horse",
                     fnBody = ELet () (PVar () "a") (int 100) (var "a"),
-                    fnGenerics = [],
                     fnReturnType = tyInt64
+                  }
+              ),
+              ( "function [] horse() -> Int64 { 1 }",
+                emptyFunction
+                  { fnFunctionName = "horse",
+                    fnBody = int 1,
+                    fnReturnType = tyInt64
+                  }
+              ),
+              ( "function [noallocate] horse() -> Int64 { 1 }",
+                emptyFunction
+                  { fnFunctionName = "horse",
+                    fnBody = int 1,
+                    fnReturnType = tyInt64,
+                    fnAbilityConstraints = S.singleton NoAllocate
+                  }
+              ),
+              ( "function [noallocate noglobalmutate noimports] horse() -> Int64 { 1 }",
+                emptyFunction
+                  { fnFunctionName = "horse",
+                    fnBody = int 1,
+                    fnReturnType = tyInt64,
+                    fnAbilityConstraints = S.fromList [NoAllocate, NoGlobalMutate, NoImports]
                   }
               )
             ]
@@ -295,7 +303,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e -> error (T.unpack e)
+              Left e         -> error (T.unpack e)
         )
         strings
 
@@ -309,7 +317,7 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e -> error (T.unpack e)
+              Left e              -> error (T.unpack e)
         )
         strings
 
@@ -369,7 +377,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
