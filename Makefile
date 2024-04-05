@@ -124,8 +124,9 @@ run-build-drawing-demo-9:
 
 .PHONY: run-build-malloc-9
 run-build-malloc-9:
+	cabal build wasm-calc9
 	cabal run wasm-calc9 -- build wasm-calc9/static/malloc.calc > wasm-calc9/static/malloc.wasm
-	wasm2wat wasm-calc9/static/malloc.wasm > wasm-calc9/static/malloc.wat
+	wasm2wat wasm-calc9/static/malloc.wasm > wasm-calc9/static/malloc-new.wat
 
 .PHONY: format-all-files-9
 format-all-files-9:

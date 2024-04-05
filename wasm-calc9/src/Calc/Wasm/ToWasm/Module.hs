@@ -111,7 +111,9 @@ allocatorGlobals :: UsesAllocator -> WasmMemory -> [Wasm.Global]
 allocatorGlobals UsesAllocator (WasmMemory nat _) =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
-      [Wasm.I32Const (fromIntegral $ nat + 32)]
+      [Wasm.I32Const (fromIntegral $ nat + 32)],
+      Wasm.Global (Wasm.Mut Wasm.I32)
+      [Wasm.I32Const 0]
   ]
 allocatorGlobals DoesNotUseAllocator _ = mempty
 
@@ -159,7 +161,8 @@ memoryImportsToWasm wasmMemory =
 allocatorTypes :: UsesAllocator -> [Wasm.FuncType]
 allocatorTypes UsesAllocator =
   [ Wasm.FuncType [Wasm.I32] [Wasm.I32],
-    Wasm.FuncType [Wasm.I32] []
+    Wasm.FuncType [Wasm.I32] [],
+    Wasm.FuncType [] [Wasm.I32]
   ]
 allocatorTypes DoesNotUseAllocator = mempty
 

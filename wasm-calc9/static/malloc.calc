@@ -1,8 +1,11 @@
 global mut location: Int32 = 0
 
-function malloc(size: Int32) -> Int32 { 
+global mut allocatedCount: Int32 = 0
+
+export function malloc(size: Int32) -> Int32 { 
   let currentItem: Int32 = load(location); 
   let itemHasBeenUsed: Int32 = load(location + 4); 
+  set(allocatedCount, allocatedCount + 1); 
   if itemHasBeenUsed == 0 && currentItem == 0 || size == currentItem then
     {
       let oldLocation = location; 
@@ -27,8 +30,9 @@ function malloc(size: Int32) -> Int32 {
     }
 }
 
-function drop(dropLocation: Int32) -> Void { 
+export function drop(dropLocation: Int32) -> Void { 
   let droppedSize: Int32 = load(dropLocation - 8); 
+  set(allocatedCount, allocatedCount - 1); 
   store(dropLocation - 4, (0: Int32)); 
   let sizeOfNextBlock: Int32 = load(dropLocation + droppedSize); 
   let nextBlockUsed: Int32 = load(dropLocation + droppedSize + 4); 
@@ -41,6 +45,10 @@ function drop(dropLocation: Int32) -> Void {
   else
     (1: Int32); 
   set(location, dropLocation - 8)
+}
+
+export function getAllocatedTotal() -> Int32 { 
+  load(allocatedCount)
 }
 
 test allocatingOnceReturnsZeroPlusFour = 
