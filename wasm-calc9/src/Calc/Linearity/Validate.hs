@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -9,19 +9,19 @@ module Calc.Linearity.Validate
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad.State
-import Data.Foldable (traverse_)
-import qualified Data.Map as M
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad.State
+import           Data.Foldable         (traverse_)
+import qualified Data.Map              as M
 
 getLinearityAnnotation :: Linearity ann -> ann
 getLinearityAnnotation (Whole ann) = ann
@@ -66,7 +66,7 @@ filterCompleteUses uses ident =
 getFunctionUses :: (Show ann) => Function (Type ann) -> LinearState ann
 getFunctionUses (Function {fnBody, fnArgs}) =
   execState
-    (decorateWithUses fnBody)
+    (decorateWithDrops fnBody)
     ( LinearState
         { lsVars = initialVars,
           lsUses = mempty
@@ -78,7 +78,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
@@ -93,7 +93,7 @@ addLetBinding ::
 addLetBinding (PVar ty ident) =
   let initialLinearity = case ty of
         TPrim {} -> LTPrimitive
-        _ -> LTBoxed
+        _        -> LTBoxed
    in modify
         ( \ls ->
             ls
@@ -108,16 +108,16 @@ addLetBinding (PTuple _ p ps) = do
   addLetBinding p
   traverse_ addLetBinding ps
 
-decorateWithUses ::
+decorateWithDrops ::
   (Show ann) =>
   (MonadState (LinearState ann) m) =>
   Expr (Type ann) ->
   m (Expr (Type ann))
-decorateWithUses (EVar ann ident) = do
+decorateWithDrops (EVar ann ident) = do
   recordUse ident (getOuterTypeAnnotation ann)
   pure (EVar ann ident)
-decorateWithUses (ELet ann pat expr rest) = do
+decorateWithDrops (ELet ann pat expr rest) = do
   addLetBinding pat
-  ELet ann pat <$> decorateWithUses expr <*> decorateWithUses rest
-decorateWithUses other =
-  bindExpr decorateWithUses other
+  ELet ann pat <$> decorateWithDrops expr <*> decorateWithDrops rest
+decorateWithDrops other =
+  bindExpr decorateWithDrops other

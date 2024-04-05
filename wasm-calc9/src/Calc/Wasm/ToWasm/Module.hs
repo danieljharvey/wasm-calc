@@ -2,15 +2,15 @@
 
 module Calc.Wasm.ToWasm.Module (moduleToWasm) where
 
-import Calc.Types.FunctionName
-import Calc.Wasm.Allocator
-import Calc.Wasm.ToWasm.Expr
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Data.Maybe (catMaybes, mapMaybe, maybeToList)
-import qualified Data.Text.Lazy as TL
-import GHC.Natural
-import qualified Language.Wasm.Structure as Wasm
+import           Calc.Types.FunctionName
+import           Calc.Wasm.Allocator
+import           Calc.Wasm.ToWasm.Expr
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Data.Maybe               (catMaybes, mapMaybe, maybeToList)
+import qualified Data.Text.Lazy           as TL
+import           GHC.Natural
+import qualified Language.Wasm.Structure  as Wasm
 
 mapWithIndex :: ((Int, a) -> b) -> [a] -> [b]
 mapWithIndex f = fmap f . zip [0 ..]
@@ -18,14 +18,14 @@ mapWithIndex f = fmap f . zip [0 ..]
 -- | turn types into wasm types
 -- void won't have a type, hence the Maybe
 fromType :: WasmType -> Maybe Wasm.ValueType
-fromType I8 = Just Wasm.I32
-fromType I16 = Just Wasm.I32
-fromType I32 = Just Wasm.I32
-fromType I64 = Just Wasm.I64
-fromType F32 = Just Wasm.F32
-fromType F64 = Just Wasm.F64
+fromType I8      = Just Wasm.I32
+fromType I16     = Just Wasm.I32
+fromType I32     = Just Wasm.I32
+fromType I64     = Just Wasm.I64
+fromType F32     = Just Wasm.F32
+fromType F64     = Just Wasm.F64
 fromType Pointer = Just Wasm.I32
-fromType Void = Nothing
+fromType Void    = Nothing
 
 fromFunction :: ToWasmEnv -> Int -> WasmFunction -> Wasm.Function
 fromFunction env wfIndex (WasmFunction {wfExpr, wfLocals}) =
@@ -89,7 +89,7 @@ allocatorFunctions offset mod' =
       numberedFunctions = zip [0 ..] (Wasm.functions mod')
    in case addOffset <$> numberedFunctions of
         headF : tailF -> fixAllocatorFunction offset headF : tailF
-        [] -> []
+        []            -> []
 
 fixAllocatorFunction :: Natural -> Wasm.Function -> Wasm.Function
 fixAllocatorFunction offset (Wasm.Function a b items) =
