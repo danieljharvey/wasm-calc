@@ -7,6 +7,7 @@
 module Calc.Ability.Check
   ( AbilityEnv (..),
     ModuleAbilities,
+    getAbilitiesForModule,
     abilityCheckModule,
     module Calc.Ability.Error,
     module Calc.Types.ModuleAnnotations,
@@ -22,6 +23,7 @@ import           Calc.Types.Import
 import           Calc.Types.Module
 import           Calc.Types.ModuleAnnotations
 import           Calc.Types.Test
+import           Control.Monad                (when)
 import           Control.Monad.Identity
 import           Control.Monad.Reader
 import           Control.Monad.State
@@ -76,18 +78,14 @@ checkFunctionAbilityViolations :: S.Set AbilityConstraint -> S.Set (Ability ann)
 checkFunctionAbilityViolations constraints abilities fnName
   = let checkAbility ability = case ability of
                         CallImportedFunction {} ->
-                          if S.member NoImports constraints then
-                                                                                      Left (FunctionViolatesConstraint NoImports ability fnName)
-                                                                                      else pure ()
+                          when (S.member NoImports constraints) $
+                                Left (FunctionViolatesConstraint NoImports ability fnName)
                         AllocateMemory {} ->
-                          if S.member NoAllocate constraints then
-                                                                                      Left (FunctionViolatesConstraint NoAllocate ability fnName)
-                                                                                      else pure ()
+                          when (S.member NoAllocate constraints) $
+                            Left (FunctionViolatesConstraint NoAllocate ability fnName)
                         MutateGlobal {} ->
-                          if S.member NoGlobalMutate constraints then
-                                                                                      Left (FunctionViolatesConstraint NoGlobalMutate ability fnName)
-                                                                                      else pure ()
-
+                          when (S.member NoGlobalMutate constraints)
+                            $ Left (FunctionViolatesConstraint NoGlobalMutate ability fnName)
 
     in traverse_ checkAbility abilities
 
@@ -150,11 +148,15 @@ abilityExpr ::
   m (Expr ann)
 abilityExpr (ESet ann ident value) = do
   tell (S.singleton $ MutateGlobal ann ident)
-  pure (ESet ann ident value)
+  ESet ann ident <$> abilityExpr value
 abilityExpr (ETuple ann a b) = do
   -- we'll need to account for other allocations in future
   tell (S.singleton $ AllocateMemory ann)
-  pure (ETuple ann a b)
+  ETuple ann <$> abilityExpr a <*> traverse abilityExpr b
+abilityExpr (EBox ann a) = do
+  -- we'll need to account for other allocations in future
+  tell (S.singleton $ AllocateMemory ann)
+  EBox ann <$> abilityExpr a
 abilityExpr (EApply ann fn args) = do
   isImport <- asks (S.member fn . aeImportNames)
   if isImport
@@ -163,5 +165,5 @@ abilityExpr (EApply ann fn args) = do
       -- whatever abilities this function uses, we now use
       functionAbilities <- lookupFunctionAbilities fn
       tell functionAbilities
-  pure (EApply ann fn args)
+  EApply ann fn <$> traverse abilityExpr args
 abilityExpr other = bindExpr abilityExpr other

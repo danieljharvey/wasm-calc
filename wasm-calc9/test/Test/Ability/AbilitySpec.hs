@@ -5,7 +5,6 @@ module Test.Ability.AbilitySpec (spec) where
 
 import           Calc
 import           Calc.Ability.Check
-import           Calc.Types.Ability
 import           Control.Monad      (void)
 import           Data.Foldable      (traverse_)
 import qualified Data.Map.Strict    as M
@@ -50,6 +49,12 @@ spec = do
                 ),
                 ( "test horse = { (1,2,3) }",
                   emptyModuleAbilities {maTests = M.singleton "horse" (S.singleton (AllocateMemory ()))}
+                ),
+                ( "test horse = { fn((1,2,3)) }",
+                  emptyModuleAbilities {maTests = M.singleton "horse" (S.singleton (AllocateMemory ()))}
+                ),
+                ( "test box = { Box(1) }",
+                  emptyModuleAbilities {maTests = M.singleton "box" (S.singleton (AllocateMemory ()))}
                 ),
                 ( "import console.log as consoleLog(number: Int64) -> Void",
                   emptyModuleAbilities {maFunctions = mempty}

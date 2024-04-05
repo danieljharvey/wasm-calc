@@ -82,14 +82,15 @@ exportFromTest env wfIndex wt =
 
 -- take all functions from the allocator module, and offset their function
 -- numbers so they live after the imports
-allocatorFunctions :: Natural -> Wasm.Module -> [Wasm.Function]
-allocatorFunctions offset mod' =
+allocatorFunctions :: UsesAllocator -> Natural -> Wasm.Module -> [Wasm.Function]
+allocatorFunctions UsesAllocator offset mod' =
   let addOffset (i, Wasm.Function _ a b) =
         Wasm.Function (offset + i) a b
       numberedFunctions = zip [0 ..] (Wasm.functions mod')
    in case addOffset <$> numberedFunctions of
         headF : tailF -> fixAllocatorFunction offset headF : tailF
         []            -> []
+allocatorFunctions DoesNotUseAllocator _ _ = mempty
 
 fixAllocatorFunction :: Natural -> Wasm.Function -> Wasm.Function
 fixAllocatorFunction offset (Wasm.Function a b items) =
@@ -106,12 +107,13 @@ fixAllocatorFunction offset (Wasm.Function a b items) =
    in Wasm.Function a b (fixExpr <$> items)
 
 -- | manually creating the global needed by the allocator
-allocatorGlobals :: WasmMemory -> [Wasm.Global]
-allocatorGlobals (WasmMemory nat _) =
+allocatorGlobals :: UsesAllocator -> WasmMemory -> [Wasm.Global]
+allocatorGlobals UsesAllocator (WasmMemory nat _) =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
       [Wasm.I32Const (fromIntegral $ nat + 32)]
   ]
+allocatorGlobals DoesNotUseAllocator _ = mempty
 
 -- add the global allocator position as a global
 -- we start at 32 + any manual memory space that has been set aside
@@ -154,23 +156,25 @@ memoryImportsToWasm wasmMemory =
 -- so these are
 -- alloc :: I32 -> I32
 -- drop: I32 -> void
-allocatorTypes :: [Wasm.FuncType]
-allocatorTypes =
+allocatorTypes :: UsesAllocator -> [Wasm.FuncType]
+allocatorTypes UsesAllocator =
   [ Wasm.FuncType [Wasm.I32] [Wasm.I32],
     Wasm.FuncType [Wasm.I32] []
   ]
+allocatorTypes DoesNotUseAllocator = mempty
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFunctions}) =
-  let functionImports =
+moduleToWasm wholeMod@(WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFunctions}) =
+  let usesAllocator = moduleUsesAllocator wholeMod
+      functionImports =
         functionImportsToWasm wmImports
       importOffset =
         length functionImports
       allocGlobals =
-        allocatorGlobals wmMemory
+        allocatorGlobals usesAllocator wmMemory
       allocFunctions =
-        allocatorFunctions (fromIntegral importOffset) moduleWithAllocator
+        allocatorFunctions usesAllocator (fromIntegral importOffset) moduleWithAllocator
       env =
         ToWasmEnv
           { tweImportsOffset = fromIntegral importOffset,
@@ -194,7 +198,7 @@ moduleToWasm (WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFunctions})
           <> fmap (uncurry $ exportFromTest env) (zip [testsOffset ..] wmTests)
       imports = memoryImportsToWasm wmMemory <> functionImports
    in moduleWithAllocator
-        { Wasm.types = importTypes <> allocatorTypes <> functionTypes <> testTypes,
+        { Wasm.types = importTypes <> allocatorTypes usesAllocator <> functionTypes <> testTypes,
           Wasm.functions = allocFunctions <> functions <> tests,
           Wasm.globals = allocGlobals <> globals env wmGlobals,
           Wasm.mems = memory wmMemory,

@@ -1,16 +1,19 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns   #-}
 
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Expr
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad.State
-import qualified Data.Map.Strict as M
+import           Calc.Ability.Check
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Expr
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad              (void)
+import           Control.Monad.State
+import qualified Data.Map.Strict            as M
+import qualified Data.Set                   as S
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -71,12 +74,13 @@ fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
 
 fromFunction ::
   (Show ann) =>
+  M.Map FunctionName (S.Set (Ability any)) ->
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
   M.Map Identifier FromExprGlobal ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
-fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
+fromFunction functionAbilities funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -99,6 +103,8 @@ fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fn
 
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
+  abilities <- S.map void <$> getAbilitiesForFunction functionAbilities fnFunctionName
+
   pure $
     WasmFunction
       { wfName = fnFunctionName,
@@ -106,7 +112,8 @@ fromFunction funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fn
         wfPublic = fnPublic,
         wfArgs = snd <$> args,
         wfReturnType = retType,
-        wfLocals = snd <$> fesVars fes
+        wfLocals = snd <$> fesVars fes,
+        wfAbilities = abilities
       }
 
 fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
@@ -138,16 +145,17 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
           }
       )
   let wgMutable = case glbMutability of
-        Mutable -> True
+        Mutable  -> True
         Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
 fromModule ::
-  (Show ann) =>
+  (Show ann, Ord ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule (Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
+fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
+  let moduleAbilities = getAbilitiesForModule wholeMod
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
   globalMap <- getGlobalMap mdGlobals
@@ -156,7 +164,7 @@ fromModule (Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
 
   wasmFunctions <-
     traverse
-      (fromFunction funcMap importMap globalMap)
+      (fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap)
       mdFunctions
 
   wasmImports <- traverse fromImport mdImports

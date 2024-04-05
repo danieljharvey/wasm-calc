@@ -1,9 +1,11 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
 module Calc.Wasm.ToWasm.Helpers
-  ( getOffsetList,
+  ( UsesAllocator (..),
+    moduleUsesAllocator,
+    getOffsetList,
     boxed,
     memorySize,
     memorySizeForType,
@@ -15,14 +17,25 @@ module Calc.Wasm.ToWasm.Helpers
     globalOffset,
   )
 where
+import           Calc.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad.Reader
+import           Data.Bool              (bool)
+import qualified Data.List.NonEmpty     as NE
+import           Data.Monoid
+import qualified Data.Set               as S
+import qualified Data.Text              as T
+import           GHC.Natural
 
-import Calc.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad.Reader
-import qualified Data.List.NonEmpty as NE
-import Data.Monoid
-import qualified Data.Text as T
-import GHC.Natural
+data UsesAllocator = UsesAllocator | DoesNotUseAllocator
+  deriving stock (Eq,Ord,Show)
+
+moduleUsesAllocator :: WasmModule -> UsesAllocator
+moduleUsesAllocator
+  =
+     bool DoesNotUseAllocator UsesAllocator .
+         getAny . foldMap (\wmFunction -> Any $ S.member (AllocateMemory ()) (wfAbilities wmFunction)) .
+              wmFunctions
 
 allocIndex :: (MonadReader ToWasmEnv m) => m Natural
 allocIndex = asks tweImportsOffset
@@ -43,14 +56,14 @@ testName (WasmTest {wtName}) = "_test_" <> wtName
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
-memorySize I8 = 1
-memorySize I16 = 2
-memorySize I32 = 4
-memorySize I64 = 8
-memorySize F32 = 4
-memorySize F64 = 8
+memorySize I8      = 1
+memorySize I16     = 2
+memorySize I32     = 4
+memorySize I64     = 8
+memorySize F32     = 4
+memorySize F64     = 8
 memorySize Pointer = memorySize I32
-memorySize Void = 0
+memorySize Void    = 0
 
 -- | wrap a `WasmExpr` in a single item struct
 boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
