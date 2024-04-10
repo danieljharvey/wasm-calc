@@ -13,10 +13,7 @@ where
 
 import Calc.Ability.Check
 import Calc.Dependencies
-import Calc.Linearity
-  ( linearityErrorDiagnostic,
-    validateModule,
-  )
+import qualified Calc.Linearity as Linearity
 import Calc.Parser
 import Calc.Parser.Types
 import Calc.PrettyPrint (format)
@@ -52,9 +49,9 @@ doBuild filePath = do
         printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
           >> pure (ExitFailure 1)
       Right typedMod ->
-        case validateModule typedMod of
+        case Linearity.validateModule typedMod of
           Left linearityError -> do
-            printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
+            printDiagnostic (Linearity.linearityErrorDiagnostic (T.pack input) linearityError)
               >> pure (ExitFailure 1)
           Right _ -> do
             case abilityCheckModule parsedModule of
