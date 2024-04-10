@@ -32,8 +32,8 @@ export function malloc(size: Int32) -> Int32 {
 
 export function drop(dropLocation: Int32) -> Void { 
   let droppedSize: Int32 = load(dropLocation - 8); 
-  set(allocatedCount, allocatedCount - 1); 
   store(dropLocation - 4, (0: Int32)); 
+  set(allocatedCount, allocatedCount - 1); 
   let sizeOfNextBlock: Int32 = load(dropLocation + droppedSize); 
   let nextBlockUsed: Int32 = load(dropLocation + droppedSize + 4); 
   if nextBlockUsed == 0 then
@@ -48,7 +48,7 @@ export function drop(dropLocation: Int32) -> Void {
 }
 
 export function getAllocatedTotal() -> Int32 { 
-  load(allocatedCount)
+  allocatedCount
 }
 
 test allocatingOnceReturnsZeroPlusFour = 

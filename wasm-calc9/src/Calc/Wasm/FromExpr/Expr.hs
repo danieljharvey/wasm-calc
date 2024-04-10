@@ -2,18 +2,18 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
 
 fromLet ::
   ( Show ann,
@@ -60,7 +60,7 @@ fromLet pat expr rest = do
       let restWithDrop =
             case wasmType of
               Pointer -> WSequence Void (WDrop wasmExpr) wasmRest
-              _ -> wasmRest
+              _       -> wasmRest
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $

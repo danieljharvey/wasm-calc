@@ -1,17 +1,17 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Ability.AbilitySpec (spec) where
 
-import           Calc
-import           Calc.Ability.Check
-import           Control.Monad      (void)
-import           Data.Foldable      (traverse_)
-import qualified Data.Map.Strict    as M
-import qualified Data.Set           as S
-import qualified Data.Text          as T
-import           Test.Helpers
-import           Test.Hspec
+import Calc
+import Calc.Ability.Check
+import Control.Monad (void)
+import Data.Foldable (traverse_)
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 voidModuleAbilities :: ModuleAbilities ann -> ModuleAbilities ()
 voidModuleAbilities moduleAbilities =
@@ -101,24 +101,23 @@ spec = do
                   TestViolatesConstraint {aeTestName = "horse", aeAbility = CallImportedFunction () "consoleLog"}
                 ),
                 ( joinLines
-                    [
-                      "function [noglobalmutate] mutate() -> Void { set(counter,1) }"
+                    [ "function [noglobalmutate] mutate() -> Void { set(counter,1) }"
                     ],
-                  FunctionViolatesConstraint {aeFunctionName = "mutate",
+                  FunctionViolatesConstraint
+                    { aeFunctionName = "mutate",
                       aeConstraint = NoGlobalMutate,
-                      aeAbility = MutateGlobal () "counter"}
+                      aeAbility = MutateGlobal () "counter"
+                    }
                 ),
                 ( joinLines
-                    [
-                      "function [noallocate] allocate() -> Void { (1,1,1) }"
+                    [ "function [noallocate] allocate() -> Void { (1,1,1) }"
                     ],
-                  FunctionViolatesConstraint {aeFunctionName = "allocate",
+                  FunctionViolatesConstraint
+                    { aeFunctionName = "allocate",
                       aeConstraint = NoAllocate,
-                      aeAbility = AllocateMemory () }
+                      aeAbility = AllocateMemory ()
+                    }
                 )
-
-
-
               ]
         traverse_
           ( \(str, abilityError) -> it (T.unpack str) $ do

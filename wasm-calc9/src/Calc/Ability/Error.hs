@@ -1,31 +1,33 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Ability.Error (AbilityError (..), abilityErrorDiagnostic) where
 
-import           Calc.SourceSpan
-import           Calc.Types.Ability
-import           Calc.Types.Annotation
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Data.Maybe                (catMaybes)
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import qualified Error.Diagnose            as Diag
-import qualified Prettyprinter             as PP
+import Calc.SourceSpan
+import Calc.Types.Ability
+import Calc.Types.Annotation
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Data.Maybe (catMaybes)
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Error.Diagnose as Diag
+import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
 
-data AbilityError ann =
-  FunctionViolatesConstraint
-    { aeConstraint :: AbilityConstraint,
-        aeAbility :: Ability ann, aeFunctionName :: FunctionName }
-  |  TestViolatesConstraint
-  { aeAbility  :: Ability ann,
-    aeTestName :: Identifier
-  }
+data AbilityError ann
+  = FunctionViolatesConstraint
+      { aeConstraint :: AbilityConstraint,
+        aeAbility :: Ability ann,
+        aeFunctionName :: FunctionName
+      }
+  | TestViolatesConstraint
+      { aeAbility :: Ability ann,
+        aeTestName :: Identifier
+      }
   deriving stock (Eq, Ord, Show, Functor)
 
 positionFromAnnotation ::
@@ -52,8 +54,8 @@ prettyPrint = renderWithWidth 60
 
 getAbilityAnnotation :: Ability ann -> ann
 getAbilityAnnotation (CallImportedFunction ann _) = ann
-getAbilityAnnotation (AllocateMemory ann)         = ann
-getAbilityAnnotation (MutateGlobal ann _)         = ann
+getAbilityAnnotation (AllocateMemory ann) = ann
+getAbilityAnnotation (MutateGlobal ann _) = ann
 
 abilityErrorDiagnostic ::
   T.Text ->
@@ -83,7 +85,6 @@ abilityErrorDiagnostic input e =
             )
             ( case aeAbility of
                 CallImportedFunction {} -> ["Tests are run in an interpreter and so they are not allowed to use imported functions"]
-
                 _ -> []
             )
         (FunctionViolatesConstraint {aeAbility, aeConstraint, aeFunctionName}) ->
@@ -104,6 +105,5 @@ abilityErrorDiagnostic input e =
                       )
                 ]
             )
-            [ Diag.Note $ prettyPrint $ "This is disallowed because the function has the the " <> PP.dquotes (PP.pretty aeConstraint) <> " constraint."]
-
+            [Diag.Note $ prettyPrint $ "This is disallowed because the function has the the " <> PP.dquotes (PP.pretty aeConstraint) <> " constraint."]
    in Diag.addReport diag report

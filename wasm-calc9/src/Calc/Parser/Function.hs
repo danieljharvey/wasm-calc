@@ -1,20 +1,20 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Function (functionParser, functionNameParser) where
 
-import           Calc.Parser.Expr
-import           Calc.Parser.Identifier
-import           Calc.Parser.Shared
-import           Calc.Parser.Type
-import           Calc.Parser.Types
-import           Calc.Types.Annotation
-import           Calc.Types.Function
-import           Calc.Types.Identifier
-import           Calc.Types.TypeVar
-import           Data.Functor           (($>))
-import qualified Data.Set               as S
-import           Text.Megaparsec
+import Calc.Parser.Expr
+import Calc.Parser.Identifier
+import Calc.Parser.Shared
+import Calc.Parser.Type
+import Calc.Parser.Types
+import Calc.Types.Annotation
+import Calc.Types.Function
+import Calc.Types.Identifier
+import Calc.Types.TypeVar
+import Data.Functor (($>))
+import qualified Data.Set as S
+import Text.Megaparsec
 
 argumentNameParser :: Parser ArgumentName
 argumentNameParser = do

@@ -1,19 +1,19 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
-import           Calc.Ability.Check
-import           Calc.ExprUtils
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Expr
-import           Calc.Wasm.FromExpr.Helpers
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad              (void)
-import           Control.Monad.State
-import qualified Data.Map.Strict            as M
-import qualified Data.Set                   as S
+import Calc.Ability.Check
+import Calc.ExprUtils
+import Calc.Types
+import Calc.Wasm.FromExpr.Expr
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Types
+import Control.Monad (void)
+import Control.Monad.State
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -145,7 +145,7 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
           }
       )
   let wgMutable = case glbMutability of
-        Mutable  -> True
+        Mutable -> True
         Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}

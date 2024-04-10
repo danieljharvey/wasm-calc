@@ -1,25 +1,27 @@
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Dependencies
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Test
-import Calc.Typecheck
-import Calc.Wasm
-import Calc.Wasm.FromExpr.Module
-import Calc.Wasm.Run
-import Calc.Wasm.ToWasm.Module
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Dependencies
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Test
+import           Calc.Typecheck
+import           Calc.Wasm
+import qualified Calc.Wasm.FromExpr.Module as FromExpr
+import           Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm          as ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
+import           Debug.Trace
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -32,9 +34,38 @@ compile input =
         case validateModule typedMod of
           Left e -> error (show e)
           Right _ ->
-            case fromModule typedMod of
+            case FromExpr.fromModule typedMod of
               Left e -> error (show e)
-              Right wasmMod -> moduleToWasm wasmMod
+              Right wasmMod ->
+                ToWasm.moduleToWasm (addAllocCount wasmMod)
+
+-- add a `alloccount` function that returns state of allocator
+addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
+addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
+  let testFuncIndex =
+        ToWasm.WasmFunctionRef (fromIntegral $ length wmFunctions - 1)
+      testFuncReturnType =
+        ToWasm.wfReturnType (last wmFunctions)
+      expr = case ToWasm.moduleUsesAllocator wasmMod of
+        ToWasm.UsesAllocator ->
+          ToWasm.WSequence
+            testFuncReturnType
+            (ToWasm.WApply testFuncIndex mempty)
+            ToWasm.WAllocCount
+        ToWasm.DoesNotUseAllocator ->
+          ToWasm.WPrim (ToWasm.WPInt32 0)
+
+      runAllocFunction =
+        ToWasm.WasmFunction
+          { ToWasm.wfName = "alloccount",
+            ToWasm.wfExpr = traceShowId expr,
+            ToWasm.wfPublic = True,
+            ToWasm.wfArgs = mempty,
+            ToWasm.wfReturnType = ToWasm.I32,
+            ToWasm.wfLocals = mempty,
+            ToWasm.wfAbilities = mempty
+          }
+   in wasmMod {ToWasm.wmFunctions = wmFunctions <> [runAllocFunction]}
 
 -- | test using the built-in `wasm` package interpreter
 testWithInterpreter :: (T.Text, Wasm.Value) -> Spec
@@ -42,6 +73,9 @@ testWithInterpreter (input, result) = it (show input) $ do
   let actualWasmModule = compile input
   resp <- runWasm "test" actualWasmModule
   resp `shouldBe` Just [result]
+  -- do we deallocate everything?
+  allocResp <- runWasm "alloccount" actualWasmModule
+  allocResp `shouldBe` Just [Wasm.VI32 0]
 
 -- | in fear of getting incredibly meta, run the tests from this module
 -- using the built-in `wasm` interpreter
@@ -300,10 +334,16 @@ spec = do
                     "test testShouldntCollide = True"
                   ],
                 Wasm.VI64 100
+              ),
+              ( joinLines
+                  [ "function alloc() -> Int64 { let _ = Box((1: Int32)); 22 }",
+                    asTest "if True then alloc() else alloc()"
+                  ],
+                Wasm.VI64 22
               )
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
     describe "Run tests" $ do

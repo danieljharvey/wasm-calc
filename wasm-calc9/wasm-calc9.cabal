@@ -108,12 +108,14 @@ common shared
     Calc.Utils
     Calc.Wasm
     Calc.Wasm.Allocator
+    Calc.Wasm.FromExpr
     Calc.Wasm.FromExpr.Expr
     Calc.Wasm.FromExpr.Helpers
     Calc.Wasm.FromExpr.Module
     Calc.Wasm.FromExpr.Patterns
     Calc.Wasm.FromExpr.Types
     Calc.Wasm.Run
+    Calc.Wasm.ToWasm
     Calc.Wasm.ToWasm.Expr
     Calc.Wasm.ToWasm.Helpers
     Calc.Wasm.ToWasm.Module

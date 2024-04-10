@@ -2,14 +2,14 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import           Calc
-import           Data.Foldable      (traverse_)
-import           Data.Functor
+import Calc
+import Data.Foldable (traverse_)
+import Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Set           as S
-import qualified Data.Text          as T
-import           Test.Helpers
-import           Test.Hspec
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 emptyFunction :: Function ()
 emptyFunction =
@@ -41,7 +41,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -220,7 +220,7 @@ spec = do
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
               Right parsedMod -> parsedMod $> () `shouldBe` module'
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -303,7 +303,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e         -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -317,7 +317,7 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e              -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 
@@ -377,7 +377,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e          -> error (T.unpack e)
+              Left e -> error (T.unpack e)
         )
         strings
 

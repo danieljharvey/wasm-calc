@@ -66,7 +66,11 @@ typeFromTest (WasmTest {}) =
     mempty
     [Wasm.I32]
 
-exportFromFunction :: ToWasmEnv -> Int -> WasmFunction -> Maybe Wasm.Export
+exportFromFunction ::
+  ToWasmEnv ->
+  Int ->
+  WasmFunction ->
+  Maybe Wasm.Export
 exportFromFunction env wfIndex (WasmFunction {wfName = FunctionName wfName, wfPublic = True}) =
   Just $
     Wasm.Export
@@ -82,7 +86,11 @@ exportFromTest env wfIndex wt =
 
 -- take all functions from the allocator module, and offset their function
 -- numbers so they live after the imports
-allocatorFunctions :: UsesAllocator -> Natural -> Wasm.Module -> [Wasm.Function]
+allocatorFunctions ::
+  UsesAllocator ->
+  Natural ->
+  Wasm.Module ->
+  [Wasm.Function]
 allocatorFunctions UsesAllocator offset mod' =
   let addOffset (i, Wasm.Function _ a b) =
         Wasm.Function (offset + i) a b
@@ -112,7 +120,8 @@ allocatorGlobals UsesAllocator (WasmMemory nat _) =
   [ Wasm.Global
       (Wasm.Mut Wasm.I32)
       [Wasm.I32Const (fromIntegral $ nat + 32)],
-      Wasm.Global (Wasm.Mut Wasm.I32)
+    Wasm.Global
+      (Wasm.Mut Wasm.I32)
       [Wasm.I32Const 0]
   ]
 allocatorGlobals DoesNotUseAllocator _ = mempty

@@ -136,6 +136,9 @@ exprToWasm (WDrop i) = do
   fnIndex <- dropIndex
   wasmExpr <- exprToWasm i
   pure $ wasmExpr <> [Wasm.Call fnIndex]
+exprToWasm WAllocCount = do
+  fnIndex <- allocCountIndex
+  pure $ [Wasm.Call fnIndex]
 exprToWasm (WAllocate i) = do
   fnIndex <- allocIndex
   pure

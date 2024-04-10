@@ -1,22 +1,22 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Test (testModule) where
 
-import           Calc.Dependencies
-import           Calc.Types
-import           Calc.Types.ModuleAnnotations
-import           Calc.Wasm.FromExpr.Module
-import           Calc.Wasm.Run                (runWasm)
-import           Calc.Wasm.ToWasm.Helpers
-import           Calc.Wasm.ToWasm.Module
-import           Calc.Wasm.ToWasm.Types
-import qualified Data.Map.Strict              as M
-import qualified Data.Set                     as S
-import qualified Data.Text                    as T
-import qualified Data.Text.Lazy               as TL
-import qualified Language.Wasm.Interpreter    as Wasm
+import Calc.Dependencies
+import Calc.Types
+import Calc.Types.ModuleAnnotations
+import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.Run (runWasm)
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Module
+import Calc.Wasm.ToWasm.Types
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Language.Wasm.Interpreter as Wasm
 
 -- | given module, compile it (with tests included) and run them all
 testModule :: (Ord ann, Show ann) => Module (Type ann) -> IO [(T.Text, Bool)]

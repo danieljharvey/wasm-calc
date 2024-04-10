@@ -94,15 +94,15 @@
     local.set 1
     local.get 1
     local.set 2
-    global.get 1
-    i32.const 1
-    i32.sub
-    global.set 1
     local.get 0
     i32.const 4
     i32.sub
     i32.const 0
     i32.store align=1
+    global.get 1
+    i32.const 1
+    i32.sub
+    global.set 1
     local.get 0
     local.get 2
     i32.add
@@ -144,8 +144,7 @@
     i32.sub
     global.set 0)
   (func (;2;) (type 2) (result i32)
-    global.get 1
-    i32.load align=1)
+    global.get 1)
   (memory (;0;) 1)
   (global (;0;) (mut i32) (i32.const 0))
   (global (;1;) (mut i32) (i32.const 0))

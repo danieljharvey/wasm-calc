@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Ability.Check
   ( AbilityEnv (..),
@@ -14,24 +14,24 @@ module Calc.Ability.Check
   )
 where
 
-import           Calc.Ability.Error
-import           Calc.ExprUtils
-import           Calc.Types.Ability
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Import
-import           Calc.Types.Module
-import           Calc.Types.ModuleAnnotations
-import           Calc.Types.Test
-import           Control.Monad                (when)
-import           Control.Monad.Identity
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Control.Monad.Writer
-import           Data.Foldable                (traverse_)
-import qualified Data.List                    as List
-import qualified Data.Map.Strict              as M
-import qualified Data.Set                     as S
+import Calc.Ability.Error
+import Calc.ExprUtils
+import Calc.Types.Ability
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Import
+import Calc.Types.Module
+import Calc.Types.ModuleAnnotations
+import Calc.Types.Test
+import Control.Monad (when)
+import Control.Monad.Identity
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Writer
+import Data.Foldable (traverse_)
+import qualified Data.List as List
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 
 type ModuleAbilities ann = ModuleAnnotations (S.Set (Ability ann))
 
@@ -66,8 +66,8 @@ abilityCheckModule theModule = do
 
       checkFunction (functionName, abilities) =
         let constraints = case List.find (\Function {fnFunctionName} -> fnFunctionName == functionName) (mdFunctions theModule) of
-                              Just (Function {fnAbilityConstraints}) -> fnAbilityConstraints
-                              Nothing -> mempty
+              Just (Function {fnAbilityConstraints}) -> fnAbilityConstraints
+              Nothing -> mempty
          in checkFunctionAbilityViolations constraints abilities functionName
 
   traverse_ checkTest (M.toList $ maTests moduleAbilities)
@@ -75,19 +75,18 @@ abilityCheckModule theModule = do
   pure moduleAbilities
 
 checkFunctionAbilityViolations :: S.Set AbilityConstraint -> S.Set (Ability ann) -> FunctionName -> Either (AbilityError ann) ()
-checkFunctionAbilityViolations constraints abilities fnName
-  = let checkAbility ability = case ability of
-                        CallImportedFunction {} ->
-                          when (S.member NoImports constraints) $
-                                Left (FunctionViolatesConstraint NoImports ability fnName)
-                        AllocateMemory {} ->
-                          when (S.member NoAllocate constraints) $
-                            Left (FunctionViolatesConstraint NoAllocate ability fnName)
-                        MutateGlobal {} ->
-                          when (S.member NoGlobalMutate constraints)
-                            $ Left (FunctionViolatesConstraint NoGlobalMutate ability fnName)
-
-    in traverse_ checkAbility abilities
+checkFunctionAbilityViolations constraints abilities fnName =
+  let checkAbility ability = case ability of
+        CallImportedFunction {} ->
+          when (S.member NoImports constraints) $
+            Left (FunctionViolatesConstraint NoImports ability fnName)
+        AllocateMemory {} ->
+          when (S.member NoAllocate constraints) $
+            Left (FunctionViolatesConstraint NoAllocate ability fnName)
+        MutateGlobal {} ->
+          when (S.member NoGlobalMutate constraints) $
+            Left (FunctionViolatesConstraint NoGlobalMutate ability fnName)
+   in traverse_ checkAbility abilities
 
 getAbilitiesForModule :: (Ord ann) => Module ann -> ModuleAbilities ann
 getAbilitiesForModule (Module {mdImports, mdFunctions, mdTests}) =
@@ -136,7 +135,7 @@ lookupFunctionAbilities fnName = do
   functionAbilities <- gets (M.lookup fnName . maFunctions)
   case functionAbilities of
     Just abilities -> pure abilities
-    Nothing        -> pure mempty
+    Nothing -> pure mempty
 
 abilityExpr ::
   ( MonadState (ModuleAbilities ann) m,
