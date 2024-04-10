@@ -53,7 +53,10 @@ validate (LinearState {lsVars, lsUses}) =
    in traverse_ validateFunctionItem (M.toList lsVars)
 
 -- | count uses of a given identifier
-filterCompleteUses :: [(Identifier, Linearity ann)] -> Identifier -> [Linearity ann]
+filterCompleteUses ::
+  [(Identifier, Linearity ann)] ->
+  Identifier ->
+  [Linearity ann]
 filterCompleteUses uses ident =
   foldr
     ( \(thisIdent, linearity) total -> case linearity of
@@ -98,7 +101,10 @@ addLetBinding (PVar ty ident) =
         ( \ls ->
             ls
               { lsVars =
-                  M.insert ident (initialLinearity, getOuterTypeAnnotation ty) (lsVars ls)
+                  M.insert
+                    ident
+                    (initialLinearity, getOuterTypeAnnotation ty)
+                    (lsVars ls)
               }
         )
 addLetBinding (PWildcard _) = pure ()
