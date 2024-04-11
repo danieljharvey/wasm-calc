@@ -2,15 +2,16 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad   (void)
+import           Data.Either     (isRight)
+import           Data.Foldable   (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Text       as T
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -18,6 +19,66 @@ runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
 spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
+    fdescribe "decorate" $ do
+      let strings =
+            [ ( "function tuple() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); a }",
+                ELet
+                  mempty
+                  (PVar mempty "a")
+                  ( tuple
+                      [ EAnn [] tyInt32 (int 1),
+                        EAnn [] tyInt32 (int 2)
+                      ]
+                  )
+                  (var "a")
+              ),
+              ( "function tupleNotUsed() -> Int32 { let a = ((1: Int32), (2: Int32)); 1 }",
+                ELet
+                  mempty
+                  (PVar [DropIdentifier "a"] "a")
+                  ( tuple
+                      [ EAnn [] tyInt32 (int 1),
+                        EAnn [] tyInt32 (int 2)
+                      ]
+                  )
+                  (int 1)
+              ),
+              ( "function tupleSometimesUsed() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); let b = ((2: Int32), (3: Int32)); if True then a else b}",
+                ELet
+                  mempty
+                  (PVar [] "a")
+                  ( tuple
+                      [ EAnn [] tyInt32 (int 1),
+                        EAnn [] tyInt32 (int 2)
+                      ]
+                  )
+                (ELet
+                  mempty
+                  (PVar [] "b")
+                  ( tuple
+                      [ EAnn [] tyInt32 (int 2),
+                        EAnn [] tyInt32 (int 3)
+                      ]
+                  )
+
+                  (EIf mempty (bool True) (EVar [DropIdentifier "b"] "a") (EVar [DropIdentifier "a"] "b")))
+              )
+
+
+
+            ]
+      traverse_
+        ( \(str, expr) -> it (T.unpack str) $ do
+            case parseFunctionAndFormatError str of
+              Right parsedFn -> do
+                case runTC (elaborateFunction parsedFn) of
+                  Left e -> error (show e)
+                  Right typedFn ->
+                    fst (getFunctionUses typedFn) `shouldBe` expr
+              Left e -> error (T.unpack e)
+        )
+        strings
+
     describe "getFunctionUses" $ do
       let strings =
             [ ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
@@ -53,7 +114,7 @@ spec = do
                 case runTC (elaborateFunction parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    void (getFunctionUses typedFn) `shouldBe` linearState
+                    void (snd $ getFunctionUses typedFn) `shouldBe` linearState
               Left e -> error (T.unpack e)
         )
         strings
@@ -78,6 +139,7 @@ spec = do
                 Left e -> error (T.unpack e)
           )
           success
+
       describe "expected failures" $ do
         let failures =
               [ ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
