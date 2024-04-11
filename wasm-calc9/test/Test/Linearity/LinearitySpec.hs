@@ -2,16 +2,16 @@
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import           Calc
-import           Calc.Linearity
-import           Calc.Typecheck
-import           Control.Monad   (void)
-import           Data.Either     (isRight)
-import           Data.Foldable   (traverse_)
+import Calc
+import Calc.Linearity
+import Calc.Typecheck
+import Control.Monad (void)
+import Data.Either (isRight)
+import Data.Foldable (traverse_)
 import qualified Data.Map.Strict as M
-import qualified Data.Text       as T
-import           Test.Helpers
-import           Test.Hspec
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -52,20 +52,17 @@ spec = do
                         EAnn [] tyInt32 (int 2)
                       ]
                   )
-                (ELet
-                  mempty
-                  (PVar [] "b")
-                  ( tuple
-                      [ EAnn [] tyInt32 (int 2),
-                        EAnn [] tyInt32 (int 3)
-                      ]
+                  ( ELet
+                      mempty
+                      (PVar [] "b")
+                      ( tuple
+                          [ EAnn [] tyInt32 (int 2),
+                            EAnn [] tyInt32 (int 3)
+                          ]
+                      )
+                      (EIf mempty (bool True) (EVar [DropIdentifier "b"] "a") (EVar [DropIdentifier "a"] "b"))
                   )
-
-                  (EIf mempty (bool True) (EVar [DropIdentifier "b"] "a") (EVar [DropIdentifier "a"] "b")))
               )
-
-
-
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
