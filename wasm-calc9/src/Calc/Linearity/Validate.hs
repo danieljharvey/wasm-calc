@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -10,19 +10,23 @@ module Calc.Linearity.Validate
   )
 where
 
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad.State
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.Map as M
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad.Identity
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Data.Foldable          (traverse_)
+import           Data.Functor           (($>))
+import qualified Data.Map               as M
+import qualified Data.Set               as S
 
 data Drop = DropIdentifier Identifier
   deriving stock (Eq, Ord, Show)
@@ -73,26 +77,35 @@ filterCompleteUses uses ident =
 
 getFunctionUses :: (Show ann) => Function (Type ann) -> (Expr [Drop], LinearState ann)
 getFunctionUses (Function {fnBody, fnArgs}) =
-  runState
-    (decorate fnBody)
-    ( LinearState
+  fst $ runIdentity $ runWriterT $ runStateT action initialState
+  where
+    action = decorate fnBody
+
+    initialState =
+      LinearState
         { lsVars = initialVars,
           lsUses = mempty
         }
-    )
-  where
+
     initialVars =
       foldMap
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
-recordUse :: (MonadState (LinearState ann) m) => Identifier -> ann -> m ()
-recordUse ident ann =
+recordUse ::
+  ( MonadState (LinearState ann) m,
+    MonadWriter (S.Set Identifier) m
+  ) =>
+  Identifier ->
+  ann ->
+  m ()
+recordUse ident ann = do
   modify (\ls -> ls {lsUses = (ident, Whole ann) : lsUses ls})
+  tell (S.singleton ident)
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -101,7 +114,7 @@ addLetBinding ::
 addLetBinding (PVar ty ident) = do
   let initialLinearity = case ty of
         TPrim {} -> LTPrimitive
-        _ -> LTBoxed
+        _        -> LTBoxed
   modify
     ( \ls ->
         ls
@@ -123,7 +136,7 @@ addLetBinding (PTuple _ p ps) = do
 
 decorate ::
   (Show ann) =>
-  (MonadState (LinearState ann) m) =>
+  (MonadState (LinearState ann) m, MonadWriter (S.Set Identifier) m) =>
   Expr (Type ann) ->
   m (Expr [Drop])
 decorate (EVar ann ident) = do
@@ -138,11 +151,18 @@ decorate (EPrim _ prim) =
   pure $ EPrim mempty prim
 decorate (EInfix _ op a b) =
   EInfix mempty op <$> decorate a <*> decorate b
-decorate (EIf _ predExpr thenExpr elseExpr) =
+decorate (EIf _ predExpr thenExpr elseExpr) = do
+  (decoratedThen, thenIdents) <- runWriterT (decorate thenExpr)
+  (decoratedElse, elseIdents) <- runWriterT (decorate elseExpr)
+
+  -- work out idents used in the other branch but not this one
+  let uniqueToThen = DropIdentifier <$> S.toList (S.difference thenIdents elseIdents)
+      uniqueToElse = DropIdentifier <$> S.toList (S.difference elseIdents thenIdents)
+
   EIf mempty
     <$> decorate predExpr
-    <*> decorate thenExpr
-    <*> decorate elseExpr
+    <*> pure (mapOuterExprAnnotation (const uniqueToElse) decoratedThen)
+    <*> pure (mapOuterExprAnnotation (const uniqueToThen) decoratedElse)
 decorate (EApply _ fnName args) =
   EApply mempty fnName <$> traverse decorate args
 decorate (ETuple _ a as) =
