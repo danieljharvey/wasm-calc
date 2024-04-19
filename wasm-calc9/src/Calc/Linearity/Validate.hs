@@ -20,6 +20,7 @@ import           Calc.Types.Module
 import           Calc.Types.Pattern
 import           Calc.Types.Type
 import           Calc.TypeUtils
+import           Control.Monad          (unless)
 import           Control.Monad.Identity
 import           Control.Monad.State
 import           Control.Monad.Writer
@@ -28,7 +29,7 @@ import           Data.Functor           (($>))
 import qualified Data.Map               as M
 import qualified Data.Set               as S
 
-data Drop = DropIdentifier Identifier
+newtype Drop = DropIdentifier Identifier
   deriving stock (Eq, Ord, Show)
 
 getLinearityAnnotation :: Linearity ann -> ann
@@ -101,27 +102,29 @@ recordUse ::
     MonadWriter (S.Set Identifier) m
   ) =>
   Identifier ->
-  ann ->
+  Type ann ->
   m ()
-recordUse ident ann = do
-  modify (\ls -> ls {lsUses = (ident, Whole ann) : lsUses ls})
-  tell (S.singleton ident)
+recordUse ident ty = do
+  modify (\ls -> ls {lsUses = (ident, Whole (getOuterTypeAnnotation ty)) : lsUses ls})
+  unless (isPrimitive ty) $ tell (S.singleton ident) -- we only want to track use of non-primitive types
+
+isPrimitive :: Type ann -> Bool
+isPrimitive (TPrim {}) = True
+isPrimitive _          = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
   Pattern (Type ann) ->
   m (Pattern [Drop])
 addLetBinding (PVar ty ident) = do
-  let initialLinearity = case ty of
-        TPrim {} -> LTPrimitive
-        _        -> LTBoxed
   modify
     ( \ls ->
         ls
           { lsVars =
               M.insert
                 ident
-                (initialLinearity, getOuterTypeAnnotation ty)
+                (if isPrimitive ty then LTPrimitive else LTBoxed,
+                    getOuterTypeAnnotation ty)
                 (lsVars ls)
           }
     )
@@ -139,14 +142,19 @@ decorate ::
   (MonadState (LinearState ann) m, MonadWriter (S.Set Identifier) m) =>
   Expr (Type ann) ->
   m (Expr [Drop])
-decorate (EVar ann ident) = do
-  recordUse ident (getOuterTypeAnnotation ann)
+decorate (EVar ty ident) = do
+  recordUse ident ty
   pure (EVar mempty ident)
 decorate (ELet _ pat expr rest) = do
-  ELet mempty
+  -- get all idents mentioned in `expr`
+  (decoratedExpr, exprIdents) <- runWriterT (decorate expr)
+
+  let drops = DropIdentifier <$> S.toList exprIdents
+
+  ELet drops
     <$> addLetBinding pat
-    <*> decorate expr
-    <*> decorate rest
+    <*> pure decoratedExpr
+    <*> (tell exprIdents >> decorate rest) -- keep hold of the stuff we learned
 decorate (EPrim _ prim) =
   pure $ EPrim mempty prim
 decorate (EInfix _ op a b) =

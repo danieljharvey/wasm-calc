@@ -5,11 +5,12 @@ module Test.Linearity.LinearitySpec (spec) where
 import           Calc
 import           Calc.Linearity
 import           Calc.Typecheck
-import           Control.Monad   (void)
-import           Data.Either     (isRight)
-import           Data.Foldable   (traverse_)
-import qualified Data.Map.Strict as M
-import qualified Data.Text       as T
+import           Control.Monad      (void)
+import           Data.Either        (isRight)
+import           Data.Foldable      (traverse_)
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict    as M
+import qualified Data.Text          as T
 import           Test.Helpers
 import           Test.Hspec
 
@@ -20,38 +21,26 @@ spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
     fdescribe "decorate" $ do
+      let letAEqualsTuple =
+            ELet
+              mempty
+              (PVar mempty "a")
+              ( tuple
+                  [ EAnn [] tyInt32 (int 1),
+                    EAnn [] tyInt32 (int 2)
+                  ]
+              )
+
       let strings =
             [ ( "function tuple() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); a }",
-                ELet
-                  mempty
-                  (PVar mempty "a")
-                  ( tuple
-                      [ EAnn [] tyInt32 (int 1),
-                        EAnn [] tyInt32 (int 2)
-                      ]
-                  )
+                letAEqualsTuple
                   (var "a")
               ),
-              ( "function tupleNotUsed() -> Int32 { let a = ((1: Int32), (2: Int32)); 1 }",
-                ELet
-                  mempty
-                  (PVar [DropIdentifier "a"] "a")
-                  ( tuple
-                      [ EAnn [] tyInt32 (int 1),
-                        EAnn [] tyInt32 (int 2)
-                      ]
-                  )
-                  (int 1)
-              ),
+              ( "function valueSometimesUsed() -> Int32 { let a: Int32 = 1; if True then a else 2 }",
+                ELet mempty (PVar [] "a") (EAnn [] tyInt32 (int 1)) (EIf mempty (bool True) (var "a") (int 2))),
+
               ( "function tupleSometimesUsed() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); let b = ((2: Int32), (3: Int32)); if True then a else b}",
-                ELet
-                  mempty
-                  (PVar [] "a")
-                  ( tuple
-                      [ EAnn [] tyInt32 (int 1),
-                        EAnn [] tyInt32 (int 2)
-                      ]
-                  )
+                letAEqualsTuple
                   ( ELet
                       mempty
                       (PVar [] "b")
@@ -61,6 +50,29 @@ spec = do
                           ]
                       )
                       (EIf mempty (bool True) (EVar [DropIdentifier "b"] "a") (EVar [DropIdentifier "a"] "b"))
+                  )
+              ),
+              ( "function dropAfterDestructure() -> Int32 { let a = ((1: Int32), (2: Int32)); let (b,c) = a; b + c }",
+                letAEqualsTuple
+                  ( ELet
+                      [DropIdentifier "a"]
+                      (PTuple [] (PVar [] "b") (NE.singleton (PVar [] "c")))
+                      (var "a")
+                      (EInfix mempty OpAdd (var "b") (var "c"))
+                  )
+              ),
+              ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
+                letAEqualsTuple
+                  ( ELet
+                      []
+                      (PVar [] "b")
+                      (var "a")
+                      ( ELet
+                          [DropIdentifier "b"]
+                          (PTuple [] (PVar [] "c") (NE.singleton (PVar [] "d")))
+                          (var "b")
+                          (EInfix mempty OpAdd (var "c") (var "d"))
+                      )
                   )
               )
             ]
