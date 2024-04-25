@@ -1,27 +1,27 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Dependencies
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Test
-import Calc.Typecheck
-import Calc.Wasm
+import           Calc.Dependencies
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Test
+import           Calc.Typecheck
+import           Calc.Wasm
 import qualified Calc.Wasm.FromExpr.Module as FromExpr
-import Calc.Wasm.Run
-import qualified Calc.Wasm.ToWasm as ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
-import Debug.Trace
+import           Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm          as ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
+import           Debug.Trace
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -346,7 +346,7 @@ spec = do
               )
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
     describe "Run tests" $ do

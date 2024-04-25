@@ -1,19 +1,20 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE TupleSections    #-}
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
-import Calc.Ability.Check
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Expr
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.State
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
+import           Calc.Ability.Check
+import           Calc.ExprUtils
+import           Calc.Linearity             (getFunctionUses)
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Expr
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad              (void)
+import           Control.Monad.State
+import qualified Data.Map.Strict            as M
+import qualified Data.Set                   as S
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -54,7 +55,7 @@ fromTest ::
 fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
   (expr, fes) <-
     runStateT
-      (fromExpr tesExpr)
+      (fromExpr ((,mempty) <$>tesExpr))
       ( FromExprState
           { fesVars = mempty,
             fesArgs = mempty,
@@ -80,7 +81,7 @@ fromFunction ::
   M.Map Identifier FromExprGlobal ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
-fromFunction functionAbilities funcMap importMap globalMap (Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
+fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -91,7 +92,7 @@ fromFunction functionAbilities funcMap importMap globalMap (Function {fnPublic, 
 
   (expr, fes) <-
     runStateT
-      (fromExpr fnBody)
+      (fromExpr (fst $ getFunctionUses fn))
       ( FromExprState
           { fesVars = mempty,
             fesArgs = args,
@@ -135,7 +136,7 @@ fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
 fromGlobal (Global {glbExpr, glbMutability}) = do
   (wgExpr, _) <-
     runStateT
-      (fromExpr glbExpr)
+      (fromExpr ((, mempty) <$> glbExpr))
       ( FromExprState
           { fesVars = mempty,
             fesArgs = mempty,
@@ -145,7 +146,7 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
           }
       )
   let wgMutable = case glbMutability of
-        Mutable -> True
+        Mutable  -> True
         Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}

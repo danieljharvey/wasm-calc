@@ -2,37 +2,38 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import           Calc.ExprUtils
+import           Calc.Linearity              (Drop (..))
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
 
 fromLet ::
   ( Show ann,
     MonadError FromWasmError m,
     MonadState FromExprState m
   ) =>
-  Pattern (Type ann) ->
-  Expr (Type ann) ->
-  Expr (Type ann) ->
+  Pattern (Type ann,[Drop]) ->
+  Expr (Type ann, [Drop]) ->
+  Expr (Type ann, [Drop]) ->
   m WasmExpr
 fromLet pat expr rest = do
-  let paths = patternToPaths pat id
+  let paths = patternToPaths (fst <$> pat) id
   if null paths
     then do
-      wasmTy <- liftEither $ scalarFromType (getOuterPatternAnnotation pat)
+      wasmTy <- liftEither $ scalarFromType  $ fst $ getOuterPatternAnnotation pat
       WSequence wasmTy <$> fromExpr expr <*> fromExpr rest
     else do
       -- get type of the main expr
-      wasmType <- liftEither (scalarFromType (getOuterAnnotation expr))
+      wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
       -- first we make a nameless binding of the whole value
       index <- addLocal Nothing wasmType
       -- convert expr
@@ -60,7 +61,7 @@ fromLet pat expr rest = do
       let restWithDrop =
             case wasmType of
               Pointer -> WSequence Void (WDrop wasmExpr) wasmRest
-              _ -> wasmRest
+              _       -> wasmRest
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
@@ -95,9 +96,9 @@ fromExpr ::
     MonadState FromExprState m,
     Show ann
   ) =>
-  Expr (Type ann) ->
+  Expr (Type ann,[Drop]) ->
   m WasmExpr
-fromExpr (EPrim ty prim) =
+fromExpr (EPrim (ty,_) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EBlock _ expr) =
   -- ignore block
@@ -110,9 +111,9 @@ fromExpr (ELet _ pat expr rest) =
 fromExpr (EInfix _ op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result
-  scalar <- liftEither $ scalarFromType (getOuterAnnotation a)
+  scalar <- liftEither $ scalarFromType $ fst $ getOuterAnnotation a
   WInfix scalar op <$> fromExpr a <*> fromExpr b
-fromExpr (EIf ty predE thenE elseE) = do
+fromExpr (EIf (ty,_) predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
   WIf wasmType <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
 fromExpr (EVar _ ident) = do
@@ -122,7 +123,7 @@ fromExpr (EApply _ funcName args) = do
   fIndex <- lookupFunction funcName
   WApply fIndex
     <$> traverse fromExpr args
-fromExpr (ETuple ty a as) = do
+fromExpr (ETuple (ty,_) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
   let allItems = zip [0 ..] (a : NE.toList as)
@@ -133,20 +134,20 @@ fromExpr (ETuple ty a as) = do
     <$> traverse
       ( \(i, item) ->
           (,,) (offsetList !! i)
-            <$> liftEither (scalarFromType (getOuterAnnotation item))
+            <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
             <*> fromExpr item
       )
       allItems
-fromExpr (EBox ty inner) = do
-  innerWasmType <- liftEither $ scalarFromType (getOuterAnnotation inner)
+fromExpr (EBox (ty,_) inner) = do
+  innerWasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation inner
   containerWasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing containerWasmType
   boxed index innerWasmType <$> fromExpr inner
-fromExpr (ELoad ty index) = do
+fromExpr (ELoad (ty,_) index) = do
   wasmType <- liftEither $ scalarFromType ty
   WLoad wasmType <$> fromExpr index
 fromExpr (EStore _ index expr) = do
-  wasmType <- liftEither $ scalarFromType (getOuterAnnotation expr)
+  wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
   WStore wasmType <$> fromExpr index <*> fromExpr expr
 fromExpr (ESet _ ident expr) = do
   index <- lookupGlobal ident

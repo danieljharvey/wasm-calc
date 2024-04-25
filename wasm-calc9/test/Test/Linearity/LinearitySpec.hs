@@ -83,7 +83,7 @@ spec = do
                 case runTC (elaborateFunction parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    fst (getFunctionUses typedFn) `shouldBe` expr
+                    snd <$> fst (getFunctionUses typedFn) `shouldBe` expr
               Left e -> error (T.unpack e)
         )
         strings

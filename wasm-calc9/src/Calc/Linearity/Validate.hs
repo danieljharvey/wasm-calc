@@ -1,9 +1,10 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE NamedFieldPuns     #-}
-
+{-# LANGUAGE TupleSections      #-}
 module Calc.Linearity.Validate
   ( validateFunction,
+    validateGlobal,
     validateModule,
     getFunctionUses,
     Drop (..),
@@ -15,6 +16,7 @@ import           Calc.Linearity.Error
 import           Calc.Linearity.Types
 import           Calc.Types.Expr
 import           Calc.Types.Function
+import           Calc.Types.Global
 import           Calc.Types.Identifier
 import           Calc.Types.Module
 import           Calc.Types.Pattern
@@ -24,6 +26,7 @@ import           Control.Monad          (unless)
 import           Control.Monad.Identity
 import           Control.Monad.State
 import           Control.Monad.Writer
+import           Data.Bifunctor         (second)
 import           Data.Foldable          (traverse_)
 import           Data.Functor           (($>))
 import qualified Data.Map               as M
@@ -36,10 +39,18 @@ getLinearityAnnotation :: Linearity ann -> ann
 getLinearityAnnotation (Whole ann) = ann
 
 validateModule :: (Show ann) => Module (Type ann) -> Either (LinearityError ann) ()
-validateModule (Module {mdFunctions}) =
+validateModule (Module {mdFunctions, mdGlobals}) = do
   traverse_ validateFunction mdFunctions
+  traverse_ validateGlobal mdGlobals
 
-validateFunction :: (Show ann) => Function (Type ann) -> Either (LinearityError ann) (Expr [Drop])
+validateGlobal :: (Show ann) => Global (Type ann) ->
+    Either (LinearityError ann) (Expr (Type ann, [Drop]))
+validateGlobal glob =
+  let (expr,linearState) = getGlobalUses glob
+   in validate linearState $> expr
+
+validateFunction :: (Show ann) => Function (Type ann) ->
+    Either (LinearityError ann) (Expr (Type ann, [Drop]))
 validateFunction fn =
   let (expr, linearState) = getFunctionUses fn
    in validate linearState $> expr
@@ -76,7 +87,8 @@ filterCompleteUses uses ident =
     []
     uses
 
-getFunctionUses :: (Show ann) => Function (Type ann) -> (Expr [Drop], LinearState ann)
+getFunctionUses :: (Show ann) =>
+    Function (Type ann) -> (Expr (Type ann, [Drop]), LinearState ann)
 getFunctionUses (Function {fnBody, fnArgs}) =
   fst $ runIdentity $ runWriterT $ runStateT action initialState
   where
@@ -97,6 +109,20 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         )
         fnArgs
 
+getGlobalUses :: (Show ann) =>
+    Global (Type ann) -> (Expr (Type ann, [Drop]), LinearState ann)
+getGlobalUses (Global {glbExpr }) =
+  fst $ runIdentity $ runWriterT $ runStateT action initialState
+  where
+    action = decorate glbExpr
+
+    initialState =
+      LinearState
+        { lsVars = mempty,
+          lsUses = mempty
+        }
+
+
 recordUse ::
   ( MonadState (LinearState ann) m,
     MonadWriter (S.Set Identifier) m
@@ -115,7 +141,7 @@ isPrimitive _          = False
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
   Pattern (Type ann) ->
-  m (Pattern [Drop])
+  m (Pattern (Type ann, [Drop]))
 addLetBinding (PVar ty ident) = do
   modify
     ( \ls ->
@@ -128,12 +154,12 @@ addLetBinding (PVar ty ident) = do
                 (lsVars ls)
           }
     )
-  pure $ PVar mempty ident
-addLetBinding (PWildcard _) = pure (PWildcard mempty)
-addLetBinding (PBox _ pat) =
-  PBox mempty <$> addLetBinding pat
-addLetBinding (PTuple _ p ps) = do
-  PTuple mempty
+  pure $ PVar (ty, mempty) ident
+addLetBinding (PWildcard ty) = pure (PWildcard (ty,mempty))
+addLetBinding (PBox ty pat) =
+  PBox (ty, mempty) <$> addLetBinding pat
+addLetBinding (PTuple ty p ps) = do
+  PTuple (ty, mempty)
     <$> addLetBinding p
     <*> traverse addLetBinding ps
 
@@ -141,25 +167,25 @@ decorate ::
   (Show ann) =>
   (MonadState (LinearState ann) m, MonadWriter (S.Set Identifier) m) =>
   Expr (Type ann) ->
-  m (Expr [Drop])
+  m (Expr (Type ann, [Drop]))
 decorate (EVar ty ident) = do
   recordUse ident ty
-  pure (EVar mempty ident)
-decorate (ELet _ pat expr rest) = do
+  pure (EVar (ty,mempty) ident)
+decorate (ELet ty pat expr rest) = do
   -- get all idents mentioned in `expr`
   (decoratedExpr, exprIdents) <- runWriterT (decorate expr)
 
   let drops = DropIdentifier <$> S.toList exprIdents
 
-  ELet drops
+  ELet (ty,drops)
     <$> addLetBinding pat
     <*> pure decoratedExpr
     <*> (tell exprIdents >> decorate rest) -- keep hold of the stuff we learned
-decorate (EPrim _ prim) =
-  pure $ EPrim mempty prim
-decorate (EInfix _ op a b) =
-  EInfix mempty op <$> decorate a <*> decorate b
-decorate (EIf _ predExpr thenExpr elseExpr) = do
+decorate (EPrim ty prim) =
+  pure $ EPrim (ty,mempty) prim
+decorate (EInfix ty op a b) =
+  EInfix (ty,mempty) op <$> decorate a <*> decorate b
+decorate (EIf ty predExpr thenExpr elseExpr) = do
   (decoratedThen, thenIdents) <- runWriterT (decorate thenExpr)
   (decoratedElse, elseIdents) <- runWriterT (decorate elseExpr)
 
@@ -167,23 +193,23 @@ decorate (EIf _ predExpr thenExpr elseExpr) = do
   let uniqueToThen = DropIdentifier <$> S.toList (S.difference thenIdents elseIdents)
       uniqueToElse = DropIdentifier <$> S.toList (S.difference elseIdents thenIdents)
 
-  EIf mempty
+  EIf (ty,mempty)
     <$> decorate predExpr
-    <*> pure (mapOuterExprAnnotation (const uniqueToElse) decoratedThen)
-    <*> pure (mapOuterExprAnnotation (const uniqueToThen) decoratedElse)
-decorate (EApply _ fnName args) =
-  EApply mempty fnName <$> traverse decorate args
-decorate (ETuple _ a as) =
-  ETuple mempty <$> decorate a <*> traverse decorate as
-decorate (EBox _ a) =
-  EBox mempty <$> decorate a
-decorate (EAnn _ ty a) =
-  EAnn mempty (ty $> mempty) <$> decorate a
-decorate (ELoad _ a) =
-  ELoad mempty <$> decorate a
-decorate (EStore _ a b) =
-  EStore mempty <$> decorate a <*> decorate b
-decorate (ESet _ identifier b) =
-  ESet mempty identifier <$> decorate b
-decorate (EBlock _ items) =
-  EBlock mempty <$> decorate items
+    <*> pure (mapOuterExprAnnotation (second (const uniqueToElse)) decoratedThen)
+    <*> pure (mapOuterExprAnnotation (second (const uniqueToThen)) decoratedElse)
+decorate (EApply ty fnName args) =
+  EApply (ty,mempty) fnName <$> traverse decorate args
+decorate (ETuple ty a as) =
+  ETuple (ty,mempty) <$> decorate a <*> traverse decorate as
+decorate (EBox ty a) =
+  EBox (ty,mempty) <$> decorate a
+decorate (EAnn ty tyAnn a) =
+  EAnn (ty,mempty) ((,mempty) <$> tyAnn) <$> decorate a
+decorate (ELoad ty a) =
+  ELoad (ty,mempty) <$> decorate a
+decorate (EStore ty a b) =
+  EStore (ty,mempty) <$> decorate a <*> decorate b
+decorate (ESet ty identifier b) =
+  ESet (ty,mempty) identifier <$> decorate b
+decorate (EBlock ty items) =
+  EBlock (ty, mempty) <$> decorate items

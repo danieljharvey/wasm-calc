@@ -1,18 +1,18 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts   #-}
 
 module Calc.Wasm.FromExpr.Patterns (patternToPaths, typeFromPath, fromPath) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad.Except
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad.Except
+import qualified Data.List.NonEmpty         as NE
+import qualified Data.Map.Strict            as M
+import           GHC.Natural
 
 patternToPaths ::
   Pattern (Type ann) ->
@@ -42,12 +42,12 @@ data Path ann
 -- | given a path, create AST for fetching it
 fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr
 fromPath wholeExprIndex (PathFetch _ty) =
-  pure (WVar wholeExprIndex)
+  pure (WVar mempty wholeExprIndex)
 fromPath wholeExprIndex (PathSelect ty index inner) = do
   wasmTy <- liftEither (scalarFromType ty)
   innerExpr <- fromPath wholeExprIndex inner
-  pure (WTupleAccess wasmTy innerExpr index)
+  pure (WTupleAccess mempty wasmTy innerExpr index)
 
 typeFromPath :: Path ann -> Type ann
 typeFromPath (PathSelect _ _ inner) = typeFromPath inner
-typeFromPath (PathFetch ty) = ty
+typeFromPath (PathFetch ty)         = ty
