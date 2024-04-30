@@ -11,6 +11,7 @@ module Calc.Wasm.ToWasm.Types
     WasmImport (..),
     WasmFunctionRef (..),
     WasmTest (..),
+    WasmDrop (..),
     ToWasmEnv (..),
   )
 where

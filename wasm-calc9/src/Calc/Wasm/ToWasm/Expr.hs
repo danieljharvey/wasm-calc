@@ -82,36 +82,70 @@ toWasm :: ToWasmEnv -> WasmExpr -> [Wasm.Instruction Natural]
 toWasm env wasmExpr =
   snd $ runIdentity $ runWriterT $ runReaderT (exprToWasm wasmExpr) env
 
+-- on each "iteration", output the normal wasm
+-- and then any drops
 exprToWasm :: (MonadReader ToWasmEnv m,
     MonadWriter [Wasm.Instruction Natural] m) => WasmExpr -> m ()
-exprToWasm (WPrim _ (WPInt32 i)) =
+exprToWasm wasmExpr = exprToWasmInternal wasmExpr >> dropsToWasm wasmExpr
+
+
+wasmDropToWasm :: (MonadReader ToWasmEnv m, MonadWriter [Wasm.Instruction Natural] m) => WasmDrop -> m ()
+wasmDropToWasm (WasmDrop nats) =
+  let dropIt i = do
+              fnIndex <- dropIndex
+              tell [Wasm.I32Const (fromIntegral i), Wasm.Call fnIndex]
+   in traverse_ dropIt nats
+
+-- emit wasm for whichever drops we need to do
+dropsToWasm :: (MonadReader ToWasmEnv m,
+    MonadWriter [Wasm.Instruction Natural] m) => WasmExpr -> m ()
+dropsToWasm (WPrim drops _)            = wasmDropToWasm drops
+dropsToWasm (WInfix drops _ _ _ _)     = wasmDropToWasm drops
+dropsToWasm (WLet drops _ _ _)         = wasmDropToWasm drops
+dropsToWasm (WSequence drops _ _ _)    = wasmDropToWasm drops
+dropsToWasm (WIf drops _ _ _ _)        = wasmDropToWasm drops
+dropsToWasm (WVar drops _)             = wasmDropToWasm drops
+dropsToWasm (WGlobal drops _)          = wasmDropToWasm drops
+dropsToWasm (WApply drops _ _)         = wasmDropToWasm drops
+dropsToWasm (WAllocate drops _ )       = wasmDropToWasm drops
+dropsToWasm (WDrop drops _)            = wasmDropToWasm drops
+dropsToWasm WAllocCount                = pure ()
+dropsToWasm (WSet drops _ _ _)         = wasmDropToWasm drops
+dropsToWasm (WTupleAccess drops _ _ _) = wasmDropToWasm drops
+dropsToWasm (WLoad drops _ _)          = wasmDropToWasm drops
+dropsToWasm (WStore drops _ _ _ )      = wasmDropToWasm drops
+dropsToWasm (WGlobalSet drops _ _)     = wasmDropToWasm drops
+
+exprToWasmInternal :: (MonadReader ToWasmEnv m,
+    MonadWriter [Wasm.Instruction Natural] m) => WasmExpr -> m ()
+exprToWasmInternal (WPrim _ (WPInt32 i)) =
   tell [Wasm.I32Const i]
-exprToWasm (WPrim _ (WPInt64 i)) =
+exprToWasmInternal (WPrim _ (WPInt64 i)) =
   tell [Wasm.I64Const i]
-exprToWasm (WPrim _ (WPFloat32 f)) =
+exprToWasmInternal (WPrim _ (WPFloat32 f)) =
   tell [Wasm.F32Const f]
-exprToWasm (WPrim _ (WPFloat64 f)) =
+exprToWasmInternal (WPrim _ (WPFloat64 f)) =
   tell [Wasm.F64Const f]
-exprToWasm (WPrim _ (WPBool True)) =
+exprToWasmInternal (WPrim _ (WPBool True)) =
   tell [Wasm.I32Const 1]
-exprToWasm (WPrim _ (WPBool False)) =
+exprToWasmInternal (WPrim _ (WPBool False)) =
   tell [Wasm.I32Const 0]
-exprToWasm (WLet _ index expr body) = do
+exprToWasmInternal (WLet _ index expr body) = do
   exprToWasm expr
   tell [Wasm.SetLocal index]
   exprToWasm body
-exprToWasm (WSequence _ Void first second) = do
+exprToWasmInternal (WSequence _ Void first second) = do
   exprToWasm first
   exprToWasm second
-exprToWasm (WSequence _ _ first second) = do
+exprToWasmInternal (WSequence _ _ first second) = do
   exprToWasm first
   tell [Wasm.Drop]
   exprToWasm second
-exprToWasm (WInfix _ ty op a b) = do
+exprToWasmInternal (WInfix _ ty op a b) = do
   exprToWasm a
   exprToWasm b
   tell [instructionFromOp ty op]
-exprToWasm (WIf _ tyReturn predExpr thenExpr elseExpr) = do
+exprToWasmInternal (WIf _ tyReturn predExpr thenExpr elseExpr) = do
   exprToWasm predExpr
   wasmThen <- execWriterT $ exprToWasm thenExpr
   wasmElse <- execWriterT $  exprToWasm elseExpr
@@ -121,12 +155,12 @@ exprToWasm (WIf _ tyReturn predExpr thenExpr elseExpr) = do
              wasmThen
              wasmElse
          ]
-exprToWasm (WVar _ i) =
+exprToWasmInternal (WVar _ i) =
   tell [Wasm.GetLocal i]
-exprToWasm (WGlobal _ i) = do
+exprToWasmInternal (WGlobal _ i) = do
   offset <- globalOffset
   tell [Wasm.GetGlobal (i + offset)] -- add one as malloc function uses first global
-exprToWasm (WApply _ fnIndex args) = do
+exprToWasmInternal (WApply _ fnIndex args) = do
   functionIndex <- case fnIndex of
     WasmFunctionRef i -> do
       offset <- asks functionOffset
@@ -134,21 +168,21 @@ exprToWasm (WApply _ fnIndex args) = do
     WasmImportRef i -> pure i
   traverse_ exprToWasm args
   tell [Wasm.Call functionIndex]
-exprToWasm (WDrop _ i) = do
+exprToWasmInternal (WDrop _ i) = do
   fnIndex <- dropIndex
   exprToWasm i
   tell [Wasm.Call fnIndex]
-exprToWasm WAllocCount = do
+exprToWasmInternal WAllocCount = do
   fnIndex <- allocCountIndex
   tell [Wasm.Call fnIndex]
-exprToWasm (WAllocate _ i) = do
+exprToWasmInternal (WAllocate _ i) = do
   fnIndex <- allocIndex
   tell
     [ Wasm.I32Const (fromIntegral i),
       Wasm.Call fnIndex
     ]
 -- we need to store the return value so we can refer to it in multiple places
-exprToWasm (WSet _ index container items) = do
+exprToWasmInternal (WSet _ index container items) = do
   let fromItem (offset, ty, value) = do
         tell [Wasm.GetLocal index]
         exprToWasm value
@@ -157,17 +191,17 @@ exprToWasm (WSet _ index container items) = do
   tell [Wasm.SetLocal index]
   traverse_ fromItem items
   tell [Wasm.GetLocal index]
-exprToWasm (WTupleAccess _ ty tup offset) = do
+exprToWasmInternal (WTupleAccess _ ty tup offset) = do
   exprToWasm tup
   tell [loadInstruction ty offset]
-exprToWasm (WLoad _ ty index) = do
+exprToWasmInternal (WLoad _ ty index) = do
   exprToWasm index
   tell [loadInstruction ty 0]
-exprToWasm (WStore _ ty index expr) = do
+exprToWasmInternal (WStore _ ty index expr) = do
   exprToWasm index
   exprToWasm expr
   tell [storeInstruction ty 0]
-exprToWasm (WGlobalSet _ index expr) = do
+exprToWasmInternal (WGlobalSet _ index expr) = do
   exprToWasm expr
   offset <- globalOffset
   tell [Wasm.SetGlobal (index + offset)]

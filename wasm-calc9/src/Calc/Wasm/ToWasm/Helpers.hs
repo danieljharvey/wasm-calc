@@ -72,10 +72,10 @@ memorySize Pointer = memorySize I32
 memorySize Void    = 0
 
 -- | wrap a `WasmExpr` in a single item struct
-boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
-boxed index ty wExpr =
+boxed :: WasmDrop -> Natural -> WasmType -> WasmExpr -> WasmExpr
+boxed wasmDrop index ty wExpr =
   let allocate = WAllocate mempty (memorySize ty)
-   in WSet mempty index allocate [(0, ty, wExpr)]
+   in WSet wasmDrop index allocate [(0, ty, wExpr)]
 
 getOffsetList :: Type ann -> [Natural]
 getOffsetList (TContainer _ items) =

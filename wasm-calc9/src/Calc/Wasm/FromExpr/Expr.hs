@@ -16,21 +16,25 @@ import           Control.Monad.State
 import qualified Data.List.NonEmpty          as NE
 import qualified Data.Map.Strict             as M
 
+fromDrops :: [Drop] -> WasmDrop
+fromDrops _ = error "implement me!"
+
 fromLet ::
   ( Show ann,
     MonadError FromWasmError m,
     MonadState FromExprState m
   ) =>
+  (Type ann, [Drop]) ->
   Pattern (Type ann,[Drop]) ->
   Expr (Type ann, [Drop]) ->
   Expr (Type ann, [Drop]) ->
   m WasmExpr
-fromLet pat expr rest = do
+fromLet (_,drops) pat expr rest = do
   let paths = patternToPaths (fst <$> pat) id
   if null paths
     then do
       wasmTy <- liftEither $ scalarFromType  $ fst $ getOuterPatternAnnotation pat
-      WSequence wasmTy <$> fromExpr expr <*> fromExpr rest
+      WSequence (fromDrops drops) wasmTy <$> fromExpr expr <*> fromExpr rest
     else do
       -- get type of the main expr
       wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
@@ -57,20 +61,14 @@ fromLet pat expr rest = do
       -- convert the rest
       wasmRest <- fromExpr rest
 
-      -- if we're matching on an object, drop it when we're done
-      let restWithDrop =
-            case wasmType of
-              Pointer -> WSequence Void (WDrop wasmExpr) wasmRest
-              _       -> wasmRest
-
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
-        WLet index wasmExpr $
+        WLet (fromDrops drops) index wasmExpr $
           foldr
             ( \(bindingIndex, fetchExpr) thisExpr ->
-                WLet bindingIndex fetchExpr thisExpr
+                WLet mempty bindingIndex fetchExpr thisExpr
             )
-            restWithDrop
+            wasmRest
             indexes
 
 -- | we use a combination of the value and the type
@@ -98,39 +96,39 @@ fromExpr ::
   ) =>
   Expr (Type ann,[Drop]) ->
   m WasmExpr
-fromExpr (EPrim (ty,_) prim) =
-  WPrim <$> fromPrim ty prim
+fromExpr (EPrim (ty,drops) prim) =
+  WPrim (fromDrops drops) <$> fromPrim ty prim
 fromExpr (EBlock _ expr) =
-  -- ignore block
+  -- ignore block. todo: will we lose drops here
   fromExpr expr
 fromExpr (EAnn _ _ expr) =
-  -- ignore type annotations
+  -- ignore type annotations. todo: will we lose drops here
   fromExpr expr
-fromExpr (ELet _ pat expr rest) =
-  fromLet pat expr rest
-fromExpr (EInfix _ op a b) = do
+fromExpr (ELet ann pat expr rest) =
+  fromLet ann pat expr rest
+fromExpr (EInfix (_,drops) op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result
   scalar <- liftEither $ scalarFromType $ fst $ getOuterAnnotation a
-  WInfix scalar op <$> fromExpr a <*> fromExpr b
-fromExpr (EIf (ty,_) predE thenE elseE) = do
+  WInfix (fromDrops drops) scalar op <$> fromExpr a <*> fromExpr b
+fromExpr (EIf (ty,drops) predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
-  WIf wasmType <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
-fromExpr (EVar _ ident) = do
-  (WVar <$> lookupIdent ident)
-    `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _ funcName args) = do
+  WIf (fromDrops drops) wasmType <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
+fromExpr (EVar (_,drops) ident) = do
+  (WVar (fromDrops drops) <$> lookupIdent ident)
+    `catchError` \_ -> WGlobal (fromDrops drops) <$> lookupGlobal ident
+fromExpr (EApply (_,drops) funcName args) = do
   fIndex <- lookupFunction funcName
-  WApply fIndex
+  WApply (fromDrops drops) fIndex
     <$> traverse fromExpr args
-fromExpr (ETuple (ty,_) a as) = do
+fromExpr (ETuple (ty,drops) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
   let allItems = zip [0 ..] (a : NE.toList as)
       tupleLength = memorySizeForType ty
-      allocate = WAllocate (fromIntegral tupleLength)
+      allocate = WAllocate mempty (fromIntegral tupleLength)
       offsetList = getOffsetList ty
-  WSet index allocate
+  WSet (fromDrops drops) index allocate
     <$> traverse
       ( \(i, item) ->
           (,,) (offsetList !! i)
@@ -138,17 +136,17 @@ fromExpr (ETuple (ty,_) a as) = do
             <*> fromExpr item
       )
       allItems
-fromExpr (EBox (ty,_) inner) = do
+fromExpr (EBox (ty,drops) inner) = do
   innerWasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation inner
   containerWasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing containerWasmType
-  boxed index innerWasmType <$> fromExpr inner
-fromExpr (ELoad (ty,_) index) = do
+  boxed (fromDrops drops) index innerWasmType <$> fromExpr inner
+fromExpr (ELoad (ty,drops) index) = do
   wasmType <- liftEither $ scalarFromType ty
-  WLoad wasmType <$> fromExpr index
-fromExpr (EStore _ index expr) = do
+  WLoad (fromDrops drops) wasmType <$> fromExpr index
+fromExpr (EStore (_,drops) index expr) = do
   wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
-  WStore wasmType <$> fromExpr index <*> fromExpr expr
-fromExpr (ESet _ ident expr) = do
+  WStore (fromDrops drops) wasmType <$> fromExpr index <*> fromExpr expr
+fromExpr (ESet (_,drops)  ident expr) = do
   index <- lookupGlobal ident
-  WGlobalSet index <$> fromExpr expr
+  WGlobalSet (fromDrops drops) index <$> fromExpr expr
