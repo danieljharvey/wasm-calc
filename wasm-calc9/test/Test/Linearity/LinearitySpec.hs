@@ -21,42 +21,50 @@ spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
     fdescribe "decorate" $ do
+      let dVar  = EVar Nothing
+
       let letAEqualsTuple =
             ELet
-              mempty
-              (PVar mempty "a")
-              ( tuple
-                  [ EAnn [] tyInt32 (int 1),
-                    EAnn [] tyInt32 (int 2)
-                  ]
+             Nothing
+              (PVar Nothing "a")
+              ( ETuple Nothing
+                  (EAnn Nothing (TPrim Nothing TInt32) (EPrim Nothing (PIntLit 1)))
+                  (NE.singleton $ EAnn Nothing (TPrim Nothing TInt32) (EPrim Nothing (PIntLit 2))
+                  )
               )
+      let dropIdents ids = Just $ DropIdentifiers (NE.fromList ids)
 
       let strings =
             [ ( "function tuple() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); a }",
                 letAEqualsTuple
-                  (var "a")
+                  (dVar "a")
               ),
               ( "function valueSometimesUsed() -> Int32 { let a: Int32 = 1; if True then a else 2 }",
-                ELet mempty (PVar [] "a") (EAnn [] tyInt32 (int 1)) (EIf mempty (bool True) (var "a") (int 2))),
-
+                ELet Nothing (PVar Nothing "a") (EAnn Nothing tyInt32 (int 1)) (EIf mempty (bool True) (var "a") (int 2))
+              ),
+              ( "function dropBoxAfterUse() -> Int64 { let Box(a) = Box((100: Int64)); a }",
+                ELet mempty (PBox Nothing (PVar Nothing "a"))
+                  (EBox (Just DropMe) (EAnn Nothing tyInt64 (int 100)))
+                    (var "a")
+              ),
               ( "function tupleSometimesUsed() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); let b = ((2: Int32), (3: Int32)); if True then a else b}",
                 letAEqualsTuple
                   ( ELet
                       mempty
-                      (PVar [] "b")
+                      (PVar Nothing "b")
                       ( tuple
-                          [ EAnn [] tyInt32 (int 2),
-                            EAnn [] tyInt32 (int 3)
+                          [ EAnn Nothing tyInt32 (int 2),
+                            EAnn Nothing tyInt32 (int 3)
                           ]
                       )
-                      (EIf mempty (bool True) (EVar [DropIdentifier "b"] "a") (EVar [DropIdentifier "a"] "b"))
+                      (EIf mempty (bool True) (EVar (dropIdents ["b"]) "a") (EVar (dropIdents ["a"]) "b"))
                   )
               ),
               ( "function dropAfterDestructure() -> Int32 { let a = ((1: Int32), (2: Int32)); let (b,c) = a; b + c }",
                 letAEqualsTuple
                   ( ELet
-                      [DropIdentifier "a"]
-                      (PTuple [] (PVar [] "b") (NE.singleton (PVar [] "c")))
+                      (dropIdents ["a"])
+                      (PTuple Nothing (PVar Nothing "b") (NE.singleton (PVar Nothing "c")))
                       (var "a")
                       (EInfix mempty OpAdd (var "b") (var "c"))
                   )
@@ -64,12 +72,12 @@ spec = do
               ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
                 letAEqualsTuple
                   ( ELet
-                      []
-                      (PVar [] "b")
+                      Nothing
+                      (PVar Nothing "b")
                       (var "a")
                       ( ELet
-                          [DropIdentifier "b"]
-                          (PTuple [] (PVar [] "c") (NE.singleton (PVar [] "d")))
+                          (dropIdents ["a"])
+                          (PTuple Nothing (PVar Nothing "c") (NE.singleton (PVar Nothing "d")))
                           (var "b")
                           (EInfix mempty OpAdd (var "c") (var "d"))
                       )

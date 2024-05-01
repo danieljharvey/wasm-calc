@@ -42,11 +42,11 @@ data Path ann
 -- | given a path, create AST for fetching it
 fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr
 fromPath wholeExprIndex (PathFetch _ty) =
-  pure (WVar mempty wholeExprIndex)
+  pure (WVar wholeExprIndex)
 fromPath wholeExprIndex (PathSelect ty index inner) = do
   wasmTy <- liftEither (scalarFromType ty)
   innerExpr <- fromPath wholeExprIndex inner
-  pure (WTupleAccess mempty wasmTy innerExpr index)
+  pure (WTupleAccess wasmTy innerExpr index)
 
 typeFromPath :: Path ann -> Type ann
 typeFromPath (PathSelect _ _ inner) = typeFromPath inner

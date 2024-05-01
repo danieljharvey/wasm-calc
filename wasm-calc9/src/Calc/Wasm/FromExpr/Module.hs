@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns   #-}
 {-# LANGUAGE TupleSections    #-}
+
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
 import           Calc.Ability.Check
@@ -55,7 +56,7 @@ fromTest ::
 fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
   (expr, fes) <-
     runStateT
-      (fromExpr ((,mempty) <$>tesExpr))
+      (fromExpr ((,Nothing) <$> tesExpr))
       ( FromExprState
           { fesVars = mempty,
             fesArgs = mempty,
@@ -136,7 +137,7 @@ fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
 fromGlobal (Global {glbExpr, glbMutability}) = do
   (wgExpr, _) <-
     runStateT
-      (fromExpr ((, mempty) <$> glbExpr))
+      (fromExpr ((,Nothing) <$> glbExpr))
       ( FromExprState
           { fesVars = mempty,
             fesArgs = mempty,

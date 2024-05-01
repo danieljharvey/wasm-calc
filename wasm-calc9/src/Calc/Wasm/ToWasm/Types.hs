@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module Calc.Wasm.ToWasm.Types
   ( WasmType (..),
     WasmPrim (..),
@@ -11,7 +12,6 @@ module Calc.Wasm.ToWasm.Types
     WasmImport (..),
     WasmFunctionRef (..),
     WasmTest (..),
-    WasmDrop (..),
     ToWasmEnv (..),
   )
 where
@@ -105,25 +105,21 @@ data WasmFunctionRef
   | WasmImportRef Natural
   deriving stock (Eq, Ord, Show)
 
--- drop after instruction
-newtype WasmDrop = WasmDrop [Natural]
-  deriving newtype (Eq,Ord,Show, Semigroup,Monoid)
-
 data WasmExpr
-  = WPrim WasmDrop WasmPrim
-  | WInfix WasmDrop WasmType Op WasmExpr WasmExpr
-  | WLet WasmDrop Natural WasmExpr WasmExpr
-  | WSequence WasmDrop WasmType WasmExpr WasmExpr -- first type, do first, return second
-  | WIf WasmDrop WasmType WasmExpr WasmExpr WasmExpr -- return type, pred, then, else
-  | WVar WasmDrop Natural
-  | WGlobal WasmDrop Natural
-  | WApply WasmDrop WasmFunctionRef [WasmExpr]
-  | WAllocate WasmDrop Natural -- size of allocation
-  | WDrop WasmDrop WasmExpr -- address to drop
+  = WPrim WasmPrim
+  | WInfix WasmType Op WasmExpr WasmExpr
+  | WLet Natural WasmExpr WasmExpr
+  | WSequence WasmType WasmExpr WasmExpr -- first type, do first, return second
+  | WIf WasmType WasmExpr WasmExpr WasmExpr -- return type, pred, then, else
+  | WVar Natural
+  | WGlobal Natural
+  | WApply WasmFunctionRef [WasmExpr]
+  | WAllocate Natural -- size of allocation
+  | WDrop WasmExpr -- address to drop
   | WAllocCount -- get number of allocations
-  | WSet WasmDrop Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
-  | WTupleAccess WasmDrop WasmType WasmExpr Natural
-  | WLoad WasmDrop WasmType WasmExpr -- unsafe load from linear memory, index
-  | WStore WasmDrop WasmType WasmExpr WasmExpr -- unsafe store from linear memory, index, item
-  | WGlobalSet WasmDrop Natural WasmExpr -- set global value
+  | WSet Natural WasmExpr [(Natural, WasmType, WasmExpr)] -- `(1,2)` is WSet 3 (WAllocate 16) [(0, Int32, 1),(1, Int32, 2)]
+  | WTupleAccess WasmType WasmExpr Natural
+  | WLoad WasmType WasmExpr -- unsafe load from linear memory, index
+  | WStore WasmType WasmExpr WasmExpr -- unsafe store from linear memory, index, item
+  | WGlobalSet Natural WasmExpr -- set global value
   deriving stock (Eq, Ord, Show)

@@ -49,12 +49,11 @@ addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
       expr = case ToWasm.moduleUsesAllocator wasmMod of
         ToWasm.UsesAllocator ->
           ToWasm.WSequence
-            mempty
             testFuncReturnType
-            (ToWasm.WApply mempty testFuncIndex mempty)
+            (ToWasm.WApply testFuncIndex mempty)
             ToWasm.WAllocCount
         ToWasm.DoesNotUseAllocator ->
-          ToWasm.WPrim mempty (ToWasm.WPInt32 0)
+          ToWasm.WPrim (ToWasm.WPInt32 0)
 
       runAllocFunction =
         ToWasm.WasmFunction
