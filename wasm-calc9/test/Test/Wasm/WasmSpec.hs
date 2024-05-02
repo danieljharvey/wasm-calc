@@ -16,7 +16,6 @@ import           Control.Monad.IO.Class
 import           Data.Foldable             (traverse_)
 import           Data.Hashable             (hash)
 import qualified Data.Text                 as T
-import           Debug.Trace
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure   as Wasm
 import           Test.Helpers
@@ -58,7 +57,7 @@ addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
       runAllocFunction =
         ToWasm.WasmFunction
           { ToWasm.wfName = "alloccount",
-            ToWasm.wfExpr = traceShowId expr,
+            ToWasm.wfExpr = expr,
             ToWasm.wfPublic = True,
             ToWasm.wfArgs = mempty,
             ToWasm.wfReturnType = ToWasm.I32,
@@ -273,7 +272,7 @@ spec = do
               ),
               ( asTest "let Box(a) = Box((42 : Int64)); a",
                 Wasm.VI64 42
-              ),
+              ) ,
               ( asTest "let Box(a) = Box((1.23: Float32)); let _ = a; (23 : Int64)",
                 Wasm.VI64 23
               ),

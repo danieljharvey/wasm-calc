@@ -1,24 +1,24 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either         (isLeft)
+import           Data.Foldable       (traverse_)
+import qualified Data.List           as List
+import qualified Data.List.NonEmpty  as NE
+import           Data.Text           (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -261,7 +261,9 @@ spec = do
               ("let a: Int64 = 100; a", "Int64"),
               ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
               ("True && True", "Boolean"),
-              ("False || True", "Boolean")
+              ("False || True", "Boolean"),
+             ("let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3", "Int64"),
+              ("let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner", "Int64")
             ]
 
       describe "Successfully typechecking expressions" $ do

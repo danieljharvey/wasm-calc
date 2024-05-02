@@ -25,7 +25,7 @@ fromLet ::
   Expr (Type ann, Maybe Drops) ->
   Expr (Type ann, Maybe Drops) ->
   m WasmExpr
-fromLet _  pat expr rest = do
+fromLet (_,drops)  pat expr rest = do
   let paths = patternToPaths (fst <$> pat) id
   if null paths
     then do
@@ -57,6 +57,21 @@ fromLet _  pat expr rest = do
       -- convert the rest
       wasmRest <- fromExpr rest
 
+      -- drop stuff we will no longer need
+      wasmRestWithDrops <- case drops of
+          Just (DropIdentifiers idents) -> do
+            nats <- traverse lookupIdent idents
+            pure $ foldr (\dropVal thisExpr ->
+                    WSequence Void (WDrop (WVar dropVal)) thisExpr)
+                    wasmRest nats
+          Just DropMe -> pure wasmRest -- TODO: what does this mean? anything?
+          Nothing -> pure wasmRest
+
+      -- take care of stuff we've pattern matched into oblivion
+      let wasmRestWithManyDrops = case getOuterAnnotation expr of
+                                  (_, Just DropMe) -> WSequence Void (WDrop (WVar index)) wasmRestWithDrops
+                                  _                -> wasmRestWithDrops
+
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
         WLet index wasmExpr $
@@ -64,7 +79,7 @@ fromLet _  pat expr rest = do
             ( \(bindingIndex, fetchExpr) thisExpr ->
                 WLet bindingIndex fetchExpr thisExpr
             )
-            wasmRest
+            wasmRestWithManyDrops
             indexes
 
 -- | we use a combination of the value and the type

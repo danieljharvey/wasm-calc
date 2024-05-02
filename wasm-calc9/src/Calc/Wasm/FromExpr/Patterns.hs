@@ -22,17 +22,19 @@ patternToPaths (PWildcard _) _ = mempty
 patternToPaths (PVar ty ident) addPath =
   M.singleton ident (addPath (PathFetch ty))
 patternToPaths (PBox _ pat) addPath =
-  patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) 0 . addPath)
+   patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) 0 . addPath)
 patternToPaths (PTuple ty p ps) addPath =
   let offsetList = getOffsetList ty
    in patternToPaths p (PathSelect (getOuterPatternAnnotation p) (head offsetList) . addPath)
         <> mconcat
           ( ( \(index, pat) ->
-                patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) (offsetList !! index) . addPath)
+              let innerTy = getOuterPatternAnnotation pat
+               in patternToPaths pat (PathSelect innerTy (offsetList !! index) . addPath)
             )
               <$> zip [1 ..] (NE.toList ps)
           )
 
+-- | for a variable, describe how to get it
 data Path ann
   = -- | we're going in deeper
     PathSelect (Type ann) Natural (Path ann)
@@ -49,5 +51,5 @@ fromPath wholeExprIndex (PathSelect ty index inner) = do
   pure (WTupleAccess wasmTy innerExpr index)
 
 typeFromPath :: Path ann -> Type ann
-typeFromPath (PathSelect _ _ inner) = typeFromPath inner
-typeFromPath (PathFetch ty)         = ty
+typeFromPath (PathSelect _  _ inner) = typeFromPath inner
+typeFromPath (PathFetch ty)          = ty

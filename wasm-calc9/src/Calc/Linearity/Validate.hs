@@ -174,6 +174,13 @@ addLetBinding (PTuple ty p ps) = do
     <$> addLetBinding p
     <*> traverse addLetBinding ps
 
+-- given an expr, throw everything inside in the bin
+-- the Real Fix is to match the pattern, and only discard "used" things that
+-- have been matched
+dropThemAll :: Expr (Type ann, Maybe Drops) -> Expr (Type ann, Maybe Drops)
+dropThemAll (EBox (ty,_) item) = EBox (ty,Just DropMe) (dropThemAll item)
+dropThemAll other              = mapExpr dropThemAll other
+
 decorate ::
   (Show ann) =>
   (MonadState (LinearState ann) m, MonadWriter (S.Set Identifier) m) =>
@@ -190,7 +197,7 @@ decorate (ELet ty pat expr rest) = do
 
   ELet (ty, drops)
     <$> addLetBinding pat
-    <*> pure decoratedExpr
+    <*> pure (dropThemAll decoratedExpr)
     <*> (tell exprIdents >> decorate rest) -- keep hold of the stuff we learned
 decorate (EPrim ty prim) =
   pure $ EPrim (ty, Nothing) prim
