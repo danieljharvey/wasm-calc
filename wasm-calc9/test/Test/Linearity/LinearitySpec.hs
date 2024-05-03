@@ -61,7 +61,6 @@ spec = do
                     (ELet (dropIdents ["outer"]) (PBox Nothing (PVar Nothing "inner"))
                         (dVar "outer") (dVar "inner"))
               ),
-
               ( "function tupleSometimesUsed() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); let b = ((2: Int32), (3: Int32)); if True then a else b}",
                 letAEqualsTuple
                   ( ELet

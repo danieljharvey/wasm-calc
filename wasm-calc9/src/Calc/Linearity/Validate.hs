@@ -23,6 +23,7 @@ import           Calc.Types.Module
 import           Calc.Types.Pattern
 import           Calc.Types.Type
 import           Calc.TypeUtils
+import           Calc.Utils
 import           Control.Monad          (unless)
 import           Control.Monad.Identity
 import           Control.Monad.State
@@ -175,16 +176,30 @@ addLetBinding (PTuple ty p ps) = do
     <*> traverse addLetBinding ps
 
 -- given an expr, throw everything inside in the bin
--- currently does way too much
--- the Real Fix is to match the pattern, and only discard "used" things that
--- have been matched
-dropThemAll :: Expr (Type ann, Maybe Drops) -> Expr (Type ann, Maybe Drops)
-dropThemAll (EBox (ty,_) item) =
-  EBox (ty,Just DropMe) (dropThemAll item)
-dropThemAll (ETuple (ty,_) a as) =
-  ETuple (ty, Just DropMe) (dropThemAll a) (dropThemAll <$> as)
-dropThemAll other
-  = mapExpr dropThemAll other
+dropThemAll :: Pattern (Type ann) ->
+    Expr (Type ann, Maybe Drops) ->
+      Expr (Type ann, Maybe Drops)
+dropThemAll (PBox _ pItem) (EBox (ty,_) item) =
+  EBox (ty,Just DropMe) (dropThemAll pItem item)
+dropThemAll (PTuple _ pA pAs) (ETuple (ty,_) a as) =
+  ETuple (ty, Just DropMe) (dropThemAll pA a) (neZipWith dropThemAll pAs as)
+dropThemAll (PWildcard _) expr
+  =  reallyDropThemAll expr
+dropThemAll pat other
+  = mapExpr (dropThemAll pat) other
+
+-- | this should be replace with a type-generated drop function
+-- that we could also pass into polymorphic functions
+reallyDropThemAll ::
+    Expr (Type ann, Maybe Drops) ->
+      Expr (Type ann, Maybe Drops)
+reallyDropThemAll (EBox (ty,_) item) =
+  EBox (ty,Just DropMe) (reallyDropThemAll item)
+reallyDropThemAll (ETuple (ty,_) a as) =
+  ETuple (ty, Just DropMe) (reallyDropThemAll a) (reallyDropThemAll <$> as)
+reallyDropThemAll e@(EApply {}) = e
+reallyDropThemAll other = mapExpr reallyDropThemAll other
+
 
 decorate ::
   (Show ann) =>
@@ -202,7 +217,7 @@ decorate (ELet ty pat expr rest) = do
 
   ELet (ty, drops)
     <$> addLetBinding pat
-    <*> pure (dropThemAll decoratedExpr)
+    <*> pure (dropThemAll pat decoratedExpr)
     <*> (tell exprIdents >> decorate rest) -- keep hold of the stuff we learned
 decorate (EPrim ty prim) =
   pure $ EPrim (ty, Nothing) prim
