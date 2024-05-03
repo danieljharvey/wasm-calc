@@ -38,6 +38,7 @@ fromLet (_,drops)  pat expr rest = do
       index <- addLocal Nothing wasmType
       -- convert expr
       wasmExpr <- fromExpr expr
+
       -- turn patterns into indexes and expressions
       indexes <-
         traverse
@@ -57,20 +58,22 @@ fromLet (_,drops)  pat expr rest = do
       -- convert the rest
       wasmRest <- fromExpr rest
 
-      -- drop stuff we will no longer need
+      -- drop identifiers we will no longer need
       wasmRestWithDrops <- case drops of
           Just (DropIdentifiers idents) -> do
             nats <- traverse lookupIdent idents
-            pure $ foldr (\dropVal thisExpr ->
-                    WSequence Void (WDrop (WVar dropVal)) thisExpr)
+            pure $ foldr (
+                    WSequence Void . WDrop . WVar )
                     wasmRest nats
           Just DropMe -> pure wasmRest -- TODO: what does this mean? anything?
           Nothing -> pure wasmRest
 
+      -- drop items in the match expr we will no longer need
+      dropPaths <-
+          traverse (fmap WDrop <$> fromPath index) (exprToPaths expr id)
+
       -- take care of stuff we've pattern matched into oblivion
-      let wasmRestWithManyDrops = case getOuterAnnotation expr of
-                                  (_, Just DropMe) -> WSequence Void (WDrop (WVar index)) wasmRestWithDrops
-                                  _                -> wasmRestWithDrops
+      let wasmRestWithManyDrops =  foldr (WSequence Void  ) wasmRestWithDrops dropPaths
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
@@ -81,6 +84,7 @@ fromLet (_,drops)  pat expr rest = do
             )
             wasmRestWithManyDrops
             indexes
+
 
 -- | we use a combination of the value and the type
 fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim

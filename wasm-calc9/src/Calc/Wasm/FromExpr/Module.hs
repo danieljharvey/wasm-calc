@@ -104,8 +104,6 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
           }
       )
 
-  traceShowM expr
-
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
   abilities <- S.map void <$> getAbilitiesForFunction functionAbilities fnFunctionName

@@ -175,11 +175,16 @@ addLetBinding (PTuple ty p ps) = do
     <*> traverse addLetBinding ps
 
 -- given an expr, throw everything inside in the bin
+-- currently does way too much
 -- the Real Fix is to match the pattern, and only discard "used" things that
 -- have been matched
 dropThemAll :: Expr (Type ann, Maybe Drops) -> Expr (Type ann, Maybe Drops)
-dropThemAll (EBox (ty,_) item) = EBox (ty,Just DropMe) (dropThemAll item)
-dropThemAll other              = mapExpr dropThemAll other
+dropThemAll (EBox (ty,_) item) =
+  EBox (ty,Just DropMe) (dropThemAll item)
+dropThemAll (ETuple (ty,_) a as) =
+  ETuple (ty, Just DropMe) (dropThemAll a) (dropThemAll <$> as)
+dropThemAll other
+  = mapExpr dropThemAll other
 
 decorate ::
   (Show ann) =>
