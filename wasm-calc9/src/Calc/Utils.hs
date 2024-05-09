@@ -2,11 +2,11 @@ module Calc.Utils (prettyShow, ltrace, neZipWith, neZipWithM, neUnzip) where
 
 -- useful junk goes here
 
-import           Control.Monad      (zipWithM)
-import           Data.Bifunctor
+import Control.Monad (zipWithM)
+import Data.Bifunctor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text.Lazy     as TL
-import qualified Debug.Trace        as Debug
+import qualified Data.Text.Lazy as TL
+import qualified Debug.Trace as Debug
 import qualified Text.Pretty.Simple as PS
 
 neZipWithM ::
@@ -25,7 +25,6 @@ neZipWith ::
   NE.NonEmpty c
 neZipWith f as bs =
   NE.fromList $ zipWith f (NE.toList as) (NE.toList bs)
-
 
 neUnzip :: NE.NonEmpty (a, b) -> (NE.NonEmpty a, NE.NonEmpty b)
 neUnzip = bimap NE.fromList NE.fromList . unzip . NE.toList

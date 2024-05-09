@@ -1,19 +1,20 @@
 {-# LANGUAGE FlexibleContexts #-}
+
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import           Calc.ExprUtils
-import           Calc.Linearity              (Drops (..))
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Helpers
-import           Calc.Wasm.FromExpr.Patterns
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Helpers
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad               (void)
-import           Control.Monad.Except
-import           Control.Monad.State
-import qualified Data.List.NonEmpty          as NE
-import qualified Data.Map.Strict             as M
+import Calc.ExprUtils
+import Calc.Linearity (Drops (..))
+import Calc.Types
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Patterns
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Types
+import Control.Monad (void)
+import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
 
 fromLet ::
   ( Show ann,
@@ -25,7 +26,7 @@ fromLet ::
   Expr (Type ann, Maybe Drops) ->
   Expr (Type ann, Maybe Drops) ->
   m WasmExpr
-fromLet (_,drops)  pat expr rest = do
+fromLet (_, drops) pat expr rest = do
   let paths = patternToPaths (fst <$> pat) id
   if null paths
     then do
@@ -60,20 +61,23 @@ fromLet (_,drops)  pat expr rest = do
 
       -- drop identifiers we will no longer need
       wasmRestWithDrops <- case drops of
-          Just (DropIdentifiers idents) -> do
-            nats <- traverse lookupIdent idents
-            pure $ foldr (
-                    WSequence Void . WDrop . WVar )
-                    wasmRest nats
-          Just DropMe -> pure wasmRest -- TODO: what does this mean? anything?
-          Nothing -> pure wasmRest
+        Just (DropIdentifiers idents) -> do
+          nats <- traverse lookupIdent idents
+          pure $
+            foldr
+              ( WSequence Void . WDrop . WVar
+              )
+              wasmRest
+              nats
+        Just DropMe -> pure wasmRest -- TODO: what does this mean? anything?
+        Nothing -> pure wasmRest
 
       -- drop items in the match expr we will no longer need
       dropPaths <-
-          traverse (fmap WDrop <$> fromPath index) (exprToPaths expr id)
+        traverse (fmap WDrop <$> fromPath index) (exprToPaths expr id)
 
       -- take care of stuff we've pattern matched into oblivion
-      let wasmRestWithManyDrops =  foldr (WSequence Void  ) wasmRestWithDrops dropPaths
+      let wasmRestWithManyDrops = foldr (WSequence Void) wasmRestWithDrops dropPaths
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
@@ -84,7 +88,6 @@ fromLet (_,drops)  pat expr rest = do
             )
             wasmRestWithManyDrops
             indexes
-
 
 -- | we use a combination of the value and the type
 fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim
@@ -129,10 +132,10 @@ fromExpr (EInfix _ op a b) = do
 fromExpr (EIf (ty, _) predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
   WIf wasmType <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
-fromExpr (EVar _  ident) = do
+fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _  funcName args) = do
+fromExpr (EApply _ funcName args) = do
   fIndex <- lookupFunction funcName
   WApply fIndex
     <$> traverse fromExpr args
@@ -159,9 +162,9 @@ fromExpr (EBox (ty, _) inner) = do
 fromExpr (ELoad (ty, _) index) = do
   wasmType <- liftEither $ scalarFromType ty
   WLoad wasmType <$> fromExpr index
-fromExpr (EStore _  index expr) = do
+fromExpr (EStore _ index expr) = do
   wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
   WStore wasmType <$> fromExpr index <*> fromExpr expr
-fromExpr (ESet _  ident expr) = do
+fromExpr (ESet _ ident expr) = do
   index <- lookupGlobal ident
   WGlobalSet index <$> fromExpr expr

@@ -1,22 +1,22 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns   #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TupleSections #-}
 
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
-import           Calc.Ability.Check
-import           Calc.ExprUtils
-import           Calc.Linearity             (getFunctionUses)
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Expr
-import           Calc.Wasm.FromExpr.Helpers
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad              (void)
-import           Control.Monad.State
-import qualified Data.Map.Strict            as M
-import qualified Data.Set                   as S
-import           Debug.Trace
+import Calc.Ability.Check
+import Calc.ExprUtils
+import Calc.Linearity (getFunctionUses)
+import Calc.Types
+import Calc.Wasm.FromExpr.Expr
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Types
+import Control.Monad (void)
+import Control.Monad.State
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import Debug.Trace
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -106,7 +106,6 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
 
   traceShowM expr
 
-
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
   abilities <- S.map void <$> getAbilitiesForFunction functionAbilities fnFunctionName
@@ -151,7 +150,7 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
           }
       )
   let wgMutable = case glbMutability of
-        Mutable  -> True
+        Mutable -> True
         Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}

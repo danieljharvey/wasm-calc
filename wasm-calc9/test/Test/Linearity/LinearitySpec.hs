@@ -1,17 +1,18 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module Test.Linearity.LinearitySpec (spec) where
 
-import           Calc
-import           Calc.Linearity
-import           Calc.Typecheck
-import           Control.Monad      (void)
-import           Data.Either        (isRight)
-import           Data.Foldable      (traverse_)
+import Calc
+import Calc.Linearity
+import Calc.Typecheck
+import Control.Monad (void)
+import Data.Either (isRight)
+import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict    as M
-import qualified Data.Text          as T
-import           Test.Hspec
+import qualified Data.Map.Strict as M
+import qualified Data.Text as T
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -20,7 +21,7 @@ spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
     describe "decorate" $ do
-      let dVar  = EVar Nothing
+      let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
           dTyInt64 = TPrim Nothing TInt64
@@ -29,15 +30,14 @@ spec = do
             (a : b : rest) -> ETuple Nothing a (b NE.:| rest)
             _ -> error "not enough items for tuple"
 
-
       let letAEqualsTuple =
             ELet
-             Nothing
+              Nothing
               (PVar Nothing "a")
-              ( ETuple Nothing
+              ( ETuple
+                  Nothing
                   (EAnn Nothing dTyInt32 (dInt 1))
                   (NE.singleton $ EAnn Nothing dTyInt32 (dInt 2))
-
               )
       let dropIdents ids = Just $ DropIdentifiers (NE.fromList ids)
 
@@ -47,19 +47,30 @@ spec = do
                   (dVar "a")
               ),
               ( "function valueSometimesUsed() -> Int32 { let a: Int32 = 1; if True then a else 2 }",
-                ELet Nothing (PVar Nothing "a")
-                  (EAnn Nothing dTyInt32 (dInt 1)) (EIf Nothing (dBool True) (dVar "a") (dInt 2))
+                ELet
+                  Nothing
+                  (PVar Nothing "a")
+                  (EAnn Nothing dTyInt32 (dInt 1))
+                  (EIf Nothing (dBool True) (dVar "a") (dInt 2))
               ),
               ( "function dropBoxAfterUse() -> Int64 { let Box(a) = Box((100: Int64)); a }",
-                ELet Nothing (PBox Nothing (PVar Nothing "a"))
+                ELet
+                  Nothing
+                  (PBox Nothing (PVar Nothing "a"))
                   (EBox (Just DropMe) (EAnn Nothing dTyInt64 (dInt 100)))
-                    (dVar "a")
+                  (dVar "a")
               ),
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
-                ELet Nothing (PBox Nothing (PVar Nothing "outer"))
+                ELet
+                  Nothing
+                  (PBox Nothing (PVar Nothing "outer"))
                   (EBox (Just DropMe) (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100))))
-                    (ELet (dropIdents ["outer"]) (PBox Nothing (PVar Nothing "inner"))
-                        (dVar "outer") (dVar "inner"))
+                  ( ELet
+                      (dropIdents ["outer"])
+                      (PBox Nothing (PVar Nothing "inner"))
+                      (dVar "outer")
+                      (dVar "inner")
+                  )
               ),
               ( "function tupleSometimesUsed() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); let b = ((2: Int32), (3: Int32)); if True then a else b}",
                 letAEqualsTuple
@@ -71,8 +82,12 @@ spec = do
                             EAnn Nothing dTyInt32 (dInt 3)
                           ]
                       )
-                      (EIf Nothing (dBool True)
-                          (EVar (dropIdents ["b"]) "a") (EVar (dropIdents ["a"]) "b"))
+                      ( EIf
+                          Nothing
+                          (dBool True)
+                          (EVar (dropIdents ["b"]) "a")
+                          (EVar (dropIdents ["a"]) "b")
+                      )
                   )
               ),
               ( "function dropAfterDestructure() -> Int32 { let a = ((1: Int32), (2: Int32)); let (b,c) = a; b + c }",
