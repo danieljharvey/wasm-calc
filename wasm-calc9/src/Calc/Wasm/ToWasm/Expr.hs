@@ -136,6 +136,9 @@ exprToWasm (WApply fnIndex args) = do
       offset <- asks functionOffset
       pure $ offset + i
     WasmImportRef i -> pure i
+    WasmGeneratedRef i -> do
+      offset <- asks generatedFunctionOffset
+      pure $ offset + i
   traverse_ exprToWasm args
   tell [Wasm.Call functionIndex]
 exprToWasm (WDrop i) = do

@@ -63,7 +63,8 @@ fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
             fesArgs = mempty,
             fesGlobals = globalMap,
             fesImports = mempty,
-            fesFunctions = funcMap
+            fesFunctions = funcMap,
+            fesGenerated = mempty
           }
       )
 
@@ -100,7 +101,8 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
             fesArgs = args,
             fesGlobals = globalMap,
             fesImports = importMap,
-            fesFunctions = funcMap
+            fesFunctions = funcMap,
+            fesGenerated = mempty
           }
       )
 
@@ -146,7 +148,8 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
             fesArgs = mempty,
             fesGlobals = mempty,
             fesImports = mempty,
-            fesFunctions = mempty
+            fesFunctions = mempty,
+            fesGenerated = mempty
           }
       )
   let wgMutable = case glbMutability of

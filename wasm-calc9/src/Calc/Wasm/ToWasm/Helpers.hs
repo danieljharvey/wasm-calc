@@ -17,6 +17,7 @@ module Calc.Wasm.ToWasm.Helpers
     dropIndex,
     functionOffset,
     globalOffset,
+    generatedFunctionOffset,
   )
 where
 
@@ -52,6 +53,13 @@ allocCountIndex = (+ 2) <$> asks tweImportsOffset
 functionOffset :: ToWasmEnv -> Natural
 functionOffset
   twe = tweImportsOffset twe + tweFunctionsOffset twe
+
+generatedFunctionOffset :: ToWasmEnv -> Natural
+generatedFunctionOffset
+  twe =
+    tweImportsOffset twe
+      + tweFunctionsOffset twe
+      + tweGeneratedFunctionOffset twe
 
 globalOffset :: (MonadReader ToWasmEnv m) => m Natural
 globalOffset = asks tweGlobalOffset

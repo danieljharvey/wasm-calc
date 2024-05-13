@@ -191,7 +191,8 @@ moduleToWasm wholeMod@(WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFu
         ToWasmEnv
           { tweImportsOffset = fromIntegral importOffset,
             tweGlobalOffset = fromIntegral (length allocGlobals),
-            tweFunctionsOffset = fromIntegral (length allocFunctions)
+            tweFunctionsOffset = fromIntegral (length allocFunctions),
+            tweGeneratedFunctionOffset = fromIntegral (length wmFunctions)
           }
       functions =
         uncurry (fromFunction env) <$> zip [0 ..] wmFunctions

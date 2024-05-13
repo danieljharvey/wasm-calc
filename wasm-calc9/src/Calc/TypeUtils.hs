@@ -1,6 +1,7 @@
 module Calc.TypeUtils
   ( bindType,
     mapType,
+    monoidType,
     mapOuterTypeAnnotation,
     getOuterTypeAnnotation,
   )
@@ -42,3 +43,10 @@ bindType _ (TVar ann a) =
   pure $ TVar ann a
 bindType _ (TUnificationVar ann a) =
   pure $ TUnificationVar ann a
+
+monoidType :: (Monoid m) => (Type ann -> m) -> Type ann -> m
+monoidType _ (TPrim {}) = mempty
+monoidType f (TFunction _ args ret) = foldMap f args <> f ret
+monoidType f (TContainer _ as) = foldMap f as
+monoidType _ (TVar {}) = mempty
+monoidType _ (TUnificationVar {}) = mempty

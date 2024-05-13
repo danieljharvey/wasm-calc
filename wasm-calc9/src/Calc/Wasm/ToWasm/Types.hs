@@ -27,7 +27,8 @@ import GHC.Natural
 data ToWasmEnv = ToWasmEnv
   { tweImportsOffset :: Natural,
     tweGlobalOffset :: Natural,
-    tweFunctionsOffset :: Natural
+    tweFunctionsOffset :: Natural,
+    tweGeneratedFunctionOffset :: Natural
   }
 
 data WasmType
@@ -103,6 +104,7 @@ data WasmPrim
 data WasmFunctionRef
   = WasmFunctionRef Natural
   | WasmImportRef Natural
+  | WasmGeneratedRef Natural -- ie, functions we've invented like drops or flattened lambdas
   deriving stock (Eq, Ord, Show)
 
 data WasmExpr

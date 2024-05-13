@@ -3,9 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Calc.Wasm.FromExpr.Patterns
-  ( DropPath (..),
-    typeToPaths,
-    exprToPaths,
+  ( exprToPaths,
     dropFromPath,
     patternToPaths,
     typeFromPath,
@@ -24,28 +22,6 @@ import Control.Monad.Except
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import GHC.Natural
-
--- | for a variable, describe how to get it
-data DropPath
-  = -- | we're going in deeper
-    DropPathSelect Natural DropPath
-  | -- | drop this item
-    DropPathFetch (Maybe TypeVar)
-  deriving stock (Eq, Ord, Show)
-
-typeToPaths :: Type ann -> (DropPath -> DropPath) -> [DropPath]
-typeToPaths ty@(TContainer _ tyItems) addPath =
-  let offsetList = getOffsetList ty
-   in mconcat
-        ( ( \(index, innerTy) ->
-              typeToPaths innerTy (DropPathSelect (offsetList !! index) . addPath)
-          )
-            <$> zip [0 ..] (NE.toList tyItems)
-        )
-        <> [addPath (DropPathFetch Nothing)]
-typeToPaths (TVar _ tyVar) addPath =
-  [addPath (DropPathFetch (Just tyVar))]
-typeToPaths _ _ = mempty
 
 -- | return a path to every item in Expr marked with `DropMe`.
 exprToPaths ::

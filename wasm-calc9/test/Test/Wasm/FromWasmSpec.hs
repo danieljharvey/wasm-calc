@@ -3,8 +3,10 @@
 module Test.Wasm.FromWasmSpec (spec) where
 
 import           Calc.Parser
-import           Calc.Types.Type
-import           Calc.Wasm.FromExpr.Drops (DropPath (..), typeToDropPaths)
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Drops (DropPath (..), createDropFunction,
+                                           typeToDropPaths)
+import           Calc.Wasm.ToWasm.Types
 import           Control.Monad            (void)
 import           Data.Foldable            (traverse_)
 import qualified Data.Text                as T
@@ -19,6 +21,52 @@ unsafeTy tyString =
 spec :: Spec
 spec = do
   fdescribe "FromWasmSpec" $ do
+    describe "createDropFunction" $ do
+      let wasmFunction = WasmFunction
+                  { wfName = FunctionName "thing",
+                    wfExpr = WDrop (WVar 0),
+                    wfPublic = False,
+                    wfArgs = [],
+                    wfReturnType = Void,
+                    wfLocals = [],
+                    wfAbilities = mempty
+                  }
+
+      let testVals =
+            [ ( "Box(Int64)",
+                wasmFunction
+                  { wfName = FunctionName "drop_1",
+                    wfExpr = WDrop (WVar 0),
+                    wfArgs = [Pointer]
+                  }
+              ),
+              ( "(Box(Int64),Box(Int64))",
+                wasmFunction
+                  { wfName = FunctionName "drop_1",
+                    wfExpr = WSequence Void (WSequence Void (WDrop (WTupleAccess Pointer (WVar 0) 0))
+                                (WDrop (WTupleAccess Pointer (WVar 0) 4)))
+                                  (WDrop (WVar 0)),
+                    wfArgs = [Pointer]
+                  }
+              ),
+              ("(a,b)",
+                 wasmFunction
+                  { wfName = FunctionName "drop_1",
+                    wfExpr = WSequence Void (WSequence Void (WDrop (WTupleAccess Pointer (WVar 0) 0))
+                                (WDrop (WTupleAccess Pointer (WVar 0) 4)))
+                                  (WDrop (WVar 0)),
+                    wfArgs = [Pointer]
+                  }
+              )
+
+            ]
+      traverse_
+        ( \(tyString, wasmFunc) -> do
+            it (show tyString) $ do
+              createDropFunction (unsafeTy tyString) `shouldBe` Right wasmFunc
+        )
+        testVals
+
     describe "typeToDropPaths" $ do
       let testVals =
             [ ( "Int64",
@@ -28,13 +76,13 @@ spec = do
                 [DropPathFetch Nothing]
               ),
               ( "(a,b)",
-                [ DropPathSelect 0 (DropPathFetch (Just "a")),
-                  DropPathSelect 4 (DropPathFetch (Just "b")),
+                [ DropPathSelect (unsafeTy "a") 0 (DropPathFetch (Just "a")),
+                  DropPathSelect (unsafeTy "b") 4 (DropPathFetch (Just "b")),
                   DropPathFetch Nothing
                 ]
               ),
               ( "(Int64,b)",
-                [ DropPathSelect 8 (DropPathFetch (Just "b")),
+                [ DropPathSelect (unsafeTy "b") 8 (DropPathFetch (Just "b")),
                   DropPathFetch Nothing
                 ]
               )
