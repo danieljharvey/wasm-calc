@@ -20,7 +20,6 @@ import           Data.Foldable              (foldl')
 import qualified Data.List.NonEmpty         as NE
 import qualified Data.Map.Strict            as M
 import qualified Data.Set                   as S
-import           Debug.Trace
 import           GHC.Natural
 
 -- | for a variable, describe how to get it
@@ -36,7 +35,9 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath =
   let offsetList = getOffsetList ty
    in mconcat
         ( ( \(index, innerTy) ->
-              typeToDropPaths innerTy (DropPathSelect innerTy (offsetList !! index) . addPath)
+              typeToDropPaths innerTy
+                  (DropPathSelect innerTy (offsetList !! index) .
+                        addPath)
           )
             <$> zip [0 ..] (NE.toList tyItems)
         )
@@ -49,9 +50,9 @@ typeVars :: Type ann -> S.Set TypeVar
 typeVars (TVar _ tv) = S.singleton tv
 typeVars other       = monoidType typeVars other
 
-createDropFunction :: (MonadError FromWasmError m,Show ann) => Type ann -> m WasmFunction
+createDropFunction :: (MonadError FromWasmError m) => Type ann -> m WasmFunction
 createDropFunction ty = do
-  let dropPaths = traceShowId $ typeToDropPaths ty id
+  let dropPaths = typeToDropPaths ty id
       allTypeVars = M.fromList $ zip (S.toList (typeVars ty)) [0 ..]
   wasmTy <- liftEither (scalarFromType ty)
   let arg = 0
@@ -60,7 +61,7 @@ createDropFunction ty = do
   pure $
     WasmFunction
       { wfName = FunctionName "drop_1",
-        wfExpr = flattenDropExprs (traceShowId wasmExprs),
+        wfExpr = flattenDropExprs wasmExprs,
         wfPublic = False,
         wfArgs = [wasmTy], -- ie, the type of the thing
         wfReturnType = Void,
@@ -70,11 +71,16 @@ createDropFunction ty = do
 
 -- | do all the drops one after the other
 -- fails if list is empty
-flattenDropExprs :: [WasmExpr] -> WasmExpr
+flattenDropExprs :: [(Maybe Natural,WasmExpr)] -> WasmExpr
 flattenDropExprs exprs = case NE.uncons (NE.fromList exprs) of
-  (a, Nothing)   -> WDrop a
-  (a, Just rest) -> foldl' (\exprA exprB ->
-        WSequence Void exprA (WDrop exprB)) (WDrop a) rest
+  ((Nothing, a), Nothing)   -> WDrop a
+  ((Just i, a), Nothing) -> WApply (WasmGeneratedRef i) [a]
+  (starting, Just rest) ->
+    let withDrop (dropType,a) = case dropType of
+                  Just i  -> WApply (WasmGeneratedRef i) [a]
+                  Nothing -> WDrop a
+        in foldl' (\exprA exprB ->
+        WSequence Void exprA (withDrop exprB)) (withDrop starting) rest
 
 -- | given a path, create AST for fetching it
 dropExprFromPath ::
@@ -82,15 +88,15 @@ dropExprFromPath ::
   M.Map TypeVar Natural ->
   Natural ->
   DropPath ann ->
-  m WasmExpr
+  m (Maybe Natural, WasmExpr)
 dropExprFromPath _ wholeExprIndex (DropPathFetch Nothing) =
-  pure (WVar wholeExprIndex)
+  pure (Nothing, WVar wholeExprIndex)
 dropExprFromPath typeVarMap wholeExprIndex (DropPathFetch (Just tyVar)) =
   case M.lookup tyVar typeVarMap of
     Just i ->
-      pure (WApply (WasmGeneratedRef i) [WVar wholeExprIndex])
-    Nothing -> error "sdfs"
+      pure (Just i, WVar wholeExprIndex)
+    Nothing -> error "Failed finding generic"
 dropExprFromPath typeVarMap wholeExprIndex (DropPathSelect ty index inner) = do
   wasmTy <- liftEither (scalarFromType ty)
-  innerExpr <- dropExprFromPath typeVarMap wholeExprIndex inner
-  pure (WTupleAccess wasmTy innerExpr index)
+  (nat,innerExpr) <- dropExprFromPath typeVarMap wholeExprIndex inner
+  pure (nat,WTupleAccess wasmTy innerExpr index)

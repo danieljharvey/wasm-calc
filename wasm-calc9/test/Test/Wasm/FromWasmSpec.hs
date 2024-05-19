@@ -52,10 +52,11 @@ spec = do
               ("(a,b)",
                  wasmFunction
                   { wfName = FunctionName "drop_1",
-                    wfExpr = WSequence Void (WSequence Void (WDrop (WTupleAccess Pointer (WVar 0) 0))
-                                (WDrop (WTupleAccess Pointer (WVar 0) 4)))
+                    wfExpr = WSequence Void (WSequence Void
+                        (WApply (WasmGeneratedRef 0) [WTupleAccess Pointer (WVar 0) 0])
+                        (WApply (WasmGeneratedRef 1) [WTupleAccess Pointer (WVar 0) 4]))
                                   (WDrop (WVar 0)),
-                    wfArgs = [Pointer]
+                    wfArgs = [Pointer,Pointer,Pointer]
                   }
               )
 
