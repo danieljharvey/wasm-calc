@@ -142,7 +142,6 @@ fromExpr (EApply _ funcName args) = do
   let types = calculateMonomorphisedTypes fGenerics
                   (void . fst . getOuterAnnotation <$> args)
                   fArgTypes
-  traceShowM ("types" ::String,types)
   newFuncs <- traverse ( createDropFunction 1 . snd) types
   traceShowM newFuncs
   WApply fIndex
