@@ -1,4 +1,9 @@
-module Calc.Typecheck.Generalise (freshUnificationVariable, generalise) where
+module Calc.Typecheck.Generalise
+  ( freshUnificationVariable,
+    generaliseMany,
+    generalise,
+  )
+where
 
 import Calc.TypeUtils (mapType)
 import Calc.Typecheck.Types
@@ -28,6 +33,13 @@ generalise generics ty =
   do
     fresh <- allFresh generics
     pure $ generaliseInternal fresh ty
+
+generaliseMany :: S.Set TypeVar -> [Type ann] -> TypecheckM ann (HM.HashMap TypeVar Natural, [Type ann])
+generaliseMany generics tys =
+  do
+    fresh <- allFresh generics
+    let newTys = generaliseInternal fresh <$> tys
+    pure (fresh, newTys)
 
 -- given a type, replace anything that should be generic with unification
 -- variables so that we know to replace them with types easily

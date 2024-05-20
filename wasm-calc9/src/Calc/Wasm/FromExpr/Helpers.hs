@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns   #-}
 
 module Calc.Wasm.FromExpr.Helpers
   ( getAbilitiesForFunction,
@@ -11,19 +11,27 @@ module Calc.Wasm.FromExpr.Helpers
     getFunctionMap,
     getImportMap,
     lookupFunction,
+    calculateMonomorphisedTypes,
   )
 where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List as List
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Typecheck            (TypecheckEnv (..),
+                                            TypecheckState (..), runTypecheckM)
+import           Calc.Typecheck.Generalise
+import           Calc.Typecheck.Unify      (unify)
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad             (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Hashable
+import qualified Data.HashMap.Strict       as HM
+import qualified Data.List                 as List
+import qualified Data.Map.Strict           as M
+import qualified Data.Set                  as S
+import           GHC.Natural
 
 -- | add a local type, returning a unique index
 addLocal ::
@@ -102,17 +110,58 @@ lookupIdent ident = do
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   FunctionName ->
-  m WasmFunctionRef
+  m (WasmFunctionRef, [TypeVar], [Type ()])
 lookupFunction functionName = do
   maybeFunc <- gets (M.lookup functionName . fesFunctions)
   case maybeFunc of
-    Just (FromExprFunc {fefIndex}) -> pure (WasmFunctionRef fefIndex)
+    Just (FromExprFunc {fefIndex, fefGenerics, fefOriginalArgs}) ->
+      pure (WasmFunctionRef fefIndex, fefGenerics, fefOriginalArgs)
     Nothing -> do
       maybeImport <- gets (M.lookup functionName . fesImports)
       case maybeImport of
-        Just (FromExprImport {feiIndex}) -> pure (WasmImportRef feiIndex)
+        Just (FromExprImport {feiIndex}) -> pure (WasmImportRef feiIndex, mempty, mempty)
         Nothing ->
           throwError $ FunctionNotFound functionName
+
+-- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
+-- then we know `a == Int32` and `b == Int64`.
+calculateMonomorphisedTypes ::
+  (Show ann) =>
+  [TypeVar] ->
+  [Type ann] ->
+  [Type ann] ->
+  [(TypeVar, Type ann)]
+calculateMonomorphisedTypes typeVars argTys fnArgTys =
+  let tcEnv =
+        TypecheckEnv
+          { tceVars = mempty,
+            tceGenerics = mempty,
+            tceMemoryLimit = 0
+          }
+
+      response = runTypecheckM tcEnv $ do
+        (fresh, freshArgTys) <- generaliseMany (S.fromList typeVars) fnArgTys
+        _ <- traverse (uncurry unify) (zip argTys freshArgTys)
+        unified <- gets tcsUnified
+        let fixedMap = flipMap fresh
+        let mapped = foldMap
+                ( \(k, a) -> case HM.lookup k fixedMap of
+                    Just tv -> M.singleton tv a
+                    Nothing -> mempty
+                )
+                (HM.toList unified)
+        let fromTv tv
+                      = case M.lookup tv mapped of
+                          Just a  -> (tv,a)
+                          Nothing -> error "could not find thing"
+        pure $ fromTv <$> typeVars
+
+   in case response of
+        Right tvs -> tvs
+        Left e    -> error (show e)
+
+flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
+flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
 
 -- take only the information about globals that we need
 -- we assume each global uses no imports or functions
@@ -130,7 +179,7 @@ getGlobalMap globals =
 getAbilitiesForFunction :: M.Map FunctionName (S.Set (Ability ann)) -> FunctionName -> Either FromWasmError (S.Set (Ability ann))
 getAbilitiesForFunction functionAbilities fnName =
   case M.lookup fnName functionAbilities of
-    Just a -> pure a
+    Just a  -> pure a
     Nothing -> throwError (FunctionAbilityLookupFailed fnName)
 
 -- take only the function info we need
@@ -143,7 +192,7 @@ getFunctionMap ::
 getFunctionMap offset mdFunctions =
   M.fromList
     <$> traverse
-      ( \(i, Function {fnFunctionName, fnArgs, fnBody}) -> do
+      ( \(i, Function {fnFunctionName, fnGenerics, fnArgs, fnBody}) -> do
           fefArgs <- traverse (scalarFromType . faType) fnArgs
           fefReturnType <- scalarFromType (getOuterAnnotation fnBody)
           pure
@@ -151,7 +200,9 @@ getFunctionMap offset mdFunctions =
               FromExprFunc
                 { fefIndex = i,
                   fefArgs,
-                  fefReturnType
+                  fefOriginalArgs = void . faType <$> fnArgs,
+                  fefReturnType,
+                  fefGenerics = fnGenerics
                 }
             )
       )

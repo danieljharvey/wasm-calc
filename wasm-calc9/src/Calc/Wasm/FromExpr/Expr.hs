@@ -2,19 +2,21 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import Calc.ExprUtils
-import Calc.Linearity (Drops (..))
-import Calc.Types
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import           Calc.ExprUtils
+import           Calc.Linearity              (Drops (..))
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Drops
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
+import           Debug.Trace
 
 fromLet ::
   ( Show ann,
@@ -136,7 +138,13 @@ fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
 fromExpr (EApply _ funcName args) = do
-  fIndex <- lookupFunction funcName
+  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
+  let types = calculateMonomorphisedTypes fGenerics
+                  (void . fst . getOuterAnnotation <$> args)
+                  fArgTypes
+  traceShowM ("types" ::String,types)
+  newFuncs <- traverse ( createDropFunction 1 . snd) types
+  traceShowM newFuncs
   WApply fIndex
     <$> traverse fromExpr args
 fromExpr (ETuple (ty, _) a as) = do

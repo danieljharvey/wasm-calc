@@ -16,7 +16,6 @@ import Control.Monad (void)
 import Control.Monad.State
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import Debug.Trace
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -105,8 +104,6 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
             fesGenerated = mempty
           }
       )
-
-  traceShowM expr
 
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
