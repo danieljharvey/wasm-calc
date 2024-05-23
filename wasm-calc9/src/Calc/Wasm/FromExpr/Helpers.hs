@@ -7,6 +7,7 @@ module Calc.Wasm.FromExpr.Helpers
     addLocal,
     lookupGlobal,
     lookupIdent,
+    addGeneratedFunction,
     getGlobalMap,
     getFunctionMap,
     getImportMap,
@@ -26,6 +27,7 @@ import           Calc.Wasm.ToWasm.Types
 import           Control.Monad             (void)
 import           Control.Monad.Except
 import           Control.Monad.State
+import           Data.Foldable             (traverse_)
 import           Data.Hashable
 import qualified Data.HashMap.Strict       as HM
 import qualified Data.List                 as List
@@ -123,6 +125,12 @@ lookupFunction functionName = do
         Nothing ->
           throwError $ FunctionNotFound functionName
 
+addGeneratedFunction :: (MonadState FromExprState m) => WasmFunction -> m WasmFunctionRef
+addGeneratedFunction wasmFunc = do
+  modify (\fes -> fes { fesGenerated = fesGenerated fes <> [wasmFunc] })
+  startingDigit <- gets (fromIntegral . length . fesArgs)
+  pure (WasmGeneratedRef startingDigit)
+
 -- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
 -- then we know `a == Int32` and `b == Int64`.
 calculateMonomorphisedTypes ::
@@ -141,7 +149,7 @@ calculateMonomorphisedTypes typeVars argTys fnArgTys =
 
       response = runTypecheckM tcEnv $ do
         (fresh, freshArgTys) <- generaliseMany (S.fromList typeVars) fnArgTys
-        _ <- traverse (uncurry unify) (zip argTys freshArgTys)
+        traverse_ (uncurry unify) (zip argTys freshArgTys)
         unified <- gets tcsUnified
         let fixedMap = flipMap fresh
         let mapped = foldMap

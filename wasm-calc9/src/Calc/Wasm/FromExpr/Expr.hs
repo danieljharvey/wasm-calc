@@ -16,7 +16,6 @@ import           Control.Monad.Except
 import           Control.Monad.State
 import qualified Data.List.NonEmpty          as NE
 import qualified Data.Map.Strict             as M
-import           Debug.Trace
 
 fromLet ::
   ( Show ann,
@@ -143,9 +142,10 @@ fromExpr (EApply _ funcName args) = do
                   (void . fst . getOuterAnnotation <$> args)
                   fArgTypes
   newFuncs <- traverse ( createDropFunction 1 . snd) types
-  traceShowM newFuncs
-  WApply fIndex
-    <$> traverse fromExpr args
+  dropArgs <- fmap WFunctionPointer <$> traverse addGeneratedFunction newFuncs
+  wasmArgs <- traverse fromExpr args
+
+  pure $ WApply fIndex (wasmArgs <> dropArgs)
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

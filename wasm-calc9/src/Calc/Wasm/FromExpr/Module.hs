@@ -1,21 +1,23 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TupleSections #-}
-
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
-import Calc.Ability.Check
-import Calc.ExprUtils
-import Calc.Linearity (getFunctionUses)
-import Calc.Types
-import Calc.Wasm.FromExpr.Expr
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.State
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
+import           Calc.Ability.Check
+import           Calc.ExprUtils
+import           Calc.Linearity             (getFunctionUses)
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Expr
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad              (void)
+import           Control.Monad.State
+import qualified Data.Map.Strict            as M
+import qualified Data.Set                   as S
+import qualified Data.Text                  as T
+import           Debug.Trace
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -83,7 +85,7 @@ fromFunction ::
   M.Map Identifier FromExprGlobal ->
   Function (Type ann) ->
   Either FromWasmError WasmFunction
-fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName}) = do
+fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName,fnGenerics}) = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -92,18 +94,29 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
       )
       fnArgs
 
+  -- for each generic, we add a function arg
+  let genericsArgs =
+        (\generic -> (Identifier $ "generic_" <> T.pack (show generic),
+            Pointer)) <$> fnGenerics
+
+  let allArgs = args <> genericsArgs
+
+  traceShowM allArgs
+
   (expr, fes) <-
     runStateT
       (fromExpr (fst $ getFunctionUses fn))
       ( FromExprState
           { fesVars = mempty,
-            fesArgs = args,
+            fesArgs = allArgs,
             fesGlobals = globalMap,
             fesImports = importMap,
             fesFunctions = funcMap,
             fesGenerated = mempty
           }
       )
+
+  traceShowM expr
 
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
@@ -150,7 +163,7 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
           }
       )
   let wgMutable = case glbMutability of
-        Mutable -> True
+        Mutable  -> True
         Constant -> False
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
