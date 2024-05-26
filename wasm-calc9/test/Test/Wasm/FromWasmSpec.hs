@@ -1,24 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Test.Wasm.FromWasmSpec (spec) where
 
-import           Calc.Parser
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Drops   (DropPath (..), createDropFunction,
-                                             typeToDropPaths)
-import           Calc.Wasm.FromExpr.Helpers (calculateMonomorphisedTypes)
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad              (void)
-import           Data.Foldable              (traverse_)
-import qualified Data.Text                  as T
-import           Test.Helpers
-import           Test.Hspec
+import Calc.Parser
+import Calc.Types
+import Calc.Wasm.FromExpr.Drops
+  ( DropPath (..),
+    createDropFunction,
+    typeToDropPaths,
+  )
+import Calc.Wasm.FromExpr.Helpers (calculateMonomorphisedTypes)
+import Calc.Wasm.ToWasm.Types
+import Control.Monad (void)
+import Data.Foldable (traverse_)
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 unsafeTy :: T.Text -> Type ()
 unsafeTy tyString =
   case parseTypeAndFormatError tyString of
-    Left e   -> error (show e)
+    Left e -> error (show e)
     Right ty -> void ty
 
 spec :: Spec
@@ -46,7 +49,7 @@ spec = do
               }
 
       let testVals =
-            [ ("Int64",
+            [ ( "Int64",
                 wasmFunction
                   { wfName = FunctionName "drop_1",
                     wfExpr = WDrop (WVar 0), -- TODO: need a way of returning void

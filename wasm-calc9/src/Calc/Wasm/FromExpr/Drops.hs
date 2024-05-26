@@ -32,7 +32,8 @@ data DropPath ann
     DropPathFetch (Maybe TypeVar)
   deriving stock (Eq, Ord, Show)
 
-typeToDropPaths :: Type ann -> (DropPath ann -> DropPath ann) -> [DropPath ann]
+typeToDropPaths :: Type ann -> (DropPath ann -> DropPath ann) ->
+      [DropPath ann]
 typeToDropPaths ty@(TContainer _ tyItems) addPath =
   let offsetList = getOffsetList ty
    in mconcat
@@ -69,8 +70,9 @@ createDropFunction natIndex ty = do
   let wasmArgs = wasmTy : (typeVarList $> Pointer)
 
   let expr = case wasmExprs of
-               [] -> WDrop (WVar 0) -- no
-               _  -> flattenDropExprs wasmExprs
+        [] -> WDrop (WVar 0) -- no
+        _  -> flattenDropExprs wasmExprs
+
   pure $
     WasmFunction
       { wfName = dropFunctionName natIndex,
@@ -78,7 +80,7 @@ createDropFunction natIndex ty = do
         wfPublic = False,
         wfArgs = wasmArgs,
         wfReturnType = Void,
-        wfLocals = [],
+        wfLocals = mempty,
         wfAbilities = mempty
       }
 

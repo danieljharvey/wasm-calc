@@ -1,9 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
-    unifyVariableWithType,
     lookupVar,
     withVar,
     lookupFunction,
@@ -14,23 +13,22 @@ module Calc.Typecheck.Helpers
   )
 where
 
-import Calc.Typecheck.Error
-import Calc.Typecheck.Generalise
-import Calc.Typecheck.Types
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Calc.Types.TypeVar
-import Control.Monad (when, zipWithM)
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import qualified Data.HashMap.Strict as HM
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as S
-import GHC.Natural
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Generalise
+import           Calc.Typecheck.Types
+import           Calc.Types.Function
+import           Calc.Types.Global
+import           Calc.Types.Identifier
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.Types.TypeVar
+import           Control.Monad             (when, zipWithM)
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import           Control.Monad.State
+import qualified Data.HashMap.Strict       as HM
+import qualified Data.List.NonEmpty        as NE
+import qualified Data.Set                  as S
 
 -- | run a typechecking computation, discarding any Writer output
 runTypecheckM ::
@@ -162,29 +160,3 @@ withFunctionEnv args generics =
                 tceGenerics = generics
               }
         )
-
--- | given a unification variable, either save it and return the type
--- or explode because we've already unified it with something else
-unifyVariableWithType ::
-  Natural ->
-  Type ann ->
-  TypecheckM ann (Type ann)
-unifyVariableWithType nat ty =
-  do
-    existing <- gets (HM.lookup nat . tcsUnified)
-    case existing of
-      Nothing -> do
-        -- this is the first match, store it and return the passed-in type
-        modify
-          ( \tcs ->
-              tcs
-                { tcsUnified =
-                    HM.insert nat ty (tcsUnified tcs)
-                }
-          )
-        pure ty
-      Just _existingTy -> do
-        -- another type matches this unification variable
-        -- for now, explode
-        -- in future we'll compare them
-        error "unifyVariableWithType"

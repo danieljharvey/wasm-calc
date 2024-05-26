@@ -82,16 +82,15 @@ toWasm :: ToWasmEnv -> WasmExpr -> [Wasm.Instruction Natural]
 toWasm env wasmExpr =
   snd $ runIdentity $ runWriterT $ runReaderT (exprToWasm wasmExpr) env
 
-functionRefToNatural :: MonadReader ToWasmEnv m => WasmFunctionRef -> m Natural
+functionRefToNatural :: (MonadReader ToWasmEnv m) => WasmFunctionRef -> m Natural
 functionRefToNatural fnIndex = case fnIndex of
-    WasmFunctionRef i -> do
-      offset <- asks functionOffset
-      pure $ offset + i
-    WasmImportRef i -> pure i
-    WasmGeneratedRef i -> do
-      offset <- asks generatedFunctionOffset
-      pure $ offset + i
-
+  WasmFunctionRef i -> do
+    offset <- asks functionOffset
+    pure $ offset + i
+  WasmImportRef i -> pure i
+  WasmGeneratedRef i -> do
+    offset <- asks generatedFunctionOffset
+    pure $ offset + i
 
 exprToWasm ::
   ( MonadReader ToWasmEnv m,
@@ -140,7 +139,7 @@ exprToWasm (WVar i) =
   tell [Wasm.GetLocal i]
 exprToWasm (WFunctionPointer fnIndex) = do
   index <- functionRefToNatural fnIndex
-  tell [Wasm.GetLocal index]
+  tell [Wasm.I32Const $ fromIntegral index]
 exprToWasm (WGlobal i) = do
   offset <- globalOffset
   tell [Wasm.GetGlobal (i + offset)] -- add one as malloc function uses first global

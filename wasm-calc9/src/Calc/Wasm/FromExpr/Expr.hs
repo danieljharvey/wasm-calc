@@ -61,17 +61,7 @@ fromLet (_, drops) pat expr rest = do
       wasmRest <- fromExpr rest
 
       -- drop identifiers we will no longer need
-      wasmRestWithDrops <- case drops of
-        Just (DropIdentifiers idents) -> do
-          nats <- traverse lookupIdent idents
-          pure $
-            foldr
-              ( WSequence Void . WDrop . WVar
-              )
-              wasmRest
-              nats
-        Just DropMe -> pure wasmRest -- TODO: what does this mean? anything?
-        Nothing -> pure wasmRest
+      wasmRestWithDrops <- addDropsToWasmExpr drops wasmRest
 
       -- drop items in the match expr we will no longer need
       dropPaths <-
@@ -108,6 +98,42 @@ fromPrim (TPrim _ TInt64) (PIntLit i) =
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
 
+
+addDropsToWasmExpr :: (MonadState FromExprState m,
+  MonadError FromWasmError m) => Maybe Drops -> WasmExpr -> m WasmExpr
+addDropsToWasmExpr drops wasmExpr =
+  -- drop identifiers we will no longer need
+  case drops of
+        Just (DropIdentifiers idents) -> do
+          nats <- traverse lookupIdent idents
+          _ <- error "work out what do here instead of not always doing WDrop"
+          pure $
+            foldr
+              ( WSequence Void . WDrop . WVar
+              )
+              wasmExpr
+              nats
+        Just DropMe -> pure wasmExpr -- TODO: what does this mean? anything?
+        Nothing -> pure wasmExpr
+
+
+fromExprWithDrops ::
+ ( MonadError FromWasmError m,
+    MonadState FromExprState m,
+    Show ann
+  ) =>
+
+  Expr (Type ann, Maybe Drops) -> m WasmExpr
+fromExprWithDrops expr = do
+  -- convert the expr
+  wasmExpr <- fromExpr expr
+
+  -- get any drops in this arm
+  let (_, drops) = getOuterAnnotation expr
+
+  addDropsToWasmExpr drops wasmExpr
+
+
 fromExpr ::
   ( MonadError FromWasmError m,
     MonadState FromExprState m,
@@ -132,16 +158,20 @@ fromExpr (EInfix _ op a b) = do
   WInfix scalar op <$> fromExpr a <*> fromExpr b
 fromExpr (EIf (ty, _) predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
-  WIf wasmType <$> fromExpr predE <*> fromExpr thenE <*> fromExpr elseE
+  WIf wasmType <$> fromExpr predE
+    <*> fromExprWithDrops thenE
+    <*> fromExprWithDrops elseE
 fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
 fromExpr (EApply _ funcName args) = do
   (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
-  let types = calculateMonomorphisedTypes fGenerics
-                  (void . fst . getOuterAnnotation <$> args)
-                  fArgTypes
-  newFuncs <- traverse ( createDropFunction 1 . snd) types
+  let types =
+        calculateMonomorphisedTypes
+          fGenerics
+          (void . fst . getOuterAnnotation <$> args)
+          fArgTypes
+  newFuncs <- traverse (createDropFunction 1 . snd) types
   dropArgs <- fmap WFunctionPointer <$> traverse addGeneratedFunction newFuncs
   wasmArgs <- traverse fromExpr args
 

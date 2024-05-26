@@ -1,7 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TupleSections      #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -12,33 +13,40 @@ module Calc.Linearity.Validate
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Calc.Utils
-import Control.Monad (unless)
-import Control.Monad.Identity
-import Control.Monad.State
-import Control.Monad.Writer
-import Data.Bifunctor (second)
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Global
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Calc.Utils
+import           Control.Monad          (unless)
+import           Control.Monad.Identity
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Data.Bifunctor         (second)
+import           Data.Foldable          (traverse_)
+import           Data.Functor           (($>))
+import qualified Data.List.NonEmpty     as NE
+import qualified Data.Map               as M
+import qualified Data.Set               as S
+import qualified Data.Text              as T
+import           GHC.Natural
 
 data Drops
   = DropIdentifiers (NE.NonEmpty Identifier)
   | DropMe
   deriving stock (Eq, Ord, Show)
+
+getFresh :: MonadState (LinearState ann) m => m Natural
+getFresh = do
+  modify (\ls -> ls { lsFresh = lsFresh ls + 1 })
+  gets lsFresh
 
 getLinearityAnnotation :: Linearity ann -> ann
 getLinearityAnnotation (Whole ann) = ann
@@ -66,17 +74,17 @@ validateFunction fn =
 
 validate :: LinearState ann -> Either (LinearityError ann) ()
 validate (LinearState {lsVars, lsUses}) =
-  let validateFunctionItem (ident, (linearity, ann)) =
+  let validateFunctionItem (ident, (linearity, _ann)) =
         let completeUses = filterCompleteUses lsUses ident
          in case linearity of
-              LTPrimitive ->
-                if null completeUses
+              LTPrimitive -> Right ()
+                {-                if null completeUses
                   then Left (NotUsed ann ident)
-                  else Right ()
+                  else Right () -}
               LTBoxed ->
                 case length completeUses of
-                  0 ->
-                    Left (NotUsed ann ident)
+                  0 -> Right ()
+                    -- Left (NotUsed ann ident)
                   1 -> Right ()
                   _more ->
                     Left (UsedMultipleTimes (getLinearityAnnotation <$> completeUses) ident)
@@ -108,7 +116,8 @@ getFunctionUses (Function {fnBody, fnArgs}) =
     initialState =
       LinearState
         { lsVars = initialVars,
-          lsUses = mempty
+          lsUses = mempty,
+          lsFresh = 0
         }
 
     initialVars =
@@ -116,7 +125,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
@@ -132,7 +141,8 @@ getGlobalUses (Global {glbExpr}) =
     initialState =
       LinearState
         { lsVars = mempty,
-          lsUses = mempty
+          lsUses = mempty,
+          lsFresh = 0
         }
 
 recordUse ::
@@ -148,7 +158,7 @@ recordUse ident ty = do
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _ = False
+isPrimitive _          = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -168,7 +178,10 @@ addLetBinding (PVar ty ident) = do
           }
     )
   pure $ PVar (ty, Nothing) ident
-addLetBinding (PWildcard ty) = pure (PWildcard (ty, Nothing))
+addLetBinding (PWildcard ty) = do
+  i <- getFresh
+  let name = Identifier $ "_fresh_name" <> T.pack (show i)
+  addLetBinding $ PVar ty  name
 addLetBinding (PBox ty pat) =
   PBox (ty, Nothing) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do

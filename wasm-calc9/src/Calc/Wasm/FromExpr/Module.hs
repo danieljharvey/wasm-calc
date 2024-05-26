@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
+
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
 import           Calc.Ability.Check
@@ -12,7 +13,7 @@ import           Calc.Wasm.FromExpr.Expr
 import           Calc.Wasm.FromExpr.Helpers
 import           Calc.Wasm.FromExpr.Types
 import           Calc.Wasm.ToWasm.Types
-import           Control.Monad              (void)
+import           Control.Monad              (foldM, void)
 import           Control.Monad.State
 import qualified Data.Map.Strict            as M
 import qualified Data.Set                   as S
@@ -83,9 +84,10 @@ fromFunction ::
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
   M.Map Identifier FromExprGlobal ->
+  [WasmFunction] ->
   Function (Type ann) ->
-  Either FromWasmError WasmFunction
-fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName,fnGenerics}) = do
+  Either FromWasmError ([WasmFunction], WasmFunction)
+fromFunction functionAbilities funcMap importMap globalMap generatedFns (fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName, fnGenerics}) = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -96,12 +98,14 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
 
   -- for each generic, we add a function arg
   let genericsArgs =
-        (\generic -> (Identifier $ "generic_" <> T.pack (show generic),
-            Pointer)) <$> fnGenerics
+        ( \generic ->
+            ( Identifier $ "generic_" <> T.pack (show generic),
+              Pointer
+            )
+        )
+          <$> fnGenerics
 
   let allArgs = args <> genericsArgs
-
-  traceShowM allArgs
 
   (expr, fes) <-
     runStateT
@@ -112,26 +116,31 @@ fromFunction functionAbilities funcMap importMap globalMap (fn@Function {fnPubli
             fesGlobals = globalMap,
             fesImports = importMap,
             fesFunctions = funcMap,
-            fesGenerated = mempty
+            fesGenerated = generatedFns
           }
       )
 
+  traceShowM allArgs
   traceShowM expr
 
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
-  abilities <- S.map void <$> getAbilitiesForFunction functionAbilities fnFunctionName
+  abilities <-
+    S.map void
+      <$> getAbilitiesForFunction functionAbilities fnFunctionName
 
-  pure $
-    WasmFunction
-      { wfName = fnFunctionName,
-        wfExpr = expr,
-        wfPublic = fnPublic,
-        wfArgs = snd <$> args,
-        wfReturnType = retType,
-        wfLocals = snd <$> fesVars fes,
-        wfAbilities = abilities
-      }
+  pure
+    ( fesGenerated fes,
+      WasmFunction
+        { wfName = fnFunctionName,
+          wfExpr = expr,
+          wfPublic = fnPublic,
+          wfArgs = snd <$> allArgs,
+          wfReturnType = retType,
+          wfLocals = snd <$> fesVars fes,
+          wfAbilities = abilities
+        }
+    )
 
 fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
 fromMemory Nothing = WasmMemory 0 Nothing
@@ -162,9 +171,11 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
             fesGenerated = mempty
           }
       )
+
   let wgMutable = case glbMutability of
         Mutable  -> True
         Constant -> False
+
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
@@ -180,9 +191,14 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
 
   wasmGlobals <- traverse fromGlobal mdGlobals
 
-  wasmFunctions <-
-    traverse
-      (fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap)
+  (generatedWasmFunctions, wasmFunctions) <-
+    foldM
+      ( \(generatedFns, fns) input -> do
+          (generated, newFn) <-
+            fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap generatedFns input
+          pure (generated, fns <> [newFn])
+      )
+      ([], [])
       mdFunctions
 
   wasmImports <- traverse fromImport mdImports
@@ -191,7 +207,7 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
 
   pure $
     WasmModule
-      { wmFunctions = wasmFunctions,
+      { wmFunctions = wasmFunctions <> generatedWasmFunctions,
         wmImports = wasmImports,
         wmMemory = fromMemory mdMemory,
         wmGlobals = wasmGlobals,
