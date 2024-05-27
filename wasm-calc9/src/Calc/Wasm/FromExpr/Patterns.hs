@@ -25,7 +25,8 @@ import GHC.Natural
 
 -- | return a path to every item in Expr marked with `DropMe`.
 exprToPaths ::
-  Expr (Type ann, Maybe Drops) ->
+  (Eq ann) =>
+  Expr (Type ann, Maybe (Drops ann)) ->
   (Path ann -> Path ann) ->
   [Path ann]
 exprToPaths (EBox (ty, drops) a) addPath =

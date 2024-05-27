@@ -144,7 +144,7 @@ spec = do
     fdescribe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ {-(asTest "42", Wasm.VI64 42),
+            [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -342,14 +342,19 @@ spec = do
                 ),
                 ( asTest "let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c",
                   Wasm.VI64 3
-                ),-}
-                (joinLines ["function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
-                  asTest "let Box(a) = bool(True, Box((1: Int64)), Box((2: Int64))); a"
-                           ],Wasm.VI64 1),
-                (joinLines ["function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
-                  asTest "let Box(a) = bool(False, Box((1: Int64)), Box((2: Int64))); a"
-                           ],Wasm.VI64 2)
-
+                ),
+              ( joinLines
+                  [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
+                    asTest "let Box(a) = bool(True, Box((1: Int64)), Box((2: Int64))); a"
+                  ],
+                Wasm.VI64 1
+              ),
+              ( joinLines
+                  [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
+                    asTest "let Box(a) = bool(False, Box((1: Int64)), Box((2: Int64))); a"
+                  ],
+                Wasm.VI64 2
+              )
             ]
 
       describe "From expressions" $ do

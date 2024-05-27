@@ -11,21 +11,23 @@ import           Calc.Wasm.FromExpr.Patterns
 import           Calc.Wasm.FromExpr.Types
 import           Calc.Wasm.ToWasm.Helpers
 import           Calc.Wasm.ToWasm.Types
-import           Control.Monad               (void)
+import           Control.Monad               (foldM, void)
 import           Control.Monad.Except
 import           Control.Monad.State
 import qualified Data.List.NonEmpty          as NE
 import qualified Data.Map.Strict             as M
+import           Debug.Trace
 
 fromLet ::
-  ( Show ann,
+  ( Eq ann,
+    Show ann,
     MonadError FromWasmError m,
     MonadState FromExprState m
   ) =>
-  (Type ann, Maybe Drops) ->
-  Pattern (Type ann, Maybe Drops) ->
-  Expr (Type ann, Maybe Drops) ->
-  Expr (Type ann, Maybe Drops) ->
+  (Type ann, Maybe (Drops ann)) ->
+  Pattern (Type ann, Maybe (Drops ann)) ->
+  Expr (Type ann, Maybe (Drops ann)) ->
+  Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
 fromLet (_, drops) pat expr rest = do
   let paths = patternToPaths (fst <$> pat) id
@@ -98,32 +100,41 @@ fromPrim (TPrim _ TInt64) (PIntLit i) =
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
 
-
-addDropsToWasmExpr :: (MonadState FromExprState m,
-  MonadError FromWasmError m) => Maybe Drops -> WasmExpr -> m WasmExpr
-addDropsToWasmExpr drops wasmExpr =
-  -- drop identifiers we will no longer need
-  case drops of
-        Just (DropIdentifiers idents) -> do
-          nats <- traverse lookupIdent idents
-          _ <- error "work out what do here instead of not always doing WDrop"
-          pure $
-            foldr
-              ( WSequence Void . WDrop . WVar
-              )
-              wasmExpr
-              nats
-        Just DropMe -> pure wasmExpr -- TODO: what does this mean? anything?
-        Nothing -> pure wasmExpr
-
-
-fromExprWithDrops ::
- ( MonadError FromWasmError m,
-    MonadState FromExprState m,
+addDropsToWasmExpr ::
+  ( MonadState FromExprState m,
+    MonadError FromWasmError m,
     Show ann
   ) =>
+  Maybe (Drops ann) ->
+  WasmExpr ->
+  m WasmExpr
+addDropsToWasmExpr drops wasmExpr = do
+  -- drop identifiers we will no longer need
+  traceM "addDropsToWasmExpr"
+  case drops of
+    Just (DropIdentifiers idents) -> do
+      nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
+      traceShowM nats
+      foldM
+        ( \restExpr (index, ty) -> case ty of
+            TVar _ typeVar -> do
+              nat <- lookupIdent (genericArgName typeVar)
+              pure $ WSequence Void (WApplyIndirect (WVar nat) [WVar index]) restExpr
+            _              -> pure $ WSequence Void (WDrop (WVar index)) restExpr
+        )
+        wasmExpr
+        nats
+    Just DropMe -> pure wasmExpr -- TODO: what does this mean? anything?
+    Nothing -> pure wasmExpr
 
-  Expr (Type ann, Maybe Drops) -> m WasmExpr
+fromExprWithDrops ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m,
+    Eq ann,
+    Show ann
+  ) =>
+  Expr (Type ann, Maybe (Drops ann)) ->
+  m WasmExpr
 fromExprWithDrops expr = do
   -- convert the expr
   wasmExpr <- fromExpr expr
@@ -133,13 +144,13 @@ fromExprWithDrops expr = do
 
   addDropsToWasmExpr drops wasmExpr
 
-
 fromExpr ::
   ( MonadError FromWasmError m,
     MonadState FromExprState m,
-    Show ann
+    Show ann,
+    Eq ann
   ) =>
-  Expr (Type ann, Maybe Drops) ->
+  Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
 fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
@@ -158,7 +169,8 @@ fromExpr (EInfix _ op a b) = do
   WInfix scalar op <$> fromExpr a <*> fromExpr b
 fromExpr (EIf (ty, _) predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
-  WIf wasmType <$> fromExpr predE
+  WIf wasmType
+    <$> fromExpr predE
     <*> fromExprWithDrops thenE
     <*> fromExprWithDrops elseE
 fromExpr (EVar _ ident) = do

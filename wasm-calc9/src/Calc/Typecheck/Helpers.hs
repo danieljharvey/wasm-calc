@@ -1,5 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
@@ -13,22 +13,22 @@ module Calc.Typecheck.Helpers
   )
 where
 
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Generalise
-import           Calc.Typecheck.Types
-import           Calc.Types.Function
-import           Calc.Types.Global
-import           Calc.Types.Identifier
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.Types.TypeVar
-import           Control.Monad             (when, zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
-import qualified Data.HashMap.Strict       as HM
-import qualified Data.List.NonEmpty        as NE
-import qualified Data.Set                  as S
+import Calc.Typecheck.Error
+import Calc.Typecheck.Generalise
+import Calc.Typecheck.Types
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Identifier
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Calc.Types.TypeVar
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as S
 
 -- | run a typechecking computation, discarding any Writer output
 runTypecheckM ::

@@ -32,8 +32,10 @@ data DropPath ann
     DropPathFetch (Maybe TypeVar)
   deriving stock (Eq, Ord, Show)
 
-typeToDropPaths :: Type ann -> (DropPath ann -> DropPath ann) ->
-      [DropPath ann]
+typeToDropPaths ::
+  Type ann ->
+  (DropPath ann -> DropPath ann) ->
+  [DropPath ann]
 typeToDropPaths ty@(TContainer _ tyItems) addPath =
   let offsetList = getOffsetList ty
    in mconcat
@@ -92,7 +94,7 @@ flattenDropExprs exprs = case NE.uncons (NE.fromList exprs) of
   ((Just i, a), Nothing) -> WApply (WasmGeneratedRef i) [a]
   (starting, Just rest) ->
     let withDrop (dropType, a) = case dropType of
-          Just i  -> WApply (WasmGeneratedRef i) [a]
+          Just i  -> WApply ( WasmGeneratedRef i) [a]
           Nothing -> WDrop a
      in foldl'
           ( \exprA exprB ->

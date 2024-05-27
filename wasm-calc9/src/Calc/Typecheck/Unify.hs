@@ -3,16 +3,16 @@ module Calc.Typecheck.Unify
   )
 where
 
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Types
-import           Calc.Types.Type
-import           Control.Monad        (zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Functor
-import qualified Data.HashMap.Strict  as HM
-import qualified Data.List.NonEmpty   as NE
-import           GHC.Natural
+import Calc.Typecheck.Error
+import Calc.Typecheck.Types
+import Calc.Types.Type
+import Control.Monad (zipWithM)
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Functor
+import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
+import GHC.Natural
 
 -- unification. for our simple purposes this means "smash two types
 -- together and see what we learn" (or explode if it makes no sense)

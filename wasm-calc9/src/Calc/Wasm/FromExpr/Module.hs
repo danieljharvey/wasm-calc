@@ -17,7 +17,6 @@ import           Control.Monad              (foldM, void)
 import           Control.Monad.State
 import qualified Data.Map.Strict            as M
 import qualified Data.Set                   as S
-import qualified Data.Text                  as T
 import           Debug.Trace
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
@@ -51,7 +50,7 @@ fromImport
 
 -- | tests don't use imports
 fromTest ::
-  (Show ann) =>
+  (Eq ann, Show ann) =>
   M.Map FunctionName FromExprFunc ->
   M.Map Identifier FromExprGlobal ->
   Test (Type ann) ->
@@ -79,7 +78,7 @@ fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
       }
 
 fromFunction ::
-  (Show ann) =>
+  (Eq ann, Show ann) =>
   M.Map FunctionName (S.Set (Ability any)) ->
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
@@ -99,7 +98,7 @@ fromFunction functionAbilities funcMap importMap globalMap generatedFns (fn@Func
   -- for each generic, we add a function arg
   let genericsArgs =
         ( \generic ->
-            ( Identifier $ "generic_" <> T.pack (show generic),
+            ( genericArgName generic,
               Pointer
             )
         )
@@ -157,7 +156,7 @@ fromMemory
     ) =
     WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
 
-fromGlobal :: (Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
+fromGlobal :: (Eq ann, Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
 fromGlobal (Global {glbExpr, glbMutability}) = do
   (wgExpr, _) <-
     runStateT

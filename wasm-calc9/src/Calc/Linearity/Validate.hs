@@ -1,8 +1,9 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -13,39 +14,38 @@ module Calc.Linearity.Validate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Linearity.Error
-import           Calc.Linearity.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Global
-import           Calc.Types.Identifier
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Calc.Utils
-import           Control.Monad          (unless)
-import           Control.Monad.Identity
-import           Control.Monad.State
-import           Control.Monad.Writer
-import           Data.Bifunctor         (second)
-import           Data.Foldable          (traverse_)
-import           Data.Functor           (($>))
-import qualified Data.List.NonEmpty     as NE
-import qualified Data.Map               as M
-import qualified Data.Set               as S
-import qualified Data.Text              as T
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Linearity.Error
+import Calc.Linearity.Types
+import Calc.TypeUtils
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Identifier
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Calc.Utils
+import Control.Monad (unless)
+import Control.Monad.Identity
+import Control.Monad.State
+import Control.Monad.Writer
+import Data.Bifunctor (second)
+import Data.Foldable (traverse_)
+import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
+import qualified Data.Text as T
+import GHC.Natural
 
-data Drops
-  = DropIdentifiers (NE.NonEmpty Identifier)
+data Drops ann
+  = DropIdentifiers (NE.NonEmpty (Identifier, Type ann))
   | DropMe
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show, Functor)
 
-getFresh :: MonadState (LinearState ann) m => m Natural
+getFresh :: (MonadState (LinearState ann) m) => m Natural
 getFresh = do
-  modify (\ls -> ls { lsFresh = lsFresh ls + 1 })
+  modify (\ls -> ls {lsFresh = lsFresh ls + 1})
   gets lsFresh
 
 getLinearityAnnotation :: Linearity ann -> ann
@@ -59,7 +59,7 @@ validateModule (Module {mdFunctions, mdGlobals}) = do
 validateGlobal ::
   (Show ann) =>
   Global (Type ann) ->
-  Either (LinearityError ann) (Expr (Type ann, Maybe Drops))
+  Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
 validateGlobal glob =
   let (expr, linearState) = getGlobalUses glob
    in validate linearState $> expr
@@ -67,7 +67,7 @@ validateGlobal glob =
 validateFunction ::
   (Show ann) =>
   Function (Type ann) ->
-  Either (LinearityError ann) (Expr (Type ann, Maybe Drops))
+  Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
 validateFunction fn =
   let (expr, linearState) = getFunctionUses fn
    in validate linearState $> expr
@@ -78,13 +78,13 @@ validate (LinearState {lsVars, lsUses}) =
         let completeUses = filterCompleteUses lsUses ident
          in case linearity of
               LTPrimitive -> Right ()
-                {-                if null completeUses
-                  then Left (NotUsed ann ident)
-                  else Right () -}
+              {-                if null completeUses
+                then Left (NotUsed ann ident)
+                else Right () -}
               LTBoxed ->
                 case length completeUses of
                   0 -> Right ()
-                    -- Left (NotUsed ann ident)
+                  -- Left (NotUsed ann ident)
                   1 -> Right ()
                   _more ->
                     Left (UsedMultipleTimes (getLinearityAnnotation <$> completeUses) ident)
@@ -107,7 +107,7 @@ filterCompleteUses uses ident =
 getFunctionUses ::
   (Show ann) =>
   Function (Type ann) ->
-  (Expr (Type ann, Maybe Drops), LinearState ann)
+  (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
 getFunctionUses (Function {fnBody, fnArgs}) =
   fst $ runIdentity $ runWriterT $ runStateT action initialState
   where
@@ -125,14 +125,14 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
 getGlobalUses ::
   (Show ann) =>
   Global (Type ann) ->
-  (Expr (Type ann, Maybe Drops), LinearState ann)
+  (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
 getGlobalUses (Global {glbExpr}) =
   fst $ runIdentity $ runWriterT $ runStateT action initialState
   where
@@ -147,23 +147,23 @@ getGlobalUses (Global {glbExpr}) =
 
 recordUse ::
   ( MonadState (LinearState ann) m,
-    MonadWriter (S.Set Identifier) m
+    MonadWriter (M.Map Identifier (Type ann)) m
   ) =>
   Identifier ->
   Type ann ->
   m ()
 recordUse ident ty = do
   modify (\ls -> ls {lsUses = (ident, Whole (getOuterTypeAnnotation ty)) : lsUses ls})
-  unless (isPrimitive ty) $ tell (S.singleton ident) -- we only want to track use of non-primitive types
+  unless (isPrimitive ty) $ tell (M.singleton ident ty) -- we only want to track use of non-primitive types
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _          = False
+isPrimitive _ = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
   Pattern (Type ann) ->
-  m (Pattern (Type ann, Maybe Drops))
+  m (Pattern (Type ann, Maybe (Drops ann)))
 addLetBinding (PVar ty ident) = do
   modify
     ( \ls ->
@@ -181,7 +181,7 @@ addLetBinding (PVar ty ident) = do
 addLetBinding (PWildcard ty) = do
   i <- getFresh
   let name = Identifier $ "_fresh_name" <> T.pack (show i)
-  addLetBinding $ PVar ty  name
+  addLetBinding $ PVar ty name
 addLetBinding (PBox ty pat) =
   PBox (ty, Nothing) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do
@@ -192,8 +192,8 @@ addLetBinding (PTuple ty p ps) = do
 -- given an expr, throw everything inside in the bin
 dropThemAll ::
   Pattern (Type ann) ->
-  Expr (Type ann, Maybe Drops) ->
-  Expr (Type ann, Maybe Drops)
+  Expr (Type ann, Maybe (Drops ann)) ->
+  Expr (Type ann, Maybe (Drops ann))
 dropThemAll (PBox _ pItem) (EBox (ty, _) item) =
   EBox (ty, Just DropMe) (dropThemAll pItem item)
 dropThemAll (PTuple _ pA pAs) (ETuple (ty, _) a as) =
@@ -206,8 +206,8 @@ dropThemAll pat other =
 -- | this should be replace with a type-generated drop function
 -- that we could also pass into polymorphic functions
 reallyDropThemAll ::
-  Expr (Type ann, Maybe Drops) ->
-  Expr (Type ann, Maybe Drops)
+  Expr (Type ann, Maybe (Drops ann)) ->
+  Expr (Type ann, Maybe (Drops ann))
 reallyDropThemAll (EBox (ty, _) item) =
   EBox (ty, Just DropMe) (reallyDropThemAll item)
 reallyDropThemAll (ETuple (ty, _) a as) =
@@ -217,9 +217,9 @@ reallyDropThemAll other = mapExpr reallyDropThemAll other
 
 decorate ::
   (Show ann) =>
-  (MonadState (LinearState ann) m, MonadWriter (S.Set Identifier) m) =>
+  (MonadState (LinearState ann) m, MonadWriter (M.Map Identifier (Type ann)) m) =>
   Expr (Type ann) ->
-  m (Expr (Type ann, Maybe Drops))
+  m (Expr (Type ann, Maybe (Drops ann)))
 decorate (EVar ty ident) = do
   recordUse ident ty
   pure (EVar (ty, Nothing) ident)
@@ -227,7 +227,7 @@ decorate (ELet ty pat expr rest) = do
   -- get all idents mentioned in `expr`
   (decoratedExpr, exprIdents) <- runWriterT (decorate expr)
 
-  let drops = DropIdentifiers <$> NE.nonEmpty (S.toList exprIdents)
+  let drops = DropIdentifiers <$> NE.nonEmpty (M.toList exprIdents)
 
   ELet (ty, drops)
     <$> addLetBinding pat
@@ -242,8 +242,8 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
   (decoratedElse, elseIdents) <- runWriterT (decorate elseExpr)
 
   -- work out idents used in the other branch but not this one
-  let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (S.toList (S.difference thenIdents elseIdents))
-      uniqueToElse = DropIdentifiers <$> NE.nonEmpty (S.toList (S.difference elseIdents thenIdents))
+  let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))
+      uniqueToElse = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference elseIdents thenIdents))
 
   EIf (ty, Nothing)
     <$> decorate predExpr

@@ -147,6 +147,11 @@ exprToWasm (WApply fnIndex args) = do
   functionIndex <- functionRefToNatural fnIndex
   traverse_ exprToWasm args
   tell [Wasm.Call functionIndex]
+exprToWasm (WApplyIndirect fnExpr args) = do
+  typeIndex <- asks functionOffset -- assume they are all drops
+  exprToWasm fnExpr
+  traverse_ exprToWasm args
+  tell [Wasm.CallIndirect typeIndex]
 exprToWasm (WDrop i) = do
   fnIndex <- dropIndex
   exprToWasm i
