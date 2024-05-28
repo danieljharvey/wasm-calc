@@ -119,8 +119,7 @@ fromFunction functionAbilities funcMap importMap globalMap generatedFns (fn@Func
           }
       )
 
-  traceShowM allArgs
-  traceShowM expr
+  traceShowM (fnFunctionName,expr)
 
   retType <- scalarFromType (getOuterAnnotation fnBody)
 

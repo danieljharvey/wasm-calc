@@ -16,7 +16,6 @@ import           Control.Monad.Except
 import           Control.Monad.State
 import qualified Data.List.NonEmpty          as NE
 import qualified Data.Map.Strict             as M
-import           Debug.Trace
 
 fromLet ::
   ( Eq ann,
@@ -58,6 +57,7 @@ fromLet (_, drops) pat expr rest = do
               pure (bindingIndex, fetchExpr)
           )
           (M.toList paths)
+
 
       -- convert the rest
       wasmRest <- fromExpr rest
@@ -102,25 +102,24 @@ fromPrim ty prim =
 
 addDropsToWasmExpr ::
   ( MonadState FromExprState m,
-    MonadError FromWasmError m,
-    Show ann
+    MonadError FromWasmError m
   ) =>
   Maybe (Drops ann) ->
   WasmExpr ->
   m WasmExpr
-addDropsToWasmExpr drops wasmExpr = do
+addDropsToWasmExpr drops wasmExpr =
   -- drop identifiers we will no longer need
-  traceM "addDropsToWasmExpr"
   case drops of
     Just (DropIdentifiers idents) -> do
       nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
-      traceShowM nats
       foldM
-        ( \restExpr (index, ty) -> case ty of
+        ( \restExpr (index, ty) -> do
+          dropWasm <- case ty of
             TVar _ typeVar -> do
               nat <- lookupIdent (genericArgName typeVar)
-              pure $ WSequence Void (WApplyIndirect (WVar nat) [WVar index]) restExpr
-            _              -> pure $ WSequence Void (WDrop (WVar index)) restExpr
+              pure (WApplyIndirect (WVar nat) [WVar index])
+            _              -> pure (WDrop (WVar index))
+          pure $ WSequence Void dropWasm restExpr
         )
         wasmExpr
         nats

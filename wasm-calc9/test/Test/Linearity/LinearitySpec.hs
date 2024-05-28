@@ -1,26 +1,26 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad      (void)
+import           Data.Either        (isRight)
+import           Data.Foldable      (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Map.Strict    as M
+import qualified Data.Text          as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
 
 spec :: Spec
 spec = do
-  describe "LinearitySpec" $ do
-    fdescribe "decorate" $ do
+  fdescribe "LinearitySpec" $ do
+    describe "decorate" $ do
       let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
@@ -55,18 +55,18 @@ spec = do
               ( "function dropBoxAfterUse() -> Int64 { let Box(a) = Box((100: Int64)); a }",
                 ELet
                   Nothing
-                  (PBox Nothing (PVar Nothing "a"))
-                  (EBox (Just DropMe) (EAnn Nothing dTyInt64 (dInt 100)))
+                  (PBox (Just DropMe) (PVar Nothing "a"))
+                  (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100)))
                   (dVar "a")
               ),
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
                 ELet
                   Nothing
-                  (PBox Nothing (PVar Nothing "outer"))
-                  (EBox (Just DropMe) (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100))))
+                  (PBox (Just DropMe) (PVar Nothing "outer"))
+                  (EBox Nothing (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100))))
                   ( ELet
                       (dropIdents [("outer", tyBox tyInt64)])
-                      (PBox Nothing (PVar Nothing "inner"))
+                      (PBox (Just DropMe) (PVar Nothing "inner"))
                       (dVar "outer")
                       (dVar "inner")
                   )
@@ -97,7 +97,20 @@ spec = do
                       (dVar "a")
                       (EInfix Nothing OpAdd (dVar "b") (dVar "c"))
                   )
-              ) {-,
+              ),
+              ("function dropVariablesInIfBranches() -> Int64 { let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c }",
+                ELet Nothing (PVar Nothing "a") (EBox Nothing (EAnn Nothing dTyInt64 (dInt 1)))
+                  (ELet Nothing (PVar Nothing "b") (EBox Nothing (EAnn Nothing dTyInt64 (dInt 2)))
+                     (ELet Nothing (PBox (Just DropMe) (PVar Nothing "c"))
+                        (EIf Nothing (dBool True)
+                          (EVar (dropIdents [("b", tyTuple [tyInt64 ])]) "a")
+                          (EVar (dropIdents [("a", tyTuple [tyInt64 ])]) "b")
+                        ) (dVar "c")
+                     )
+                  )
+              )
+
+              {-,
                 ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
                   letAEqualsTuple
                     ( ELet

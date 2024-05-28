@@ -9,7 +9,6 @@ import           Calc.Wasm.ToWasm.Helpers
 import           Calc.Wasm.ToWasm.Types
 import           Data.Maybe               (catMaybes, mapMaybe, maybeToList)
 import qualified Data.Text.Lazy           as TL
-import           Debug.Trace
 import           GHC.Natural
 import qualified Language.Wasm.Structure  as Wasm
 
@@ -53,9 +52,8 @@ fromImport wfIndex (WasmImport {wiExternalModule, wiExternalFunction}) =
 
 typeFromFunction :: WasmFunction -> Wasm.FuncType
 typeFromFunction (WasmFunction {wfArgs, wfReturnType}) =
-  traceShowId $
     Wasm.FuncType
-      (mapMaybe fromType (traceShowId wfArgs))
+      (mapMaybe fromType wfArgs)
       (maybeToList $ fromType wfReturnType)
 
 typeFromImport :: WasmImport -> Wasm.FuncType

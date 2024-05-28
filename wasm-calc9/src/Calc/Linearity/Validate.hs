@@ -1,9 +1,9 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TupleSections      #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -14,29 +14,28 @@ module Calc.Linearity.Validate
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Calc.Utils
-import Control.Monad (unless)
-import Control.Monad.Identity
-import Control.Monad.State
-import Control.Monad.Writer
-import Data.Bifunctor (second)
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Global
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad          (unless)
+import           Control.Monad.Identity
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Data.Bifunctor         (second)
+import           Data.Foldable          (traverse_)
+import           Data.Functor           (($>))
+import qualified Data.List.NonEmpty     as NE
+import qualified Data.Map               as M
+import qualified Data.Text              as T
+import           GHC.Natural
 
 data Drops ann
   = DropIdentifiers (NE.NonEmpty (Identifier, Type ann))
@@ -125,7 +124,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (Identifier arg) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
@@ -158,7 +157,7 @@ recordUse ident ty = do
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _ = False
+isPrimitive _          = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -183,37 +182,11 @@ addLetBinding (PWildcard ty) = do
   let name = Identifier $ "_fresh_name" <> T.pack (show i)
   addLetBinding $ PVar ty name
 addLetBinding (PBox ty pat) =
-  PBox (ty, Nothing) <$> addLetBinding pat
+  PBox (ty, Just DropMe) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do
   PTuple (ty, Nothing)
     <$> addLetBinding p
     <*> traverse addLetBinding ps
-
--- given an expr, throw everything inside in the bin
-dropThemAll ::
-  Pattern (Type ann) ->
-  Expr (Type ann, Maybe (Drops ann)) ->
-  Expr (Type ann, Maybe (Drops ann))
-dropThemAll (PBox _ pItem) (EBox (ty, _) item) =
-  EBox (ty, Just DropMe) (dropThemAll pItem item)
-dropThemAll (PTuple _ pA pAs) (ETuple (ty, _) a as) =
-  ETuple (ty, Just DropMe) (dropThemAll pA a) (neZipWith dropThemAll pAs as)
-dropThemAll (PWildcard _) expr =
-  reallyDropThemAll expr
-dropThemAll pat other =
-  mapExpr (dropThemAll pat) other
-
--- | this should be replace with a type-generated drop function
--- that we could also pass into polymorphic functions
-reallyDropThemAll ::
-  Expr (Type ann, Maybe (Drops ann)) ->
-  Expr (Type ann, Maybe (Drops ann))
-reallyDropThemAll (EBox (ty, _) item) =
-  EBox (ty, Just DropMe) (reallyDropThemAll item)
-reallyDropThemAll (ETuple (ty, _) a as) =
-  ETuple (ty, Just DropMe) (reallyDropThemAll a) (reallyDropThemAll <$> as)
-reallyDropThemAll e@(EApply {}) = e
-reallyDropThemAll other = mapExpr reallyDropThemAll other
 
 decorate ::
   (Show ann) =>
@@ -231,7 +204,7 @@ decorate (ELet ty pat expr rest) = do
 
   ELet (ty, drops)
     <$> addLetBinding pat
-    <*> pure (dropThemAll pat decoratedExpr)
+    <*> pure decoratedExpr -- (dropThemAll pat decoratedExpr)
     <*> (tell exprIdents >> decorate rest) -- keep hold of the stuff we learned
 decorate (EPrim ty prim) =
   pure $ EPrim (ty, Nothing) prim
