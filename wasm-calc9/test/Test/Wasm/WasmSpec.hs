@@ -144,7 +144,7 @@ spec = do
     fdescribe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ {-(asTest "42", Wasm.VI64 42),
+            [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -350,11 +350,23 @@ spec = do
                 Wasm.VI64 1
               ),
               ( joinLines
+                  [ "function bool(pred: Boolean, left: Box(Int64), right: Box(Int64)) -> Box(Int64) { if pred then left else right }",
+                    asTest "let Box(a) = bool(False, Box(1), Box(2)); a"
+                  ],
+                Wasm.VI64 2
+              ),
+              ( joinLines
+                  [ "function bool(pred: Boolean, left: Box(Box(Int64)), right: Box(Box(Int64))) -> Box(Box(Int64)) { if pred then left else right }",
+                    asTest "let Box(Box(a)) = bool(False, Box(Box(1)), Box(Box(2))); a"
+                  ],
+                Wasm.VI64 2
+              ),
+              ( joinLines
                   [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
                     asTest "let Box(a) = bool(False, Box((1: Int64)), Box((2: Int64))); a"
                   ],
                 Wasm.VI64 2
-              ),-}
+              ),
               ( asTest "let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c",
               Wasm.VI64 1)
             ]

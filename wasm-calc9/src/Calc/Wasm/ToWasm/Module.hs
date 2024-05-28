@@ -186,7 +186,7 @@ tables fns
 
 -- | we load the bump allocator module and build on top of it
 moduleToWasm :: WasmModule -> Wasm.Module
-moduleToWasm wholeMod@(WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFunctions}) =
+moduleToWasm wholeMod@(WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFunctions,wmGeneratedFunctions}) =
   let usesAllocator = moduleUsesAllocator wholeMod
       functionImports =
         functionImportsToWasm wmImports
@@ -205,24 +205,29 @@ moduleToWasm wholeMod@(WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFu
           }
       functions =
         uncurry (fromFunction env) <$> zip [0 ..] wmFunctions
+      generatedFunctions  =
+        uncurry (fromFunction env) <$> zip [length wmFunctions ..] wmGeneratedFunctions
       testsOffset =
-        length functions
+        length functions + length generatedFunctions
       tests =
         uncurry (fromTest env) <$> zip [testsOffset ..] wmTests
       importTypes =
         typeFromImport <$> wmImports
       functionTypes =
         typeFromFunction <$> wmFunctions
+      generatedFunctionTypes =
+        typeFromFunction <$> wmGeneratedFunctions
       testTypes =
         typeFromTest <$> wmTests
       exports =
         mapMaybe (uncurry $ exportFromFunction env) (zip [0 ..] wmFunctions)
           <> fmap (uncurry $ exportFromTest env) (zip [testsOffset ..] wmTests)
       imports = memoryImportsToWasm wmMemory <> functionImports
-      allFunctions = allocFunctions <> functions <> tests
+
+      allFunctions = allocFunctions <> functions <> generatedFunctions <> tests
 
    in moduleWithAllocator
-        { Wasm.types = importTypes <> allocatorTypes usesAllocator <> functionTypes <> testTypes,
+        { Wasm.types = importTypes <> allocatorTypes usesAllocator <> functionTypes <> generatedFunctionTypes <> testTypes,
           Wasm.functions = allFunctions,
           Wasm.globals = allocGlobals <> globals env wmGlobals,
           Wasm.mems = memory wmMemory,

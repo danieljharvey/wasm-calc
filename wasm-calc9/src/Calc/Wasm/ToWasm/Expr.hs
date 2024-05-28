@@ -148,10 +148,10 @@ exprToWasm (WApply fnIndex args) = do
   traverse_ exprToWasm args
   tell [Wasm.Call functionIndex]
 exprToWasm (WApplyIndirect fnExpr args) = do
-  typeIndex <- asks functionOffset -- assume they are all drops
-  exprToWasm fnExpr
+  typeIndex <- asks generatedFunctionOffset -- assume they are all drops
   traverse_ exprToWasm args
-  tell [Wasm.CallIndirect typeIndex]
+  exprToWasm fnExpr
+  tell [Wasm.CallIndirect typeIndex ]
 exprToWasm (WDrop i) = do
   fnIndex <- dropIndex
   exprToWasm i

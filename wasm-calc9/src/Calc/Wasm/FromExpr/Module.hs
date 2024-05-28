@@ -17,7 +17,6 @@ import           Control.Monad              (foldM, void)
 import           Control.Monad.State
 import qualified Data.Map.Strict            as M
 import qualified Data.Set                   as S
-import           Debug.Trace
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -119,8 +118,6 @@ fromFunction functionAbilities funcMap importMap globalMap generatedFns (fn@Func
           }
       )
 
-  traceShowM (fnFunctionName,expr)
-
   retType <- scalarFromType (getOuterAnnotation fnBody)
 
   abilities <-
@@ -194,10 +191,10 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
       ( \(generatedFns, fns) input -> do
           (generated, newFn) <-
             fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap generatedFns input
-          pure (generated, fns <> [newFn])
+          pure (generated, [newFn] <> fns)
       )
       ([], [])
-      mdFunctions
+      (reverse mdFunctions)
 
   wasmImports <- traverse fromImport mdImports
 
@@ -205,7 +202,8 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
 
   pure $
     WasmModule
-      { wmFunctions = wasmFunctions <> generatedWasmFunctions,
+      { wmFunctions = wasmFunctions,
+        wmGeneratedFunctions = generatedWasmFunctions,
         wmImports = wasmImports,
         wmMemory = fromMemory mdMemory,
         wmGlobals = wasmGlobals,

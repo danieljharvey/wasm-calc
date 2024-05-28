@@ -54,15 +54,17 @@ data WasmGlobal = WasmGlobal
 
 data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
-    wmFunctions :: [WasmFunction],
+    wmFunctions          :: [WasmFunction],
+    -- | any generated functions
+    wmGeneratedFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports   :: [WasmImport],
+    wmImports            :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemory    :: WasmMemory,
+    wmMemory             :: WasmMemory,
     -- | which globals are defined?
-    wmGlobals   :: [WasmGlobal],
+    wmGlobals            :: [WasmGlobal],
     -- | which tests do we have?
-    wmTests     :: [WasmTest]
+    wmTests              :: [WasmTest]
   }
   deriving stock (Eq, Ord, Show)
 

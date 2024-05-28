@@ -58,7 +58,6 @@ fromLet (_, drops) pat expr rest = do
           )
           (M.toList paths)
 
-
       -- convert the rest
       wasmRest <- fromExpr rest
 
@@ -67,7 +66,7 @@ fromLet (_, drops) pat expr rest = do
 
       -- drop items in the match expr we will no longer need
       dropPaths <-
-        traverse (fmap WDrop <$> fromPath index) (exprToPaths expr id)
+        traverse (fmap WDrop <$> fromPath index) (patternToDropPaths pat id)
 
       -- take care of stuff we've pattern matched into oblivion
       let wasmRestWithManyDrops = foldr (WSequence Void) wasmRestWithDrops dropPaths
@@ -116,9 +115,15 @@ addDropsToWasmExpr drops wasmExpr =
         ( \restExpr (index, ty) -> do
           dropWasm <- case ty of
             TVar _ typeVar -> do
+              -- generics must have been passed in as function args
               nat <- lookupIdent (genericArgName typeVar)
               pure (WApplyIndirect (WVar nat) [WVar index])
-            _              -> pure (WDrop (WVar index))
+
+            _              -> do
+              -- generate a new fancy drop function
+              dropFunc <- createDropFunction 1 ty
+              dropVar <- addGeneratedFunction dropFunc
+              pure (WApply dropVar  [WVar index])
           pure $ WSequence Void dropWasm restExpr
         )
         wasmExpr
@@ -185,7 +190,6 @@ fromExpr (EApply _ funcName args) = do
   newFuncs <- traverse (createDropFunction 1 . snd) types
   dropArgs <- fmap WFunctionPointer <$> traverse addGeneratedFunction newFuncs
   wasmArgs <- traverse fromExpr args
-
   pure $ WApply fIndex (wasmArgs <> dropArgs)
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty

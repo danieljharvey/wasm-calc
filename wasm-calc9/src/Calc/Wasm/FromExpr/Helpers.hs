@@ -130,8 +130,8 @@ lookupFunction functionName = do
 addGeneratedFunction :: (MonadState FromExprState m) => WasmFunction -> m WasmFunctionRef
 addGeneratedFunction wasmFunc = do
   modify (\fes -> fes {fesGenerated = fesGenerated fes <> [wasmFunc]})
-  startingDigit <- gets (fromIntegral . length . fesArgs)
-  pure (WasmGeneratedRef startingDigit)
+  startingDigit <- gets (fromIntegral . length . fesGenerated)
+  pure (WasmGeneratedRef $ startingDigit - 1)
 
 -- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
 -- then we know `a == Int32` and `b == Int64`.
