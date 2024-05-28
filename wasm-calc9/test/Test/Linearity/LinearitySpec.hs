@@ -19,7 +19,7 @@ runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
 
 spec :: Spec
 spec = do
-  fdescribe "LinearitySpec" $ do
+  describe "LinearitySpec" $ do
     describe "decorate" $ do
       let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
@@ -59,6 +59,15 @@ spec = do
                   (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100)))
                   (dVar "a")
               ),
+              ( "function dropTupleAfterUse() -> Int64 { let (a,_) = ((100: Int64),(200: Int64)); a }",
+                ELet
+                  Nothing
+                  (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar Nothing "_fresh_name1"))
+                  (ETuple Nothing (EAnn Nothing dTyInt64 (dInt 100))
+                        (NE.singleton $ EAnn Nothing dTyInt64 (dInt 200))
+                  )
+                  (dVar "a")
+              ),
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
                 ELet
                   Nothing
@@ -93,7 +102,7 @@ spec = do
                 letAEqualsTuple
                   ( ELet
                       (dropIdents [("a", tyTuple [tyInt32, tyInt32])])
-                      (PTuple Nothing (PVar Nothing "b") (NE.singleton (PVar Nothing "c")))
+                      (PTuple (Just DropMe) (PVar Nothing "b") (NE.singleton (PVar Nothing "c")))
                       (dVar "a")
                       (EInfix Nothing OpAdd (dVar "b") (dVar "c"))
                   )

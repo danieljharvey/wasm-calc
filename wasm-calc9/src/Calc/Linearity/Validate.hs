@@ -184,7 +184,7 @@ addLetBinding (PWildcard ty) = do
 addLetBinding (PBox ty pat) =
   PBox (ty, Just DropMe) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do
-  PTuple (ty, Nothing)
+  PTuple (ty, Just DropMe)
     <$> addLetBinding p
     <*> traverse addLetBinding ps
 

@@ -141,7 +141,7 @@ spec = do
       describe "From module" $ do
         traverse_ testWithNode testVals
 
-    fdescribe "Test with interpreter" $ do
+    describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
             [ (asTest "42", Wasm.VI64 42),
