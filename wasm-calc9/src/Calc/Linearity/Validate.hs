@@ -73,17 +73,17 @@ validateFunction fn =
 
 validate :: LinearState ann -> Either (LinearityError ann) ()
 validate (LinearState {lsVars, lsUses}) =
-  let validateFunctionItem (ident, (linearity, _ann)) =
+  let validateFunctionItem (Internal _,_) = Right ()
+      validateFunctionItem (UserDefined ident, (linearity, ann)) =
         let completeUses = filterCompleteUses lsUses ident
          in case linearity of
-              LTPrimitive -> Right ()
-              {-                if null completeUses
+              LTPrimitive ->
+                              if null completeUses
                 then Left (NotUsed ann ident)
-                else Right () -}
+                else Right ()
               LTBoxed ->
                 case length completeUses of
-                  0 -> Right ()
-                  -- Left (NotUsed ann ident)
+                  0 -> Left (NotUsed ann ident)
                   1 -> Right ()
                   _more ->
                     Left (UsedMultipleTimes (getLinearityAnnotation <$> completeUses) ident)
@@ -122,7 +122,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
     initialVars =
       foldMap
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
-            M.singleton (Identifier arg) $ case faType of
+            M.singleton (UserDefined (Identifier arg)) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
               _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
@@ -169,7 +169,7 @@ addLetBinding (PVar ty ident) = do
         ls
           { lsVars =
               M.insert
-                ident
+                (UserDefined ident)
                 ( if isPrimitive ty then LTPrimitive else LTBoxed,
                   getOuterTypeAnnotation ty
                 )
@@ -179,14 +179,29 @@ addLetBinding (PVar ty ident) = do
   pure $ PVar (ty, Nothing) ident
 addLetBinding (PWildcard ty) = do
   i <- getFresh
-  let name = Identifier $ "_fresh_name" <> T.pack (show i)
-  addLetBinding $ PVar ty name
+  let ident = Identifier $ "_fresh_name" <> T.pack (show i)
+  modify
+    ( \ls ->
+        ls
+          { lsVars =
+              M.insert
+                (Internal ident)
+                ( if isPrimitive ty then LTPrimitive else LTBoxed,
+                  getOuterTypeAnnotation ty
+                )
+                (lsVars ls)
+          }
+    )
+  pure $ PVar (ty, dropForType ty) ident
 addLetBinding (PBox ty pat) =
-  PBox (ty, Just DropMe) <$> addLetBinding pat
+  PBox (ty, dropForType ty) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do
-  PTuple (ty, Just DropMe)
+  PTuple (ty, dropForType ty )
     <$> addLetBinding p
     <*> traverse addLetBinding ps
+
+dropForType :: Type ann -> Maybe (Drops an)
+dropForType ty = if isPrimitive ty then Nothing else Just DropMe
 
 decorate ::
   (Show ann) =>

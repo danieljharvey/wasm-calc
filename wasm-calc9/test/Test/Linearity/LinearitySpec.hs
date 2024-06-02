@@ -68,6 +68,9 @@ spec = do
                   )
                   (dVar "a")
               ),
+              ("function allocUnused() -> Int64 { let _ = Box((1: Int32)); 22 }",
+                ELet Nothing (PVar (Just DropMe) "_fresh_name1") (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1))) (dInt 22)),
+
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
                 ELet
                   Nothing
@@ -152,28 +155,28 @@ spec = do
             [ ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 LinearState
                   { lsVars =
-                      M.fromList [("a", (LTPrimitive, ())), ("b", (LTPrimitive, ()))],
+                      M.fromList [(UserDefined "a", (LTPrimitive, ())), (UserDefined "b", (LTPrimitive, ()))],
                     lsUses = [("b", Whole ()), ("a", Whole ())],
                     lsFresh = 0
                   }
               ),
               ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
                 LinearState
-                  { lsVars = M.fromList [("a", (LTBoxed, ())), ("b", (LTBoxed, ()))],
+                  { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
                     lsUses = [("b", Whole ()), ("a", Whole ())],
                     lsFresh = 0
                   }
               ),
               ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                 LinearState
-                  { lsVars = M.fromList [("a", (LTBoxed, ())), ("b", (LTBoxed, ()))],
+                  { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
                     lsUses = [("b", Whole ())],
                     lsFresh = 0
                   }
               ),
               ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                 LinearState
-                  { lsVars = M.fromList [("a", (LTBoxed, ()))],
+                  { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ()))],
                     lsUses = [("a", Whole ()), ("a", Whole ())],
                     lsFresh = 0
                   }
@@ -214,18 +217,15 @@ spec = do
 
       describe "expected failures" $ do
         let failures =
-              [ {-( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
+              [ ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                   NotUsed () "a"
                 ),
                 ( "function dontUsePrimA(a: Int64, b: Int64) -> Int64 { b }",
                   NotUsed () "a"
-                ),-}
+                ),
                 ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                   UsedMultipleTimes [(), ()] "a"
                 ),
-                {-( "function twice(pair: (Int64, Int64)) { pair.1 + pair.2 }",
-                  UsedMultipleTimes "pair"
-                ),-}
                 ( "function withPair<a,b>(pair: (a,b)) -> (a,a,b) { let (a,b) = pair; (a, a, b) }",
                   UsedMultipleTimes [(), ()] "a"
                 )
