@@ -20,7 +20,7 @@ runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
 spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
-    fdescribe "decorate" $ do
+    describe "decorate" $ do
       let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
@@ -29,7 +29,6 @@ spec = do
           dTuple = \case
             (a : b : rest) -> ETuple Nothing a (b NE.:| rest)
             _ -> error "not enough items for tuple"
-          tyBox a = TContainer mempty (NE.singleton a)
           tyTuple as = TContainer mempty (NE.fromList as)
           tyInt32 = TPrim mempty TInt32
           tyInt64 = TPrim mempty TInt64
@@ -71,7 +70,8 @@ spec = do
                   (dVar "a")
               ),
               ( "function allocUnused() -> Int64 { let _ = Box((1: Int32)); 22 }",
-                ELet Nothing (PVar (Just DropMe) "_fresh_name1") (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1))) (dInt 22)
+                ELet Nothing (PVar (Just DropMe) "_fresh_name1")
+                  (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1))) (dInt 22)
               ),
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
                 ELet
@@ -79,7 +79,7 @@ spec = do
                   (PBox (Just DropMe) (PVar Nothing "outer"))
                   (EBox Nothing (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100))))
                   ( ELet
-                      (dropIdents [("outer", tyBox tyInt64)])
+                      Nothing
                       (PBox (Just DropMe) (PVar Nothing "inner"))
                       (dVar "outer")
                       (dVar "inner")
@@ -106,7 +106,7 @@ spec = do
               ( "function dropAfterDestructure() -> Int32 { let a = ((1: Int32), (2: Int32)); let (b,c) = a; b + c }",
                 letAEqualsTuple
                   ( ELet
-                      (dropIdents [("a", tyTuple [tyInt32, tyInt32])])
+                      Nothing
                       (PTuple (Just DropMe) (PVar Nothing "b") (NE.singleton (PVar Nothing "c")))
                       (dVar "a")
                       (EInfix Nothing OpAdd (dVar "b") (dVar "c"))
@@ -144,7 +144,7 @@ spec = do
                       (NE.singleton $ EAnn Nothing (TPrim Nothing TInt64) (EPrim Nothing (PIntLit 2)))
                   )
                   ( ELet
-                      (dropIdents [("a", tyTuple [tyInt64, tyInt64])])
+                      Nothing
                       (PTuple (Just DropMe) (PVar Nothing "b") (NE.singleton $ PVar Nothing "c"))
                       (EVar Nothing "a")
                       (EInfix Nothing OpAdd (EVar Nothing "b") (EVar Nothing "c"))

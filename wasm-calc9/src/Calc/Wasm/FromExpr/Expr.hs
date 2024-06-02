@@ -23,12 +23,11 @@ fromLet ::
     MonadError FromWasmError m,
     MonadState FromExprState m
   ) =>
-  (Type ann, Maybe (Drops ann)) ->
   Pattern (Type ann, Maybe (Drops ann)) ->
   Expr (Type ann, Maybe (Drops ann)) ->
   Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
-fromLet (_, drops) pat expr rest = do
+fromLet  pat expr rest = do
   let paths = patternToPaths (fst <$> pat) id
   if null paths
     then do
@@ -61,15 +60,12 @@ fromLet (_, drops) pat expr rest = do
       -- convert the rest
       wasmRest <- fromExpr rest
 
-      -- drop identifiers we will no longer need
-      wasmRestWithDrops <- addDropsToWasmExpr drops wasmRest
-
       -- drop items in the match expr we will no longer need
       dropPaths <-
         traverse (fmap WDrop <$> fromPath index) (patternToDropPaths pat id)
 
       -- take care of stuff we've pattern matched into oblivion
-      let wasmRestWithManyDrops = foldr (WSequence Void) wasmRestWithDrops dropPaths
+      let wasmRestWithDrops = foldr (WSequence Void) wasmRest dropPaths
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $
@@ -78,7 +74,7 @@ fromLet (_, drops) pat expr rest = do
             ( \(bindingIndex, fetchExpr) thisExpr ->
                 WLet bindingIndex fetchExpr thisExpr
             )
-            wasmRestWithManyDrops
+            wasmRestWithDrops
             indexes
 
 -- | we use a combination of the value and the type
@@ -163,8 +159,8 @@ fromExpr (EBlock _ expr) =
 fromExpr (EAnn _ _ expr) =
   -- ignore type annotations. todo: will we lose drops here
   fromExpr expr
-fromExpr (ELet ann pat expr rest) =
-  fromLet ann pat expr rest
+fromExpr (ELet _ pat expr rest) =
+  fromLet pat expr rest
 fromExpr (EInfix _ op a b) = do
   -- we're assuming that the types of `a` and `b` are the same
   -- we want the type of the args, not the result
