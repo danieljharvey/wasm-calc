@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr.Drops
   ( DropPath (..),
@@ -9,20 +9,20 @@ module Calc.Wasm.FromExpr.Drops
   )
 where
 
-import           Calc.Types
-import           Calc.TypeUtils             (monoidType)
-import           Calc.Wasm.FromExpr.Helpers (scalarFromType)
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Helpers
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad.Except
-import           Data.Foldable              (foldl')
-import           Data.Functor               (($>))
-import qualified Data.List.NonEmpty         as NE
-import qualified Data.Map.Strict            as M
-import qualified Data.Set                   as S
-import qualified Data.Text                  as T
-import           GHC.Natural
+import Calc.TypeUtils (monoidType)
+import Calc.Types
+import Calc.Wasm.FromExpr.Helpers (scalarFromType)
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Types
+import Control.Monad.Except
+import Data.Foldable (foldl')
+import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import GHC.Natural
 
 -- | for a variable, describe how to get it
 data DropPath ann
@@ -55,7 +55,7 @@ typeToDropPaths _ _ = mempty
 
 typeVars :: Type ann -> S.Set TypeVar
 typeVars (TVar _ tv) = S.singleton tv
-typeVars other       = monoidType typeVars other
+typeVars other = monoidType typeVars other
 
 dropFunctionName :: Natural -> FunctionName
 dropFunctionName i = FunctionName $ "drop_" <> T.pack (show i)
@@ -73,7 +73,7 @@ createDropFunction natIndex ty = do
 
   let expr = case wasmExprs of
         [] -> WDrop (WVar 0) -- no
-        _  -> flattenDropExprs wasmExprs
+        _ -> flattenDropExprs wasmExprs
 
   pure $
     WasmFunction
@@ -94,7 +94,7 @@ flattenDropExprs exprs = case NE.uncons (NE.fromList exprs) of
   ((Just i, a), Nothing) -> WApply (WasmGeneratedRef i) [a]
   (starting, Just rest) ->
     let withDrop (dropType, a) = case dropType of
-          Just i  -> WApply ( WasmGeneratedRef i) [a]
+          Just i -> WApply (WasmGeneratedRef i) [a]
           Nothing -> WDrop a
      in foldl'
           ( \exprA exprB ->

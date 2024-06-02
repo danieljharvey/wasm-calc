@@ -1,26 +1,26 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Dependencies
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Test
-import           Calc.Typecheck
-import           Calc.Wasm
+import Calc.Dependencies
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Test
+import Calc.Typecheck
+import Calc.Wasm
 import qualified Calc.Wasm.FromExpr.Module as FromExpr
-import           Calc.Wasm.Run
-import qualified Calc.Wasm.ToWasm          as ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm as ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -234,7 +234,7 @@ spec = do
                     asTest "let Box(a) = fst(((10: Int64), (2: Int64))); a"
                   ],
                 Wasm.VI64 10
-              ) ,
+              ),
               ( joinLines
                   [ asTest "let (Box(a),_) = (Box((43 : Int64)),Box((42 : Int64))); a"
                   ],
@@ -260,89 +260,89 @@ spec = do
                     asTest "let (Box(a),_) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
                   ],
                 Wasm.VI64 43
-              ) ,
-                ( joinLines
-                    [ "function pair<a,b>(left: a, right: b) -> (a,b) { (left, right) }",
-                      asTest "let (_, Box(a)) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
-                    ],
-                  Wasm.VI64 42
-                ),
-                ( asTest "let _ = (1: Int64); (2 : Int64)",
-                  Wasm.VI64 2
-                ),
-                ( asTest "let Box(a) = Box((42 : Int64)); a",
-                  Wasm.VI64 42
-                ),
-                ( asTest "let Box(a) = Box((1.23: Float32)); let _ = a; (23 : Int64)",
-                  Wasm.VI64 23
-                ),
-                ( asTest "let (a,b) = ((1: Int64), (2 : Int64)); a + b",
-                  Wasm.VI64 3
-                ),
-                ( asTest "let Box(Box(a)) = Box(Box((101 : Int64))); a",
-                  Wasm.VI64 101
-                ),
-                ( asTest "let (a, (b,c)) = ((1 : Int64), ((2: Int64), (3: Int64))); a + b + c",
-                  Wasm.VI64 6
-                ),
-                ( asTest "let (_,_,_,d) = ((1: Int8), (2: Int16), (3: Int32), (4: Int64)); d",
-                  Wasm.VI64 4
-                ),
-                ( joinLines
-                    [ "memory 1000",
-                      asTest "load(0)"
-                    ],
-                  Wasm.VI64 0
-                ),
-                -- now to make sure our manual memory and allocated memory don't
-                -- fuck with one another
-                ( joinLines
-                    [ "memory 1000",
-                      asTest "let pair = ((1: Int64), (2: Int64)); let (a,b) = pair; let _ = a + b; load(32)"
-                    ],
-                  Wasm.VI64 0
-                ),
-                ( joinLines
-                    [ "memory 1000",
-                      "function sum(a: Int64, b: Int64) -> Int64 { a + b }",
-                      asTest "store(0, (20: Int64)); store(8, (22: Int64)); sum(load(0), load(8))"
-                    ],
-                  Wasm.VI64 42
-                ),
-                ( joinLines
-                    [ "global one: Int64 = 1",
-                      asTest "1 + one"
-                    ],
-                  Wasm.VI64 2
-                ),
-                ( joinLines
-                    [ "global mut counter: Int64 = 0",
-                      asTest "set(counter, 2); counter"
-                    ],
-                  Wasm.VI64 2
-                ),
-                ( joinLines
-                    [ "function factorial(a: Int64) -> Int64 { if a == 0 then 1 else a * factorial(a - 1) }",
-                      asTest "factorial(4)"
-                    ],
-                  Wasm.VI64 24
-                ),
-                ( joinLines
-                    [ "export function testShouldntCollide() -> Int32 { 1 }",
-                      asTest "100",
-                      "test testShouldntCollide = True"
-                    ],
-                  Wasm.VI64 100
-                ),
-                ( joinLines
-                    [ "function alloc() -> Int64 { let _ = Box((1: Int32)); 22 }",
-                      asTest "if True then alloc() else alloc()"
-                    ],
-                  Wasm.VI64 22
-                ),
-                ( asTest "let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c",
-                  Wasm.VI64 3
-                ),
+              ),
+              ( joinLines
+                  [ "function pair<a,b>(left: a, right: b) -> (a,b) { (left, right) }",
+                    asTest "let (_, Box(a)) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
+                  ],
+                Wasm.VI64 42
+              ),
+              ( asTest "let _ = (1: Int64); (2 : Int64)",
+                Wasm.VI64 2
+              ),
+              ( asTest "let Box(a) = Box((42 : Int64)); a",
+                Wasm.VI64 42
+              ),
+              ( asTest "let Box(a) = Box((1.23: Float32)); let _ = a; (23 : Int64)",
+                Wasm.VI64 23
+              ),
+              ( asTest "let (a,b) = ((1: Int64), (2 : Int64)); a + b",
+                Wasm.VI64 3
+              ),
+              ( asTest "let Box(Box(a)) = Box(Box((101 : Int64))); a",
+                Wasm.VI64 101
+              ),
+              ( asTest "let (a, (b,c)) = ((1 : Int64), ((2: Int64), (3: Int64))); a + b + c",
+                Wasm.VI64 6
+              ),
+              ( asTest "let (_,_,_,d) = ((1: Int8), (2: Int16), (3: Int32), (4: Int64)); d",
+                Wasm.VI64 4
+              ),
+              ( joinLines
+                  [ "memory 1000",
+                    asTest "load(0)"
+                  ],
+                Wasm.VI64 0
+              ),
+              -- now to make sure our manual memory and allocated memory don't
+              -- fuck with one another
+              ( joinLines
+                  [ "memory 1000",
+                    asTest "let pair = ((1: Int64), (2: Int64)); let (a,b) = pair; let _ = a + b; load(32)"
+                  ],
+                Wasm.VI64 0
+              ),
+              ( joinLines
+                  [ "memory 1000",
+                    "function sum(a: Int64, b: Int64) -> Int64 { a + b }",
+                    asTest "store(0, (20: Int64)); store(8, (22: Int64)); sum(load(0), load(8))"
+                  ],
+                Wasm.VI64 42
+              ),
+              ( joinLines
+                  [ "global one: Int64 = 1",
+                    asTest "1 + one"
+                  ],
+                Wasm.VI64 2
+              ),
+              ( joinLines
+                  [ "global mut counter: Int64 = 0",
+                    asTest "set(counter, 2); counter"
+                  ],
+                Wasm.VI64 2
+              ),
+              ( joinLines
+                  [ "function factorial(a: Int64) -> Int64 { if a == 0 then 1 else a * factorial(a - 1) }",
+                    asTest "factorial(4)"
+                  ],
+                Wasm.VI64 24
+              ),
+              ( joinLines
+                  [ "export function testShouldntCollide() -> Int32 { 1 }",
+                    asTest "100",
+                    "test testShouldntCollide = True"
+                  ],
+                Wasm.VI64 100
+              ),
+              ( joinLines
+                  [ "function alloc() -> Int64 { let _ = Box((1: Int32)); 22 }",
+                    asTest "if True then alloc() else alloc()"
+                  ],
+                Wasm.VI64 22
+              ),
+              ( asTest "let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c",
+                Wasm.VI64 3
+              ),
               ( joinLines
                   [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
                     asTest "let Box(a) = bool(True, Box((1: Int64)), Box((2: Int64))); a"
@@ -368,7 +368,8 @@ spec = do
                 Wasm.VI64 2
               ),
               ( asTest "let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c",
-              Wasm.VI64 1)
+                Wasm.VI64 1
+              )
             ]
 
       describe "From expressions" $ do

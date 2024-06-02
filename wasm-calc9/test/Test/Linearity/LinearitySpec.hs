@@ -33,7 +33,7 @@ spec = do
           tyTuple as = TContainer mempty (NE.fromList as)
           tyInt32 = TPrim mempty TInt32
           tyInt64 = TPrim mempty TInt64
-      let letAEqualsTuple =
+          letAEqualsTuple =
             ELet
               Nothing
               (PVar Nothing "a")
@@ -42,7 +42,7 @@ spec = do
                   (EAnn Nothing dTyInt32 (dInt 1))
                   (NE.singleton $ EAnn Nothing dTyInt32 (dInt 2))
               )
-      let dropIdents ids = Just $ DropIdentifiers (NE.fromList ids)
+          dropIdents ids = Just $ DropIdentifiers (NE.fromList ids)
 
       let strings =
             [ ( "function valueSometimesUsed() -> Int32 { let a: Int32 = 1; if True then a else 2 }",
@@ -63,14 +63,16 @@ spec = do
                 ELet
                   Nothing
                   (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar Nothing "_fresh_name1"))
-                  (ETuple Nothing (EAnn Nothing dTyInt64 (dInt 100))
-                        (NE.singleton $ EAnn Nothing dTyInt64 (dInt 200))
+                  ( ETuple
+                      Nothing
+                      (EAnn Nothing dTyInt64 (dInt 100))
+                      (NE.singleton $ EAnn Nothing dTyInt64 (dInt 200))
                   )
                   (dVar "a")
               ),
-              ("function allocUnused() -> Int64 { let _ = Box((1: Int32)); 22 }",
-                ELet Nothing (PVar (Just DropMe) "_fresh_name1") (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1))) (dInt 22)),
-
+              ( "function allocUnused() -> Int64 { let _ = Box((1: Int32)); 22 }",
+                ELet Nothing (PVar (Just DropMe) "_fresh_name1") (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1))) (dInt 22)
+              ),
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
                 ELet
                   Nothing
@@ -110,21 +112,45 @@ spec = do
                       (EInfix Nothing OpAdd (dVar "b") (dVar "c"))
                   )
               ),
-              ("function dropVariablesInIfBranches() -> Int64 { let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c }",
-                ELet Nothing (PVar Nothing "a") (EBox Nothing (EAnn Nothing dTyInt64 (dInt 1)))
-                  (ELet Nothing (PVar Nothing "b") (EBox Nothing (EAnn Nothing dTyInt64 (dInt 2)))
-                     (ELet Nothing (PBox (Just DropMe) (PVar Nothing "c"))
-                        (EIf Nothing (dBool True)
-                          (EVar (dropIdents [("b", tyTuple [tyInt64 ])]) "a")
-                          (EVar (dropIdents [("a", tyTuple [tyInt64 ])]) "b")
-                        ) (dVar "c")
-                     )
+              ( "function dropVariablesInIfBranches() -> Int64 { let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c }",
+                ELet
+                  Nothing
+                  (PVar Nothing "a")
+                  (EBox Nothing (EAnn Nothing dTyInt64 (dInt 1)))
+                  ( ELet
+                      Nothing
+                      (PVar Nothing "b")
+                      (EBox Nothing (EAnn Nothing dTyInt64 (dInt 2)))
+                      ( ELet
+                          Nothing
+                          (PBox (Just DropMe) (PVar Nothing "c"))
+                          ( EIf
+                              Nothing
+                              (dBool True)
+                              (EVar (dropIdents [("b", tyTuple [tyInt64])]) "a")
+                              (EVar (dropIdents [("a", tyTuple [tyInt64])]) "b")
+                          )
+                          (dVar "c")
+                      )
                   )
               ),
-              ("function dropUnusedBox() -> Int64 { let _ = Box((1: Int64)); 22 }",
-              ELet Nothing (PVar (Just DropMe) "_fresh_name1")
-                (EBox Nothing (EAnn Nothing dTyInt64 (dInt 1))) (dInt 22))
-              {-,
+              ( "function hmm() -> Int64 { let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c }",
+                ELet
+                  Nothing
+                  (PVar Nothing "a")
+                  ( ETuple
+                      Nothing
+                      (EAnn Nothing (TPrim Nothing TInt64) (EPrim Nothing (PIntLit 1)))
+                      (NE.singleton $ EAnn Nothing (TPrim Nothing TInt64) (EPrim Nothing (PIntLit 2)))
+                  )
+                  ( ELet
+                      (dropIdents [("a", tyTuple [tyInt64, tyInt64])])
+                      (PTuple (Just DropMe) (PVar Nothing "b") (NE.singleton $ PVar Nothing "c"))
+                      (EVar Nothing "a")
+                      (EInfix Nothing OpAdd (EVar Nothing "b") (EVar Nothing "c"))
+                  )
+              )
+              {-
                 ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
                   letAEqualsTuple
                     ( ELet

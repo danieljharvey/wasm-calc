@@ -113,18 +113,17 @@ addDropsToWasmExpr drops wasmExpr =
       nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
       foldM
         ( \restExpr (index, ty) -> do
-          dropWasm <- case ty of
-            TVar _ typeVar -> do
-              -- generics must have been passed in as function args
-              nat <- lookupIdent (genericArgName typeVar)
-              pure (WApplyIndirect (WVar nat) [WVar index])
-
-            _              -> do
-              -- generate a new fancy drop function
-              dropFunc <- createDropFunction 1 ty
-              dropVar <- addGeneratedFunction dropFunc
-              pure (WApply dropVar  [WVar index])
-          pure $ WSequence Void dropWasm restExpr
+            dropWasm <- case ty of
+              TVar _ typeVar -> do
+                -- generics must have been passed in as function args
+                nat <- lookupIdent (genericArgName typeVar)
+                pure (WApplyIndirect (WVar nat) [WVar index])
+              _ -> do
+                -- generate a new fancy drop function
+                dropFunc <- createDropFunction 1 ty
+                dropVar <- addGeneratedFunction dropFunc
+                pure (WApply dropVar [WVar index])
+            pure $ WSequence Void dropWasm restExpr
         )
         wasmExpr
         nats
