@@ -178,21 +178,24 @@ addLetBinding (PVar ty ident) = do
     )
   pure $ PVar (ty, Nothing) ident
 addLetBinding (PWildcard ty) = do
-  i <- getFresh
-  let ident = Identifier $ "_fresh_name" <> T.pack (show i)
-  modify
-    ( \ls ->
-        ls
-          { lsVars =
-              M.insert
-                (Internal ident)
-                ( if isPrimitive ty then LTPrimitive else LTBoxed,
-                  getOuterTypeAnnotation ty
-                )
-                (lsVars ls)
-          }
-    )
-  pure $ PVar (ty, dropForType ty) ident
+  case ty of
+    TPrim _ TVoid -> pure (PWildcard (ty,Nothing))
+    _ -> do
+      i <- getFresh
+      let ident = Identifier $ "_fresh_name" <> T.pack (show i)
+      modify
+        ( \ls ->
+            ls
+              { lsVars =
+                  M.insert
+                    (Internal ident)
+                    ( if isPrimitive ty then LTPrimitive else LTBoxed,
+                      getOuterTypeAnnotation ty
+                    )
+                    (lsVars ls)
+              }
+        )
+      pure $ PVar (ty, dropForType ty) ident
 addLetBinding (PBox ty pat) =
   PBox (ty, dropForType ty) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do

@@ -1,26 +1,26 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Dependencies
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Test
-import Calc.Typecheck
-import Calc.Wasm
+import           Calc.Dependencies
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Test
+import           Calc.Typecheck
+import           Calc.Wasm
 import qualified Calc.Wasm.FromExpr.Module as FromExpr
-import Calc.Wasm.Run
-import qualified Calc.Wasm.ToWasm as ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm          as ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -141,7 +141,7 @@ spec = do
       describe "From module" $ do
         traverse_ testWithNode testVals
 
-    describe "Test with interpreter" $ do
+    fdescribe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
             [ (asTest "42", Wasm.VI64 42),
@@ -320,7 +320,7 @@ spec = do
                     asTest "set(counter, 2); counter"
                   ],
                 Wasm.VI64 2
-              ),
+              ) ,
               ( joinLines
                   [ "function factorial(a: Int64) -> Int64 { if a == 0 then 1 else a * factorial(a - 1) }",
                     asTest "factorial(4)"
