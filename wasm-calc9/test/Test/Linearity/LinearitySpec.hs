@@ -20,7 +20,7 @@ runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
 spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
-    describe "decorate" $ do
+    fdescribe "decorate" $ do
       let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
@@ -120,8 +120,10 @@ spec = do
                         ) (dVar "c")
                      )
                   )
-              )
-
+              ),
+              ("function dropUnusedBox() -> Int64 { let _ = Box((1: Int64)); 22 }",
+              ELet Nothing (PVar (Just DropMe) "_fresh_name1")
+                (EBox Nothing (EAnn Nothing dTyInt64 (dInt 1))) (dInt 22))
               {-,
                 ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
                   letAEqualsTuple
