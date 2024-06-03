@@ -3,26 +3,26 @@ global i: Int32 = 100
 global mut j = True
 
 import imports.draw as draw(
-  x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
+  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8
 ) -> Void
 
-function min(floor: Int64, value: Int64) -> Int64 { 
+function min(floor: Int8, value: Int8) -> Int8 { 
   if value > floor then value else floor
 }
 
-function max(ceiling: Int64, value: Int64) -> Int64 { 
+function max(ceiling: Int8, value: Int8) -> Int8 { 
   if value < ceiling then value else ceiling
 }
 
 function clamp(
-  floor: Int64, ceiling: Int64, value: Int64
-) -> Int64 { min(floor, max(ceiling, value))}
+  floor: Int8, ceiling: Int8, value: Int8
+) -> Int8 { min(floor, max(ceiling, value))}
 
 function drawBounded(
-  x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
+  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8
 ) -> Void { 
-  let maximumWidth: Int64 = 400; 
-  let maximumHeight: Int64 = 300; 
+  let maximumWidth: Int8 = 400; 
+  let maximumHeight: Int8 = 300; 
   draw(
     clamp(0, maximumWidth, x), 
     clamp(0, maximumHeight, y), 
@@ -32,7 +32,7 @@ function drawBounded(
   )
 }
 
-export function test(index: Int64) -> Void { 
+export function test(index: Int8) -> Void { 
   let r = clamp(0, 255, index * 2); 
   let g = clamp(0, 255, 255 - r); 
   let b = clamp(0, 255, r * 3); 
