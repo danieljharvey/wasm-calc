@@ -19,13 +19,12 @@ import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type
-import Control.Monad (unless, when, zipWithM)
+import Control.Monad (unless, when, zipWithM, zipWithM_)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
-import GHC.Natural
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty (EApply ann fn args) =
@@ -67,38 +66,44 @@ check ty expr = do
   unifiedTy <- unify ty (getOuterAnnotation exprA)
   pure (mapOuterExprAnnotation (const unifiedTy) exprA)
 
-checkLoad :: Maybe (Type ann) -> ann -> Natural -> TypecheckM ann (Expr (Type ann))
+checkLoad :: Maybe (Type ann) -> ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 checkLoad Nothing _ann _index =
   error "Can't infer ELoad type"
 checkLoad (Just ty) ann index = do
-  memLimit <- asks tceMemoryLimit
+  typedIndex <- check (TPrim ann TInt32) index
+  _memLimit <- asks tceMemoryLimit
+  {-
   unless (index < memLimit) $
     throwError $
       ManualMemoryAccessOutsideLimit ann memLimit index
+  -}
   if isNumber ty
-    then pure $ ELoad (ty $> ann) index
+    then pure $ ELoad (ty $> ann) typedIndex
     else error "can only load primitive values"
 
 -- | store always returns Void
 checkStore ::
   Maybe (Type ann) ->
   ann ->
-  Natural ->
+  Expr ann ->
   Expr ann ->
   TypecheckM ann (Expr (Type ann))
 checkStore maybeTy ann index expr = do
+  typedIndex <- check (TPrim ann TInt32) index
   typedExpr <- infer expr
+  {-
   memLimit <- asks tceMemoryLimit
   unless (index < memLimit) $
     throwError $
       ManualMemoryAccessOutsideLimit ann memLimit index
+  -}
   unless (isNumber $ getOuterAnnotation typedExpr) $
     error "can only store primitive values"
   let tyVoid = TPrim ann TVoid
   case maybeTy of
     Just ty -> void (unify tyVoid ty)
     Nothing -> pure ()
-  pure $ EStore tyVoid index typedExpr
+  pure $ EStore tyVoid typedIndex typedExpr
 
 -- | set always returns Void
 checkSet ::
@@ -190,6 +195,16 @@ checkInfix _ ann OpLessThan a b =
   inferComparisonOperator ann OpLessThan a b
 checkInfix _ ann OpLessThanOrEqualTo a b =
   inferComparisonOperator ann OpLessThanOrEqualTo a b
+checkInfix _ ann OpAnd a b = do
+  let ty = TPrim ann TBool
+  elabA <- check ty a
+  elabB <- check ty b
+  pure (EInfix (ty $> ann) OpAnd elabA elabB)
+checkInfix _ ann OpOr a b = do
+  let ty = TPrim ann TBool
+  elabA <- check ty a
+  elabB <- check ty b
+  pure (EInfix (ty $> ann) OpOr elabA elabB)
 checkInfix (Just ty) ann op a b = do
   elabA <- check ty a
   elabB <- check ty b
@@ -231,12 +246,25 @@ isNumber _ = False
 -- | like `check`, but we also check we're not passing a non-boxed value to a
 -- generic argument
 checkApplyArg :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
-checkApplyArg ty@(TUnificationVar {}) expr = do
+checkApplyArg ty expr = do
   tyExpr <- check ty expr
-  case getOuterAnnotation tyExpr of
-    p@TPrim {} -> throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
-    _other -> pure tyExpr
-checkApplyArg ty expr = check ty expr
+  unifyPrimitives ty (getOuterAnnotation tyExpr)
+  pure tyExpr
+
+-- check that no primitives and polymorphic vars get combined
+unifyPrimitives :: Type ann -> Type ann -> TypecheckM ann ()
+unifyPrimitives (TUnificationVar {}) p@(TPrim {}) =
+  throwError (NonBoxedGenericValue (getOuterTypeAnnotation p) p)
+unifyPrimitives (TUnificationVar {}) _ = pure ()
+unifyPrimitives (TFunction _ argA bodyA) (TFunction _ argB bodyB) = do
+  zipWithM_ unifyPrimitives argA argB
+  unifyPrimitives bodyA bodyB
+unifyPrimitives (TContainer _ as) (TContainer _ bs) =
+  zipWithM_ unifyPrimitives (NE.toList as) (NE.toList bs)
+unifyPrimitives tyA tyB =
+  if void tyA == void tyB
+    then pure ()
+    else throwError (TypeMismatch tyA tyB)
 
 -- | if our return type is polymorphic, our concrete type should not be a
 -- primitive
@@ -392,3 +420,9 @@ infer (EStore ann index expr) =
   checkStore Nothing ann index expr
 infer (ESet ann ident expr) =
   checkSet Nothing ann ident expr
+infer (EBlock ann expr) = do
+  typedExpr <- infer expr
+  pure $
+    EBlock
+      (mapOuterTypeAnnotation (const ann) (getOuterAnnotation typedExpr))
+      typedExpr
