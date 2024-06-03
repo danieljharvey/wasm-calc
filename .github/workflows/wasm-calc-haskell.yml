@@ -33,7 +33,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-2-wasm-calc-cabal-work-${{ matrix.plan.ghc }}
 
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         with:
           ghc-version: '9.6.3'
           cabal-version: '3.10.1.0'
