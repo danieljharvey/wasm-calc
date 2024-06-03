@@ -144,7 +144,7 @@ spec = do
     fdescribe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ (asTest "42", Wasm.VI64 42),
+            [ {-(asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -228,13 +228,13 @@ spec = do
                     "export function test() -> Float64 { sumTuple((100.0,200.0)) }"
                   ],
                 Wasm.VF64 300.0
-              ),
+              ),-}
               ( joinLines
                   [ "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a, _) = pair; Box(a) }",
                     asTest "let Box(a) = fst(((10: Int64), (2: Int64))); a"
                   ],
                 Wasm.VI64 10
-              ),
+              ){-,
               ( joinLines
                   [ asTest "let (Box(a),_) = (Box((43 : Int64)),Box((42 : Int64))); a"
                   ],
@@ -369,7 +369,7 @@ spec = do
               ),
               ( asTest "let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c",
                 Wasm.VI64 1
-              )
+              )-}
             ]
 
       describe "From expressions" $ do

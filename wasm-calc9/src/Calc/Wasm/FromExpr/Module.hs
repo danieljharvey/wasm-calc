@@ -201,9 +201,9 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
 
   wasmTests <- traverse (fromTest funcMap globalMap) mdTests
 
-  pure $ traceShowId $
+  pure $
     WasmModule
-      { wmFunctions = wasmFunctions,
+      { wmFunctions = fmap traceShowId wasmFunctions,
         wmGeneratedFunctions = generatedWasmFunctions,
         wmImports = wasmImports,
         wmMemory = fromMemory mdMemory,
