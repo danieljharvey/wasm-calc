@@ -118,10 +118,6 @@ test-wasm-calc9:
 run-wasm-calc9:
 	cabal run wasm-calc9 -- repl
 
-.PHONY: run-build-drawing-demo-9
-run-build-drawing-demo-9:
-	cabal run wasm-calc9 -- build wasm-calc9/demo/draw.calc > wasm-calc9/demo/draw.wasm
-
 .PHONY: run-build-malloc-9
 run-build-malloc-9:
 	cabal build wasm-calc9
