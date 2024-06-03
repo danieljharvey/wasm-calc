@@ -1,26 +1,26 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Dependencies
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Test
-import Calc.Typecheck
-import Calc.Wasm
+import           Calc.Dependencies
+import           Calc.Linearity            (validateModule)
+import           Calc.Parser
+import           Calc.Test
+import           Calc.Typecheck
+import           Calc.Wasm
 import qualified Calc.Wasm.FromExpr.Module as FromExpr
-import Calc.Wasm.Run
-import qualified Calc.Wasm.ToWasm as ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm          as ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -141,10 +141,10 @@ spec = do
       describe "From module" $ do
         traverse_ testWithNode testVals
 
-    fdescribe "Test with interpreter" $ do
+    describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ {-(asTest "42", Wasm.VI64 42),
+            [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -228,13 +228,20 @@ spec = do
                     "export function test() -> Float64 { sumTuple((100.0,200.0)) }"
                   ],
                 Wasm.VF64 300.0
-              ),-}
+              ) ,
               ( joinLines
-                  [ "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a, _) = pair; Box(a) }",
-                    asTest "let Box(a) = fst(((10: Int64), (2: Int64))); a"
+                  [ "function fst<a,b>(pair: (a,b)) -> a { let (a, _) = pair; a }",
+                    asTest "let one = Box((10: Int64)); let two = Box((20: Int64)); let Box(a) = fst((one, two)); a"
                   ],
                 Wasm.VI64 10
-              ) {-,
+              ) ,
+              ( joinLines
+                  [ "function drop<a>(item: a) -> Int64 { let _ = item; 100 }",
+                    asTest "drop(Box((10: Int64)))"
+                  ],
+                Wasm.VI64 100
+              )  ,
+
                 ( joinLines
                     [ asTest "let (Box(a),_) = (Box((43 : Int64)),Box((42 : Int64))); a"
                     ],
@@ -369,7 +376,9 @@ spec = do
                 ),
                 ( asTest "let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c",
                   Wasm.VI64 1
-                )-}
+                ),
+                ( asTest "let Box(Box(Box(a))) = Box(Box(Box((2: Int64)))); a",
+                Wasm.VI64 2)
             ]
 
       describe "From expressions" $ do

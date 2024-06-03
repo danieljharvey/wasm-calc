@@ -143,7 +143,7 @@ createDropFunction natIndex ty = do
   let wasmArgs = wasmTy : (typeVarList $> Pointer)
 
   let expr = case wasmExprs of
-        [] -> WDrop (WVar 0) -- no
+        [] -> WReturnVoid
         _  -> flattenDropExprs wasmExprs
 
   pure $

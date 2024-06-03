@@ -1,23 +1,21 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE TupleSections    #-}
 
 module Calc.Wasm.FromExpr.Module (fromModule) where
 
-import Calc.Ability.Check
-import Calc.ExprUtils
-import Calc.Linearity (getFunctionUses)
-import Calc.Types
-import Calc.Wasm.FromExpr.Expr
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (foldM, void)
-import Control.Monad.State
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import Debug.Trace
+import           Calc.Ability.Check
+import           Calc.ExprUtils
+import           Calc.Linearity             (getFunctionUses)
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Expr
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad              (foldM, void)
+import           Control.Monad.State
+import qualified Data.Map.Strict            as M
+import qualified Data.Set                   as S
 
 fromImport :: Import (Type ann) -> Either FromWasmError WasmImport
 fromImport
@@ -169,7 +167,7 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
       )
 
   let wgMutable = case glbMutability of
-        Mutable -> True
+        Mutable  -> True
         Constant -> False
 
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
@@ -203,7 +201,7 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
 
   pure $
     WasmModule
-      { wmFunctions = fmap traceShowId wasmFunctions,
+      { wmFunctions = wasmFunctions,
         wmGeneratedFunctions = generatedWasmFunctions,
         wmImports = wasmImports,
         wmMemory = fromMemory mdMemory,
