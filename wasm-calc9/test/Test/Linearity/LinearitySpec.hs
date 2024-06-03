@@ -1,18 +1,18 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import           Calc
-import           Calc.Linearity
-import           Calc.Typecheck
-import           Control.Monad      (void)
-import           Data.Either        (isRight)
-import           Data.Foldable      (traverse_)
+import Calc
+import Calc.Linearity
+import Calc.Typecheck
+import Control.Monad (void)
+import Data.Either (isRight)
+import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict    as M
-import qualified Data.Text          as T
-import           Test.Hspec
+import qualified Data.Map.Strict as M
+import qualified Data.Text as T
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -70,8 +70,11 @@ spec = do
                   (dVar "a")
               ),
               ( "function allocUnused() -> Int64 { let _ = Box((1: Int32)); 22 }",
-                ELet Nothing (PVar (Just DropMe) "_fresh_name1")
-                  (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1))) (dInt 22)
+                ELet
+                  Nothing
+                  (PVar (Just DropMe) "_fresh_name1")
+                  (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1)))
+                  (dInt 22)
               ),
               ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
                 ELet
@@ -149,6 +152,13 @@ spec = do
                       (EVar Nothing "a")
                       (EInfix Nothing OpAdd (EVar Nothing "b") (EVar Nothing "c"))
                   )
+              ),
+              ( "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a, _) = pair; Box(a) }",
+                ELet
+                  Nothing
+                  (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar (Just DropMe) "_fresh_name1"))
+                  (EVar Nothing "pair")
+                  (EBox Nothing (EVar Nothing "a"))
               )
               {-
                 ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",

@@ -5,17 +5,20 @@ module Calc.Wasm.FromExpr.Expr (fromExpr) where
 import           Calc.ExprUtils
 import           Calc.Linearity              (Drops (..))
 import           Calc.Types
-import           Calc.Wasm.FromExpr.Drops
+import           Calc.Wasm.FromExpr.Drops    (addDropsFromPath,
+                                              addDropsToWasmExpr,
+                                              createDropFunction)
 import           Calc.Wasm.FromExpr.Helpers
 import           Calc.Wasm.FromExpr.Patterns
 import           Calc.Wasm.FromExpr.Types
 import           Calc.Wasm.ToWasm.Helpers
 import           Calc.Wasm.ToWasm.Types
-import           Control.Monad               (foldM, void)
+import           Control.Monad               (void)
 import           Control.Monad.Except
 import           Control.Monad.State
 import qualified Data.List.NonEmpty          as NE
 import qualified Data.Map.Strict             as M
+import           Debug.Trace
 
 fromLet ::
   ( Eq ann,
@@ -27,7 +30,7 @@ fromLet ::
   Expr (Type ann, Maybe (Drops ann)) ->
   Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
-fromLet  pat expr rest = do
+fromLet pat expr rest = do
   let paths = patternToPaths (fst <$> pat) id
   if null paths
     then do
@@ -62,7 +65,11 @@ fromLet  pat expr rest = do
 
       -- drop items in the match expr we will no longer need
       dropPaths <-
-        traverse (fmap WDrop <$> fromPath index) (patternToDropPaths pat id)
+        traverse (addDropsFromPath index) (patternToDropPaths pat id)
+
+      traceShowM ("pattern" :: String, pat)
+      traceShowM ("dropPaths" :: String, patternToDropPaths pat id)
+      traceShowM ("compiled" :: String, dropPaths)
 
       -- take care of stuff we've pattern matched into oblivion
       let wasmRestWithDrops = foldr (WSequence Void) wasmRest dropPaths
@@ -94,37 +101,6 @@ fromPrim (TPrim _ TInt64) (PIntLit i) =
   pure (WPInt64 (fromIntegral i))
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
-
-addDropsToWasmExpr ::
-  ( MonadState FromExprState m,
-    MonadError FromWasmError m
-  ) =>
-  Maybe (Drops ann) ->
-  WasmExpr ->
-  m WasmExpr
-addDropsToWasmExpr drops wasmExpr =
-  -- drop identifiers we will no longer need
-  case drops of
-    Just (DropIdentifiers idents) -> do
-      nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
-      foldM
-        ( \restExpr (index, ty) -> do
-            dropWasm <- case ty of
-              TVar _ typeVar -> do
-                -- generics must have been passed in as function args
-                nat <- lookupIdent (genericArgName typeVar)
-                pure (WApplyIndirect (WVar nat) [WVar index])
-              _ -> do
-                -- generate a new fancy drop function
-                dropFunc <- createDropFunction 1 ty
-                dropVar <- addGeneratedFunction dropFunc
-                pure (WApply dropVar [WVar index])
-            pure $ WSequence Void dropWasm restExpr
-        )
-        wasmExpr
-        nats
-    Just DropMe -> pure wasmExpr -- TODO: what does this mean? anything?
-    Nothing -> pure wasmExpr
 
 fromExprWithDrops ::
   ( MonadError FromWasmError m,

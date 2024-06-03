@@ -1,9 +1,9 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -14,28 +14,28 @@ module Calc.Linearity.Validate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Linearity.Error
-import           Calc.Linearity.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Global
-import           Calc.Types.Identifier
-import           Calc.Types.Module
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad          (unless)
-import           Control.Monad.Identity
-import           Control.Monad.State
-import           Control.Monad.Writer
-import           Data.Bifunctor         (second)
-import           Data.Foldable          (traverse_)
-import           Data.Functor           (($>))
-import qualified Data.List.NonEmpty     as NE
-import qualified Data.Map               as M
-import qualified Data.Text              as T
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Linearity.Error
+import Calc.Linearity.Types
+import Calc.TypeUtils
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Identifier
+import Calc.Types.Module
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Control.Monad (unless)
+import Control.Monad.Identity
+import Control.Monad.State
+import Control.Monad.Writer
+import Data.Bifunctor (second)
+import Data.Foldable (traverse_)
+import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
+import qualified Data.Text as T
+import GHC.Natural
 
 data Drops ann
   = DropIdentifiers (NE.NonEmpty (Identifier, Type ann))
@@ -124,7 +124,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (UserDefined (Identifier arg)) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
@@ -157,7 +157,7 @@ recordUse ident ty = do
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _          = False
+isPrimitive _ = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -179,7 +179,7 @@ addLetBinding (PVar ty ident) = do
   pure $ PVar (ty, Nothing) ident
 addLetBinding (PWildcard ty) = do
   case ty of
-    TPrim _ TVoid -> pure (PWildcard (ty,Nothing))
+    TPrim _ TVoid -> pure (PWildcard (ty, Nothing))
     _ -> do
       i <- getFresh
       let ident = Identifier $ "_fresh_name" <> T.pack (show i)
@@ -216,7 +216,7 @@ decorate (EVar ty ident) = do
   pure (EVar (ty, Nothing) ident)
 decorate (ELet ty pat expr rest) = do
   -- get all idents mentioned in `expr`
-  decoratedExpr  <- decorate expr
+  decoratedExpr <- decorate expr
 
   ELet (ty, Nothing)
     <$> addLetBinding pat
