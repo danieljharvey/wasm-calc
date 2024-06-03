@@ -1,5 +1,4 @@
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module Calc.Wasm.ToWasm.Types
   ( WasmType (..),
@@ -16,18 +15,18 @@ module Calc.Wasm.ToWasm.Types
   )
 where
 
-import           Calc.Types.Ability
-import           Calc.Types.Function
-import           Calc.Types.Op
-import qualified Data.Set            as S
-import qualified Data.Text           as T
-import           Data.Word
-import           GHC.Natural
+import Calc.Types.Ability
+import Calc.Types.Function
+import Calc.Types.Op
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Data.Word
+import GHC.Natural
 
 data ToWasmEnv = ToWasmEnv
-  { tweImportsOffset           :: Natural,
-    tweGlobalOffset            :: Natural,
-    tweFunctionsOffset         :: Natural,
+  { tweImportsOffset :: Natural,
+    tweGlobalOffset :: Natural,
+    tweFunctionsOffset :: Natural,
     tweGeneratedFunctionOffset :: Natural
   }
 
@@ -44,7 +43,7 @@ data WasmType
 
 data WasmMemory = WasmMemory
   { wmeMemoryStart :: Natural,
-    wmeImport      :: Maybe (T.Text, T.Text)
+    wmeImport :: Maybe (T.Text, T.Text)
   }
   deriving stock (Eq, Ord, Show)
 
@@ -54,43 +53,43 @@ data WasmGlobal = WasmGlobal
 
 data WasmModule = WasmModule
   { -- | the functions themselves, their index comes from the list placement
-    wmFunctions          :: [WasmFunction],
+    wmFunctions :: [WasmFunction],
     -- | any generated functions
     wmGeneratedFunctions :: [WasmFunction],
     -- | the imports, their index comes from placement, after the functions
-    wmImports            :: [WasmImport],
+    wmImports :: [WasmImport],
     -- | where should memory allocation start?
-    wmMemory             :: WasmMemory,
+    wmMemory :: WasmMemory,
     -- | which globals are defined?
-    wmGlobals            :: [WasmGlobal],
+    wmGlobals :: [WasmGlobal],
     -- | which tests do we have?
-    wmTests              :: [WasmTest]
+    wmTests :: [WasmTest]
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmFunction = WasmFunction
-  { wfName       :: FunctionName,
-    wfExpr       :: WasmExpr,
-    wfPublic     :: Bool,
-    wfArgs       :: [WasmType],
+  { wfName :: FunctionName,
+    wfExpr :: WasmExpr,
+    wfPublic :: Bool,
+    wfArgs :: [WasmType],
     wfReturnType :: WasmType,
-    wfLocals     :: [WasmType],
-    wfAbilities  :: S.Set (Ability ())
+    wfLocals :: [WasmType],
+    wfAbilities :: S.Set (Ability ())
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmImport = WasmImport
-  { wiName             :: FunctionName,
-    wiArgs             :: [WasmType],
-    wiReturnType       :: WasmType,
-    wiExternalModule   :: T.Text,
+  { wiName :: FunctionName,
+    wiArgs :: [WasmType],
+    wiReturnType :: WasmType,
+    wiExternalModule :: T.Text,
     wiExternalFunction :: T.Text
   }
   deriving stock (Eq, Ord, Show)
 
 data WasmTest = WasmTest
-  { wtName   :: T.Text,
-    wtExpr   :: WasmExpr,
+  { wtName :: T.Text,
+    wtExpr :: WasmExpr,
     wtLocals :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)

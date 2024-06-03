@@ -169,7 +169,7 @@ inferComparisonOperator ann op a b = do
         pure (elabA, elabB)
   (elabA, elabB) <-
     leftThenRight
-      `catchError` \_ -> rightThenLeft
+      `catchError` const rightThenLeft
   let ty = TPrim ann TBool
   pure (EInfix ty op elabA elabB)
 

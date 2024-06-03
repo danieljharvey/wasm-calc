@@ -1,27 +1,27 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Calc.Wasm.FromExpr.Patterns
   ( patternToPaths,
     patternToDropPaths,
     typeFromPath,
     fromPath,
-    Path(..)
+    Path (..),
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Linearity             (Drops (..))
-import           Calc.Types
-import           Calc.Wasm.FromExpr.Helpers
-import           Calc.Wasm.FromExpr.Types
-import           Calc.Wasm.ToWasm.Helpers
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad.Except
-import qualified Data.List.NonEmpty         as NE
-import qualified Data.Map.Strict            as M
-import           GHC.Natural
+import Calc.ExprUtils
+import Calc.Linearity (Drops (..))
+import Calc.Types
+import Calc.Wasm.FromExpr.Helpers
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
+import Calc.Wasm.ToWasm.Types
+import Control.Monad.Except
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import GHC.Natural
 
 -- | return a path to every item in Expr marked with `DropMe`.
 patternToDropPaths ::
@@ -36,21 +36,20 @@ patternToDropPaths (PVar (ty, drops) _) addPath =
 patternToDropPaths (PBox (ty, drops) a) addPath =
   let dropContainer =
         ([addPath (PathFetch ty) | drops == Just DropMe])
-   in
-        patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) 0 . addPath) <> dropContainer
+   in patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) 0 . addPath) <> dropContainer
 patternToDropPaths (PTuple (ty, drops) a as) addPath =
   let offsetList = getOffsetList ty
       dropContainer =
         ([addPath (PathFetch ty) | drops == Just DropMe])
-   in
-        patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) (head offsetList) . addPath)
+   in patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) (head offsetList) . addPath)
         <> mconcat
           ( ( \(index, innerPat) ->
                 let innerTy = fst (getOuterPatternAnnotation innerPat)
                  in patternToDropPaths innerPat (PathSelect innerTy (offsetList !! index) . addPath)
             )
               <$> zip [1 ..] (NE.toList as)
-          ) <> dropContainer
+          )
+        <> dropContainer
 
 patternToPaths ::
   Pattern (Type ann) ->
@@ -91,4 +90,4 @@ fromPath wholeExprIndex (PathSelect ty index inner) = do
 
 typeFromPath :: Path ann -> Type ann
 typeFromPath (PathSelect _ _ inner) = typeFromPath inner
-typeFromPath (PathFetch ty)         = ty
+typeFromPath (PathFetch ty) = ty

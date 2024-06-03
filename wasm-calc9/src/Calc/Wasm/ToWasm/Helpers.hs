@@ -38,17 +38,17 @@ moduleUsesAllocator :: WasmModule -> UsesAllocator
 moduleUsesAllocator =
   bool DoesNotUseAllocator UsesAllocator
     . getAny
-    . foldMap (\wmFunction -> Any $ S.member (AllocateMemory ()) (wfAbilities wmFunction))
+    . foldMap (Any . S.member (AllocateMemory ()) . wfAbilities)
     . wmFunctions
 
 allocIndex :: (MonadReader ToWasmEnv m) => m Natural
 allocIndex = asks tweImportsOffset
 
 dropIndex :: (MonadReader ToWasmEnv m) => m Natural
-dropIndex = (+ 1) <$> asks tweImportsOffset
+dropIndex = asks ((+ 1) . tweImportsOffset)
 
 allocCountIndex :: (MonadReader ToWasmEnv m) => m Natural
-allocCountIndex = (+ 2) <$> asks tweImportsOffset
+allocCountIndex = asks ((+ 2) . tweImportsOffset)
 
 functionOffset :: ToWasmEnv -> Natural
 functionOffset
