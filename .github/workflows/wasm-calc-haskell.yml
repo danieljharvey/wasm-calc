@@ -12,9 +12,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: "write"
+      contents: "read"
 
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
 
       - name: Cache cabal global package db
         id: cabal-global
@@ -33,37 +37,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-2-wasm-calc-cabal-work-${{ matrix.plan.ghc }}
 
-      - uses: haskell/actions/setup@v2
-        with:
-          ghc-version: '9.6.3'
-          cabal-version: '3.10.1.0'
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build the universe
-        run: make build
+        run: nix develop --command make build
 
       - name: Test wasm-calc
-        run: make test-wasm-calc
+        run: nix develop --command make test-wasm-calc
 
       - name: Test wasm-calc2
-        run: make test-wasm-calc2
+        run: nix develop --command make test-wasm-calc2
 
       - name: Test wasm-calc3
-        run: make test-wasm-calc3
+        run: nix develop --command make test-wasm-calc3
 
       - name: Test wasm-calc4
-        run: make test-wasm-calc4
+        run: nix develop --command make test-wasm-calc4
 
       - name: Test wasm-calc5
-        run: make test-wasm-calc5
+        run: nix develop --command make test-wasm-calc5
 
       - name: Test wasm-calc6
-        run: make test-wasm-calc6
+        run: nix develop --command make test-wasm-calc6
 
       - name: Test wasm-calc7
-        run: make test-wasm-calc7
+        run: nix develop --command make test-wasm-calc7
 
       - name: Test wasm-calc8
-        run: make test-wasm-calc8
+        run: nix develop --command make test-wasm-calc8
 
       - name: Test wasm-calc9
-        run: make test-wasm-calc9
+        run: nix develop --command make test-wasm-calc9
