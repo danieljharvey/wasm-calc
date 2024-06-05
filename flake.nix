@@ -30,7 +30,9 @@
                   ormolu = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.ormolu (drv: {
                     enableSeparateBinOutput = false;
                   }));
-
+                  diagnose = pkgs.haskell.lib.doJailbreak super.diagnose;
+                  # allow slippery version bounds and don't run tests
+                  wasm = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.doJailbreak super.wasm);
                 };
 
               };
@@ -45,10 +47,12 @@
         packageName = "wasm-calc";
       in
       {
-        # we're not interested in building with Nix, just using it for deps
-        packages.${system}.${packageName} = { };
+        packages.wasm-calc9 =
+          haskellPackages.callCabal2nix "wasm-calc9" ./wasm-calc9 rec {
+            # Dependency overrides go here
+          };
 
-        defaultPackage = self.packages.${system}.${packageName};
+        defaultPackage = self.packages.${system}.wasm-calc9;
 
         devShell = pkgs.mkShell {
           buildInputs = with haskellPackages; [
@@ -63,6 +67,9 @@
             pkgs.nodejs
             pkgs.watchexec
             pkgs.nodePackages_latest.serve
+            #pkgs.wabt
+            #pkgs.emscripten
+            #pkgs.wasmtime
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};
