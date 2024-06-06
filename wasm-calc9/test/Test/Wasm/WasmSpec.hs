@@ -1,26 +1,26 @@
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import           Calc.Dependencies
-import           Calc.Linearity            (validateModule)
-import           Calc.Parser
-import           Calc.Test
-import           Calc.Typecheck
-import           Calc.Wasm
+import Calc.Dependencies
+import Calc.Linearity (validateModule)
+import Calc.Parser
+import Calc.Test
+import Calc.Typecheck
+import Calc.Wasm
 import qualified Calc.Wasm.FromExpr.Module as FromExpr
-import           Calc.Wasm.Run
-import qualified Calc.Wasm.ToWasm          as ToWasm
-import           Control.Monad.IO.Class
-import           Data.Foldable             (traverse_)
-import           Data.Hashable             (hash)
-import qualified Data.Text                 as T
+import Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm as ToWasm
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Hashable (hash)
+import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure   as Wasm
-import           Test.Helpers
-import           Test.Hspec
-import           Test.RunNode
+import qualified Language.Wasm.Structure as Wasm
+import Test.Helpers
+import Test.Hspec
+import Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -379,14 +379,13 @@ spec = do
               ( asTest "let Box(Box(Box(a))) = Box(Box(Box((2: Int64)))); a",
                 Wasm.VI64 2
               ),
-              ( joinLines [
-                "function drop<a>(a: a) -> Int64 { let _ = a; 100 }",
-                "function useDrop<a>(a: a) -> Int64 { drop(a) }",
-
-              asTest "let value = Box(Box((1: Int64))); useDrop(value)"],
+              ( joinLines
+                  [ "function drop<a>(a: a) -> Int64 { let _ = a; 100 }",
+                    "function useDrop<a>(a: a) -> Int64 { drop(a) }",
+                    asTest "let value = Box(Box((1: Int64))); useDrop(value)"
+                  ],
                 Wasm.VI64 100
               )
-
             ]
 
       describe "From expressions" $ do
