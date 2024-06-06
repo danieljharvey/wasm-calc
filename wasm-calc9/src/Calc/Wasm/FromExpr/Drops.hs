@@ -4,6 +4,7 @@
 
 module Calc.Wasm.FromExpr.Drops
   ( DropPath (..),
+    dropFunctionForType,
     addDropsFromPath,
     typeToDropPaths,
     createDropFunction,
@@ -137,6 +138,21 @@ typeVars other = monoidType typeVars other
 
 dropFunctionName :: Natural -> FunctionName
 dropFunctionName i = FunctionName $ "drop_" <> T.pack (show i)
+
+dropFunctionForType ::
+  ( MonadState FromExprState m,
+    MonadError FromWasmError m
+  ) =>
+  Type ann ->
+  m WasmExpr
+dropFunctionForType ty =
+  case ty of
+    TVar _ typeVar -> do
+      -- generics must have been passed in as function args
+      WVar <$> lookupIdent (genericArgName typeVar)
+    _ -> do
+      dropFunc <- createDropFunction 1 ty
+      WFunctionPointer <$> addGeneratedFunction dropFunc
 
 createDropFunction :: (MonadError FromWasmError m) => Natural -> Type ann -> m WasmFunction
 createDropFunction natIndex ty = do

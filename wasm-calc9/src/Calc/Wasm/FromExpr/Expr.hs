@@ -8,7 +8,7 @@ import Calc.Types
 import Calc.Wasm.FromExpr.Drops
   ( addDropsFromPath,
     addDropsToWasmExpr,
-    createDropFunction,
+    dropFunctionForType,
   )
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Patterns
@@ -155,8 +155,7 @@ fromExpr (EApply _ funcName args) = do
           fGenerics
           (void . fst . getOuterAnnotation <$> args)
           fArgTypes
-  newFuncs <- traverse (createDropFunction 1 . snd) types
-  dropArgs <- fmap WFunctionPointer <$> traverse addGeneratedFunction newFuncs
+  dropArgs <- traverse (dropFunctionForType . snd) types
   wasmArgs <- traverse fromExpr args
   pure $ WApply fIndex (wasmArgs <> dropArgs)
 fromExpr (ETuple (ty, _) a as) = do

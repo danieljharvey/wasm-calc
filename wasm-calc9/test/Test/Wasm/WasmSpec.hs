@@ -378,6 +378,13 @@ spec = do
               ),
               ( asTest "let Box(Box(Box(a))) = Box(Box(Box((2: Int64)))); a",
                 Wasm.VI64 2
+              ),
+              ( joinLines
+                  [ "function drop<a>(a: a) -> Int64 { let _ = a; 100 }",
+                    "function useDrop<a>(a: a) -> Int64 { drop(a) }",
+                    asTest "let value = Box(Box((1: Int64))); useDrop(value)"
+                  ],
+                Wasm.VI64 100
               )
             ]
 
