@@ -2,24 +2,22 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import Calc.ExprUtils
-import Calc.Linearity (Drops (..))
-import Calc.Types
-import Calc.Wasm.FromExpr.Drops
-  ( addDropsFromPath,
-    addDropsToWasmExpr,
-    createDropFunction,
-  )
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
+import           Calc.ExprUtils
+import           Calc.Linearity              (Drops (..))
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Drops    (addDropsFromPath,
+                                              addDropsToWasmExpr,
+                                              dropFunctionForType)
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Helpers
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
 
 fromLet ::
   ( Eq ann,
@@ -155,8 +153,7 @@ fromExpr (EApply _ funcName args) = do
           fGenerics
           (void . fst . getOuterAnnotation <$> args)
           fArgTypes
-  newFuncs <- traverse (createDropFunction 1 . snd) types
-  dropArgs <- fmap WFunctionPointer <$> traverse addGeneratedFunction newFuncs
+  dropArgs <- traverse (dropFunctionForType .snd ) types
   wasmArgs <- traverse fromExpr args
   pure $ WApply fIndex (wasmArgs <> dropArgs)
 fromExpr (ETuple (ty, _) a as) = do

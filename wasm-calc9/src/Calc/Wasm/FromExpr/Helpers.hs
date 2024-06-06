@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr.Helpers
@@ -18,28 +18,25 @@ module Calc.Wasm.FromExpr.Helpers
   )
 where
 
-import Calc.ExprUtils
-import Calc.Typecheck
-  ( TypecheckEnv (..),
-    TypecheckState (..),
-    runTypecheckM,
-  )
-import Calc.Typecheck.Generalise
-import Calc.Typecheck.Unify (unify)
-import Calc.Types
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import Data.Foldable (traverse_)
-import qualified Data.HashMap.Strict as HM
-import Data.Hashable
-import qualified Data.List as List
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Typecheck            (TypecheckEnv (..),
+                                            TypecheckState (..), runTypecheckM)
+import           Calc.Typecheck.Generalise
+import           Calc.Typecheck.Unify      (unify)
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad             (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Foldable             (traverse_)
+import           Data.Hashable
+import qualified Data.HashMap.Strict       as HM
+import qualified Data.List                 as List
+import qualified Data.Map.Strict           as M
+import qualified Data.Set                  as S
+import qualified Data.Text                 as T
+import           GHC.Natural
 
 -- | add a local type, returning a unique index
 addLocal ::
@@ -167,12 +164,12 @@ calculateMonomorphisedTypes typeVars argTys fnArgTys =
                 (HM.toList unified)
         let fromTv tv =
               case M.lookup tv mapped of
-                Just a -> (tv, a)
+                Just a  -> (tv, a)
                 Nothing -> error "could not find thing"
         pure $ fromTv <$> typeVars
    in case response of
         Right tvs -> tvs
-        Left e -> error (show e)
+        Left e    -> error (show e)
 
 flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
 flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
@@ -193,7 +190,7 @@ getGlobalMap globals =
 getAbilitiesForFunction :: M.Map FunctionName (S.Set (Ability ann)) -> FunctionName -> Either FromWasmError (S.Set (Ability ann))
 getAbilitiesForFunction functionAbilities fnName =
   case M.lookup fnName functionAbilities of
-    Just a -> pure a
+    Just a  -> pure a
     Nothing -> throwError (FunctionAbilityLookupFailed fnName)
 
 -- take only the function info we need
