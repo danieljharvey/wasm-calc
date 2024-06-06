@@ -31,7 +31,7 @@ runProcess binaryName args = do
       pure (exitCodeToBool ExitSuccess, binNewline success)
     Right (ExitFailure exitCode, _, failure) ->
       pure (exitCodeToBool (ExitFailure exitCode), binNewline failure)
-    Left e -> pure (False, show (e :: IOException))
+    Left e -> pure (False, show (binaryName, args, e :: IOException))
 
 -- | Pass a filepath to a JS file for Node to execute.
 -- Required as ES modules don't work with the `-p` flag

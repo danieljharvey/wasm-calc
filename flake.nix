@@ -30,9 +30,16 @@
                   ormolu = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.ormolu (drv: {
                     enableSeparateBinOutput = false;
                   }));
-                  diagnose = pkgs.haskell.lib.doJailbreak super.diagnose;
+
+                  diagnose = (pkgs.haskell.lib.doJailbreak
+                  (pkgs.haskell.lib.appendConfigureFlags (pkgs.haskell.lib.markUnbroken super.diagnose) ["-f +megaparsec-compat" "-f parsec-compat"])).overrideAttrs
+                    (oldAttrs: rec {
+        buildInputs = [super.megaparsec];
+      });
+
+
                   # allow slippery version bounds and don't run tests
-                  wasm = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.doJailbreak super.wasm);
+                  wasm = pkgs.haskell.lib.markUnbroken (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.doJailbreak super.wasm));
                 };
 
               };
@@ -64,6 +71,7 @@
             cabal-fmt
             cabal-install
             # test tooling
+            pkgs.git
             pkgs.nodejs
             pkgs.watchexec
             pkgs.nodePackages_latest.serve
