@@ -1,23 +1,43 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
-module Calc.Types.Module (Module (..)) where
+module Calc.Types.Module (Module (..),ModuleItem(..)) where
 
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Import
-import Calc.Types.Memory
-import Calc.Types.Test
-import Data.Maybe (maybeToList)
-import qualified Prettyprinter as PP
+import           Calc.Types.Function
+import           Calc.Types.Global
+import           Calc.Types.Import
+import           Calc.Types.Memory
+import           Calc.Types.Test
+import           Data.Maybe          (maybeToList)
+import qualified Prettyprinter       as PP
+
+-- | in order to parse these items in any order, we parse zero or more items
+-- and then turn them into a `Module` later
+-- This allows us to pretty print in the original order
+data ModuleItem ann =
+  ModuleFunction (Function ann)
+    | ModuleImport (Import ann)
+    | ModuleMemory (Memory ann)
+    | ModuleGlobal (Global ann)
+    | ModuleTest (Test ann)
+  deriving stock (Eq,Ord,Show,Functor)
+
+instance PP.Pretty (ModuleItem ann) where
+  pretty (ModuleFunction func) =
+    PP.pretty func
+  pretty (ModuleImport imp) =
+    PP.pretty imp
+  pretty (ModuleMemory mem) = PP.pretty mem
+  pretty (ModuleGlobal glob) = PP.pretty glob
+  pretty (ModuleTest test) =  PP.pretty test
 
 data Module ann = Module
   { mdFunctions :: [Function ann],
-    mdImports :: [Import ann],
-    mdMemory :: Maybe (Memory ann),
-    mdGlobals :: [Global ann],
-    mdTests :: [Test ann]
+    mdImports   :: [Import ann],
+    mdMemory    :: Maybe (Memory ann),
+    mdGlobals   :: [Global ann],
+    mdTests     :: [Test ann]
   }
   deriving stock (Eq, Ord, Show, Functor)
 

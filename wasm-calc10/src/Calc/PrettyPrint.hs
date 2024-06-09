@@ -1,31 +1,31 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DerivingStrategies    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
 module Calc.PrettyPrint
   ( prettyPrint,
-    format,
+    formatAndSave,
+    format
   )
 where
 
-import Calc.Parser
-import Calc.Parser.Types
-import Calc.Types.Module
-import Control.Monad (when)
-import Control.Monad.IO.Class
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import Data.Void
-import qualified Error.Diagnose as Diag
-import Error.Diagnose.Compat.Megaparsec
-import qualified Prettyprinter as PP
-import qualified Prettyprinter.Render.Text as PP
-import System.Exit
+import           Calc.Parser
+import           Calc.Parser.Types
+import           Calc.Types.Module
+import           Control.Monad                    (when)
+import           Control.Monad.IO.Class
+import qualified Data.Text                        as T
+import qualified Data.Text.IO                     as T
+import           Data.Void
+import qualified Error.Diagnose                   as Diag
+import           Error.Diagnose.Compat.Megaparsec
+import qualified Prettyprinter                    as PP
+import qualified Prettyprinter.Render.Text        as PP
+import           System.Exit
 
 instance HasHints Void msg where
   hints _ = mempty
@@ -43,13 +43,19 @@ doPrettyPrint filePath = do
         printDiagnostic (fromErrorBundle bundle input)
         >> pure (ExitFailure 1)
     Right parsedModule -> do
-      format filePath (T.pack input) parsedModule
+      formatAndSave filePath (T.pack input) parsedModule
       pure ExitSuccess
 
 -- format the file, and if it's changed, save it
-format :: (MonadIO m) => FilePath -> Text -> Module ann -> m ()
-format filePath originalInput parsedModule = do
-  let printed = renderWithWidth 60 (PP.pretty parsedModule)
+format :: [ModuleItem ann] -> T.Text
+format parsedModuleItems = do
+  let prettyMod = PP.cat (PP.punctuate PP.line (PP.pretty <$> parsedModuleItems))
+      in renderWithWidth 60 prettyMod
+
+-- format the file, and if it's changed, save it
+formatAndSave :: (MonadIO m) => FilePath -> T.Text -> [ModuleItem ann] -> m ()
+formatAndSave filePath originalInput parsedModuleItems = do
+  let printed = format parsedModuleItems
   when (printed /= originalInput) $
     liftIO $
       T.writeFile filePath printed
@@ -59,7 +65,7 @@ renderWithWidth w doc = PP.renderStrict (PP.layoutPretty layoutOptions (PP.unAnn
   where
     layoutOptions = PP.LayoutOptions {PP.layoutPageWidth = PP.AvailablePerLine w 1}
 
-printDiagnostic :: (MonadIO m) => Diag.Diagnostic Text -> m ()
+printDiagnostic :: (MonadIO m) => Diag.Diagnostic T.Text -> m ()
 printDiagnostic =
   Diag.printDiagnostic
     Diag.stderr
@@ -68,7 +74,7 @@ printDiagnostic =
     Diag.defaultStyle
 
 -- | turn Megaparsec error + input into a Diagnostic
-fromErrorBundle :: ParseErrorType -> String -> Diag.Diagnostic Text
+fromErrorBundle :: ParseErrorType -> String -> Diag.Diagnostic T.Text
 fromErrorBundle bundle input =
   let diag =
         errorDiagnosticFromBundle

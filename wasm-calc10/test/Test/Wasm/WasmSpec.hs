@@ -1,42 +1,46 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Calc.Dependencies
-import Calc.Linearity (validateModule)
-import Calc.Parser
-import Calc.Test
-import Calc.Typecheck
-import Calc.Wasm
+import           Calc.Dependencies
+import           Calc.Linearity            (validateModule)
+import           Calc.Module
+import           Calc.Parser
+import           Calc.Test
+import           Calc.Typecheck
+import           Calc.Wasm
 import qualified Calc.Wasm.FromExpr.Module as FromExpr
-import Calc.Wasm.Run
-import qualified Calc.Wasm.ToWasm as ToWasm
-import Control.Monad.IO.Class
-import Data.Foldable (traverse_)
-import Data.Hashable (hash)
-import qualified Data.Text as T
+import           Calc.Wasm.Run
+import qualified Calc.Wasm.ToWasm          as ToWasm
+import           Control.Monad.IO.Class
+import           Data.Foldable             (traverse_)
+import           Data.Hashable             (hash)
+import qualified Data.Text                 as T
 import qualified Language.Wasm.Interpreter as Wasm
-import qualified Language.Wasm.Structure as Wasm
-import Test.Helpers
-import Test.Hspec
-import Test.RunNode
+import qualified Language.Wasm.Structure   as Wasm
+import           Test.Helpers
+import           Test.Hspec
+import           Test.RunNode
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
 compile input =
   case parseModuleAndFormatError input of
     Left e -> error (show e)
-    Right expr -> case treeShakeModule <$> elaborateModule expr of
-      Left typeErr -> error (show typeErr)
-      Right typedMod ->
-        case validateModule typedMod of
-          Left e -> error (show e)
-          Right _ ->
-            case FromExpr.fromModule typedMod of
+    Right parsedModuleItems ->
+      case resolveModule parsedModuleItems of
+        Left resolveError -> error (show resolveError)
+        Right parsedMod -> case treeShakeModule <$> elaborateModule parsedMod of
+          Left typeErr -> error (show typeErr)
+          Right typedMod ->
+            case validateModule typedMod of
               Left e -> error (show e)
-              Right wasmMod ->
-                ToWasm.moduleToWasm (addAllocCount wasmMod)
+              Right _ ->
+                case FromExpr.fromModule typedMod of
+                  Left e -> error (show e)
+                  Right wasmMod ->
+                    ToWasm.moduleToWasm (addAllocCount wasmMod)
 
 -- add a `alloccount` function that returns state of allocator
 addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
@@ -82,11 +86,14 @@ runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
 runTestsWithInterpreter (input, result) = it (show input) $ do
   case parseModuleAndFormatError input of
     Left e -> error (show e)
-    Right expr -> case elaborateModule expr of
-      Left typeErr -> error (show typeErr)
-      Right typedMod -> do
-        resp <- testModule typedMod
-        resp `shouldBe` result
+    Right parsedModuleItems ->
+      case resolveModule parsedModuleItems of
+        Left e -> error (show e)
+        Right parsedModule -> case elaborateModule parsedModule of
+          Left typeErr -> error (show typeErr)
+          Right typedMod -> do
+            resp <- testModule typedMod
+            resp `shouldBe` result
 
 -- | output actual WASM files for testing
 -- test them with node

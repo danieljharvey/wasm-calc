@@ -1,17 +1,18 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Ability.AbilitySpec (spec) where
 
-import Calc
-import Calc.Ability.Check
-import Control.Monad (void)
-import Data.Foldable (traverse_)
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import           Calc
+import           Calc.Ability.Check
+import           Calc.Module
+import           Control.Monad      (void)
+import           Data.Foldable      (traverse_)
+import qualified Data.Map.Strict    as M
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 voidModuleAbilities :: ModuleAbilities ann -> ModuleAbilities ()
 voidModuleAbilities moduleAbilities =
@@ -85,9 +86,12 @@ spec = do
         traverse_
           ( \(str, abilityResult) -> it (T.unpack str) $ do
               case parseModuleAndFormatError str of
-                Right parsedModule -> do
-                  voidModuleAbilities (fromRight (abilityCheckModule parsedModule))
-                    `shouldBe` abilityResult
+                Right parsedModuleItems ->
+                  case resolveModule parsedModuleItems of
+                    Left e -> error (show e)
+                    Right parsedModule ->
+                      voidModuleAbilities (fromRight (abilityCheckModule parsedModule))
+                        `shouldBe` abilityResult
                 Left e -> error (T.unpack e)
           )
           successes
@@ -122,9 +126,12 @@ spec = do
         traverse_
           ( \(str, abilityError) -> it (T.unpack str) $ do
               case parseModuleAndFormatError str of
-                Right parsedModule -> do
-                  void (fromLeft (abilityCheckModule parsedModule))
-                    `shouldBe` abilityError
+                Right parsedModuleItems ->
+                  case resolveModule parsedModuleItems of
+                    Left e -> error (show e)
+                    Right parsedModule ->
+                      void (fromLeft (abilityCheckModule parsedModule))
+                        `shouldBe` abilityError
                 Left e -> error (T.unpack e)
           )
           failures

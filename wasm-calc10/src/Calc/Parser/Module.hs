@@ -1,23 +1,23 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Parser.Module (moduleParser) where
+module Calc.Parser.Module (moduleParser,moduleItemParser) where
 
-import Calc.Parser.Expr
-import Calc.Parser.Function
-import Calc.Parser.Identifier
-import Calc.Parser.Import
-import Calc.Parser.Primitives
-import Calc.Parser.Shared
-import Calc.Parser.Type
-import Calc.Parser.Types
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Calc.Types.Global
-import Calc.Types.Memory
-import Calc.Types.Module
-import Calc.Types.Test
-import Text.Megaparsec
+import           Calc.Parser.Expr
+import           Calc.Parser.Function
+import           Calc.Parser.Identifier
+import           Calc.Parser.Import
+import           Calc.Parser.Primitives
+import           Calc.Parser.Shared
+import           Calc.Parser.Type
+import           Calc.Parser.Types
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Calc.Types.Global
+import           Calc.Types.Memory
+import           Calc.Types.Module
+import           Calc.Types.Test
+import           Text.Megaparsec
 
 -- `memory 1000`
 localMemoryParser :: Parser (Memory Annotation)
@@ -50,7 +50,7 @@ mutabilityParser :: Parser Mutability
 mutabilityParser = myLexeme $ do
   maybeMut <- optional (stringLiteral "mut")
   case maybeMut of
-    Just _ -> pure Mutable
+    Just _  -> pure Mutable
     Nothing -> pure Constant
 
 -- `global dog = True`
@@ -88,6 +88,14 @@ testParser = myLexeme
     tesName <- identifierParser
     stringLiteral "="
     (,) tesName <$> exprParser
+
+moduleItemParser :: Parser (ModuleItem Annotation)
+moduleItemParser =
+  ModuleFunction <$> functionParser <|>
+    ModuleGlobal <$> globalParser <|>
+          ModuleTest <$> testParser <|>
+      try (ModuleMemory <$> memoryParser) <|>
+        ModuleImport <$> importParser
 
 -- we really need to parse all the different parts in any order then put them
 -- together in here

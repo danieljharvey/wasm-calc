@@ -1,24 +1,25 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad
-import Data.Either (isLeft)
-import Data.Foldable (traverse_)
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
-import Test.Helpers
-import Test.Hspec
+import           Calc.ExprUtils
+import           Calc.Module
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types.Function
+import           Calc.Types.Module
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad
+import           Data.Either         (isLeft)
+import           Data.Foldable       (traverse_)
+import qualified Data.List           as List
+import qualified Data.List.NonEmpty  as NE
+import           Data.Text           (Text)
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
@@ -53,9 +54,12 @@ testSucceedingModule (input, md) =
   it (show input) $ do
     case parseModuleAndFormatError input of
       Left e -> error (show e)
-      Right parsedMod ->
-        getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
-          `shouldBe` Right md
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod ->
+            getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
+              `shouldBe` Right md
 
 -- | find function called 'main'
 getMainFunction :: Module ann -> Function ann
@@ -69,9 +73,12 @@ testFailingModule input =
   it (show input) $ do
     case parseModuleAndFormatError input of
       Left e -> error (show e)
-      Right parsedMod ->
-        elaborateModule (void parsedMod)
-          `shouldSatisfy` isLeft
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod ->
+            elaborateModule (void parsedMod)
+              `shouldSatisfy` isLeft
 
 spec :: Spec
 spec = do
