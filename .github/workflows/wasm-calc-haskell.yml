@@ -70,3 +70,6 @@ jobs:
 
       - name: Test wasm-calc9
         run: nix develop --command make test-wasm-calc9
+
+      - name: Test wasm-calc10
+        run: nix develop --command make test-wasm-calc10

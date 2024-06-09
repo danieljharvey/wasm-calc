@@ -1,0 +1,43 @@
+global i: Int32 = 100
+
+global mut j = True
+
+import imports.draw as draw(
+  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8
+) -> Void
+
+function min(floor: Int8, value: Int8) -> Int8 { 
+  if value > floor then value else floor
+}
+
+function max(ceiling: Int8, value: Int8) -> Int8 { 
+  if value < ceiling then value else ceiling
+}
+
+function clamp(
+  floor: Int8, ceiling: Int8, value: Int8
+) -> Int8 { min(floor, max(ceiling, value))}
+
+function drawBounded(
+  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8
+) -> Void { 
+  let maximumWidth: Int8 = 400; 
+  let maximumHeight: Int8 = 300; 
+  draw(
+    clamp(0, maximumWidth, x), 
+    clamp(0, maximumHeight, y), 
+    r, 
+    g, 
+    b
+  )
+}
+
+export function test(index: Int8) -> Void { 
+  let r = clamp(0, 255, index * 2); 
+  let g = clamp(0, 255, 255 - r); 
+  let b = clamp(0, 255, r * 3); 
+  drawBounded(index * 2, index * 3, r, g, b); 
+  drawBounded(100 - index, index * 3, b, g, r); 
+  drawBounded(10 + index * 3, 50 - index * 2, g, r, b); 
+  drawBounded(index * 4, 200 - index * 3, b, r, g)
+}
