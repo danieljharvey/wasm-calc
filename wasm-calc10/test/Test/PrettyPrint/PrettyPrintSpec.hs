@@ -1,21 +1,21 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | test evaluating and running tests for a module
 module Test.PrettyPrint.PrettyPrintSpec (spec) where
 
-import qualified Calc.Parser        as Parse
-import           Calc.PrettyPrint
-import           Calc.Types.Module
-import           Data.Bifunctor     (second)
-import           Data.FileEmbed
-import           Data.Foldable      (traverse_)
-import           Data.Functor
-import           Data.Text          (Text)
+import qualified Calc.Parser as Parse
+import Calc.PrettyPrint
+import Calc.Types.Module
+import Data.Bifunctor (second)
+import Data.FileEmbed
+import Data.Foldable (traverse_)
+import Data.Functor
+import Data.Text (Text)
 import qualified Data.Text.Encoding as T
-import           Test.Hspec
+import Test.Hspec
 
 -- these are saved in a file that is included in compilation
 testInputs :: [(FilePath, Text)]
@@ -26,7 +26,7 @@ testInputs =
 parseModule :: Text -> [ModuleItem ()]
 parseModule input =
   case Parse.parseModuleAndFormatError input of
-    Left e      -> error (show e)
+    Left e -> error (show e)
     Right parts -> void <$> parts
 
 spec :: Spec

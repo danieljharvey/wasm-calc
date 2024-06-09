@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,27 +11,27 @@ module Calc.Build
   )
 where
 
-import           Calc.Ability.Check
-import           Calc.Dependencies
-import qualified Calc.Linearity                   as Linearity
-import           Calc.Module                      (resolveModule)
-import           Calc.Parser
-import           Calc.Parser.Types
-import           Calc.PrettyPrint                 (formatAndSave)
-import           Calc.Test
-import           Calc.Typecheck
-import           Calc.Wasm.FromExpr.Module
-import           Calc.Wasm.ToWasm.Module
-import           Calc.Wasm.WriteModule
-import           Control.Monad.IO.Class
-import           Data.Foldable                    (traverse_)
-import           Data.Monoid
-import           Data.Text                        (Text)
-import qualified Data.Text                        as T
-import qualified Error.Diagnose                   as Diag
-import           Error.Diagnose.Compat.Megaparsec
-import           System.Exit
-import           System.IO                        (hPutStrLn)
+import Calc.Ability.Check
+import Calc.Dependencies
+import qualified Calc.Linearity as Linearity
+import Calc.Module (resolveModule)
+import Calc.Parser
+import Calc.Parser.Types
+import Calc.PrettyPrint (formatAndSave)
+import Calc.Test
+import Calc.Typecheck
+import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.ToWasm.Module
+import Calc.Wasm.WriteModule
+import Control.Monad.IO.Class
+import Data.Foldable (traverse_)
+import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Error.Diagnose as Diag
+import Error.Diagnose.Compat.Megaparsec
+import System.Exit
+import System.IO (hPutStrLn)
 
 build :: FilePath -> IO ()
 build filePath =
@@ -47,8 +47,9 @@ doBuild filePath = do
         >> pure (ExitFailure 1)
     Right parsedModuleItems ->
       case resolveModule parsedModuleItems of
-        Left err -> liftIO (print err) >>
-            pure (ExitFailure 1)
+        Left err ->
+          liftIO (print err)
+            >> pure (ExitFailure 1)
         Right parsedModule -> case elaborateModule parsedModule of
           Left typeErr -> do
             printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)

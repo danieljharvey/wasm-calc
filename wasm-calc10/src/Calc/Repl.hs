@@ -1,8 +1,8 @@
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
@@ -11,25 +11,27 @@ module Calc.Repl
   )
 where
 
-import           Calc.Ability.Check
-import           Calc.Linearity                   (linearityErrorDiagnostic,
-                                                   validateModule)
-import           Calc.Module                      (resolveModule)
-import           Calc.Parser
-import           Calc.Parser.Types
-import           Calc.Typecheck
-import           Calc.Wasm.FromExpr.Module
-import           Calc.Wasm.Run
-import           Calc.Wasm.ToWasm.Module
-import           Calc.Wasm.ToWasm.Types
-import           Control.Monad.IO.Class
-import           Data.Text                        (Text)
-import qualified Data.Text                        as T
-import           Data.Void
-import qualified Error.Diagnose                   as Diag
-import           Error.Diagnose.Compat.Megaparsec
-import qualified Language.Wasm.Interpreter        as Wasm
-import           System.Console.Haskeline
+import Calc.Ability.Check
+import Calc.Linearity
+  ( linearityErrorDiagnostic,
+    validateModule,
+  )
+import Calc.Module (resolveModule)
+import Calc.Parser
+import Calc.Parser.Types
+import Calc.Typecheck
+import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.Run
+import Calc.Wasm.ToWasm.Module
+import Calc.Wasm.ToWasm.Types
+import Control.Monad.IO.Class
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Void
+import qualified Error.Diagnose as Diag
+import Error.Diagnose.Compat.Megaparsec
+import qualified Language.Wasm.Interpreter as Wasm
+import System.Console.Haskeline
 
 instance HasHints Void msg where
   hints _ = mempty
@@ -52,32 +54,31 @@ repl = do
               printDiagnostic (fromErrorBundle bundle input)
               loop
             Right parsedModuleItems -> case resolveModule parsedModuleItems of
-                                         Left err -> liftIO (print err) >> loop
-                                         Right parsedModule ->
-
-                                            case elaborateModule parsedModule of
-                                            Left typeErr -> do
-                                              printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
-                                              loop
-                                            Right typedMod ->
-                                              case validateModule typedMod of
-                                                Left linearityError -> do
-                                                  printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
-                                                  loop
-                                                Right _ -> do
-                                                  case abilityCheckModule parsedModule of
-                                                    Left abilityError -> do
-                                                      printDiagnostic (abilityErrorDiagnostic (T.pack input) abilityError)
-                                                      loop
-                                                    Right _ ->
-                                                      case fromModule typedMod of
-                                                        Left _fromWasmError -> do
-                                                          -- printDiagnostic "From Wasm Error"
-                                                          loop
-                                                        Right wasmMod -> do
-                                                          resp <- liftIO $ runWasmModule wasmMod
-                                                          liftIO $ putStrLn resp
-                                                          loop
+              Left err -> liftIO (print err) >> loop
+              Right parsedModule ->
+                case elaborateModule parsedModule of
+                  Left typeErr -> do
+                    printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
+                    loop
+                  Right typedMod ->
+                    case validateModule typedMod of
+                      Left linearityError -> do
+                        printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
+                        loop
+                      Right _ -> do
+                        case abilityCheckModule parsedModule of
+                          Left abilityError -> do
+                            printDiagnostic (abilityErrorDiagnostic (T.pack input) abilityError)
+                            loop
+                          Right _ ->
+                            case fromModule typedMod of
+                              Left _fromWasmError -> do
+                                -- printDiagnostic "From Wasm Error"
+                                loop
+                              Right wasmMod -> do
+                                resp <- liftIO $ runWasmModule wasmMod
+                                liftIO $ putStrLn resp
+                                loop
 
 -- if input does not include `function`, wrap it in
 -- `function main() { <input> }`

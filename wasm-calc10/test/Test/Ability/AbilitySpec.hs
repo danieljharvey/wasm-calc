@@ -1,18 +1,18 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Ability.AbilitySpec (spec) where
 
-import           Calc
-import           Calc.Ability.Check
-import           Calc.Module
-import           Control.Monad      (void)
-import           Data.Foldable      (traverse_)
-import qualified Data.Map.Strict    as M
-import qualified Data.Set           as S
-import qualified Data.Text          as T
-import           Test.Helpers
-import           Test.Hspec
+import Calc
+import Calc.Ability.Check
+import Calc.Module
+import Control.Monad (void)
+import Data.Foldable (traverse_)
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 voidModuleAbilities :: ModuleAbilities ann -> ModuleAbilities ()
 voidModuleAbilities moduleAbilities =
