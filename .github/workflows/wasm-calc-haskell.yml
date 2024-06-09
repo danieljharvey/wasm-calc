@@ -37,9 +37,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-2-wasm-calc-cabal-work-${{ matrix.plan.ghc }}
 
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
 
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: cachix/cachix-action@v14
+        with:
+          name: wasm-calc
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build Nix stuff
+        run: nix develop -j auto --command true
 
       - name: Build the universe
         run: nix develop --command make build
