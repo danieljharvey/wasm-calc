@@ -5,6 +5,7 @@ module Test.Ability.AbilitySpec (spec) where
 
 import Calc
 import Calc.Ability.Check
+import Calc.Module
 import Control.Monad (void)
 import Data.Foldable (traverse_)
 import qualified Data.Map.Strict as M
@@ -85,9 +86,12 @@ spec = do
         traverse_
           ( \(str, abilityResult) -> it (T.unpack str) $ do
               case parseModuleAndFormatError str of
-                Right parsedModule -> do
-                  voidModuleAbilities (fromRight (abilityCheckModule parsedModule))
-                    `shouldBe` abilityResult
+                Right parsedModuleItems ->
+                  case resolveModule parsedModuleItems of
+                    Left e -> error (show e)
+                    Right parsedModule ->
+                      voidModuleAbilities (fromRight (abilityCheckModule parsedModule))
+                        `shouldBe` abilityResult
                 Left e -> error (T.unpack e)
           )
           successes
@@ -122,9 +126,12 @@ spec = do
         traverse_
           ( \(str, abilityError) -> it (T.unpack str) $ do
               case parseModuleAndFormatError str of
-                Right parsedModule -> do
-                  void (fromLeft (abilityCheckModule parsedModule))
-                    `shouldBe` abilityError
+                Right parsedModuleItems ->
+                  case resolveModule parsedModuleItems of
+                    Left e -> error (show e)
+                    Right parsedModule ->
+                      void (fromLeft (abilityCheckModule parsedModule))
+                        `shouldBe` abilityError
                 Left e -> error (T.unpack e)
           )
           failures

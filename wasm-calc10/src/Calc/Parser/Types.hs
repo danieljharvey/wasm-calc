@@ -29,6 +29,6 @@ type ParserType = Type Annotation
 
 type ParserFunction = Function Annotation
 
-type ParserModule = Module Annotation
+type ParserModule = [ModuleItem Annotation]
 
 type ParserPattern = Pattern Annotation

@@ -3,6 +3,7 @@
 module Test.Parser.ParserSpec (spec) where
 
 import Calc
+import Calc.Module
 import Data.Foldable (traverse_)
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
@@ -219,8 +220,12 @@ spec = do
       traverse_
         ( \(str, module') -> it (T.unpack str) $ do
             case parseModuleAndFormatError str of
-              Right parsedMod -> parsedMod $> () `shouldBe` module'
               Left e -> error (T.unpack e)
+              Right parsedModuleItems ->
+                case resolveModule parsedModuleItems of
+                  Left e -> error (show e)
+                  Right parsedMod ->
+                    parsedMod $> () `shouldBe` module'
         )
         strings
 

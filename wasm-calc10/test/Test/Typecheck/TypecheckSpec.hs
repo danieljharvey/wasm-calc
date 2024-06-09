@@ -4,6 +4,7 @@
 module Test.Typecheck.TypecheckSpec (spec) where
 
 import Calc.ExprUtils
+import Calc.Module
 import Calc.Parser
 import Calc.Typecheck
 import Calc.Types.Function
@@ -53,9 +54,12 @@ testSucceedingModule (input, md) =
   it (show input) $ do
     case parseModuleAndFormatError input of
       Left e -> error (show e)
-      Right parsedMod ->
-        getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
-          `shouldBe` Right md
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod ->
+            getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
+              `shouldBe` Right md
 
 -- | find function called 'main'
 getMainFunction :: Module ann -> Function ann
@@ -69,9 +73,12 @@ testFailingModule input =
   it (show input) $ do
     case parseModuleAndFormatError input of
       Left e -> error (show e)
-      Right parsedMod ->
-        elaborateModule (void parsedMod)
-          `shouldSatisfy` isLeft
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod ->
+            elaborateModule (void parsedMod)
+              `shouldSatisfy` isLeft
 
 spec :: Spec
 spec = do

@@ -62,6 +62,7 @@ common shared
     Calc.Linearity.Error
     Calc.Linearity.Types
     Calc.Linearity.Validate
+    Calc.Module
     Calc.Parser
     Calc.Parser.Expr
     Calc.Parser.Function

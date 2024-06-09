@@ -16,6 +16,7 @@ import Calc.Linearity
   ( linearityErrorDiagnostic,
     validateModule,
   )
+import Calc.Module (resolveModule)
 import Calc.Parser
 import Calc.Parser.Types
 import Calc.Typecheck
@@ -52,29 +53,32 @@ repl = do
             Left bundle -> do
               printDiagnostic (fromErrorBundle bundle input)
               loop
-            Right parsedModule -> case elaborateModule parsedModule of
-              Left typeErr -> do
-                printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
-                loop
-              Right typedMod ->
-                case validateModule typedMod of
-                  Left linearityError -> do
-                    printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
+            Right parsedModuleItems -> case resolveModule parsedModuleItems of
+              Left err -> liftIO (print err) >> loop
+              Right parsedModule ->
+                case elaborateModule parsedModule of
+                  Left typeErr -> do
+                    printDiagnostic (typeErrorDiagnostic (T.pack input) typeErr)
                     loop
-                  Right _ -> do
-                    case abilityCheckModule parsedModule of
-                      Left abilityError -> do
-                        printDiagnostic (abilityErrorDiagnostic (T.pack input) abilityError)
+                  Right typedMod ->
+                    case validateModule typedMod of
+                      Left linearityError -> do
+                        printDiagnostic (linearityErrorDiagnostic (T.pack input) linearityError)
                         loop
-                      Right _ ->
-                        case fromModule typedMod of
-                          Left _fromWasmError -> do
-                            -- printDiagnostic "From Wasm Error"
+                      Right _ -> do
+                        case abilityCheckModule parsedModule of
+                          Left abilityError -> do
+                            printDiagnostic (abilityErrorDiagnostic (T.pack input) abilityError)
                             loop
-                          Right wasmMod -> do
-                            resp <- liftIO $ runWasmModule wasmMod
-                            liftIO $ putStrLn resp
-                            loop
+                          Right _ ->
+                            case fromModule typedMod of
+                              Left _fromWasmError -> do
+                                -- printDiagnostic "From Wasm Error"
+                                loop
+                              Right wasmMod -> do
+                                resp <- liftIO $ runWasmModule wasmMod
+                                liftIO $ putStrLn resp
+                                loop
 
 -- if input does not include `function`, wrap it in
 -- `function main() { <input> }`
