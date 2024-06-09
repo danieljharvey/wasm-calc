@@ -2,10 +2,6 @@ global i: Int32 = 100
 
 global mut j = True
 
-import imports.draw as draw(
-  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8
-) -> Void
-
 function min(floor: Int8, value: Int8) -> Int8 { 
   if value > floor then value else floor
 }
@@ -13,6 +9,10 @@ function min(floor: Int8, value: Int8) -> Int8 {
 function max(ceiling: Int8, value: Int8) -> Int8 { 
   if value < ceiling then value else ceiling
 }
+
+import imports.draw as draw(
+  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8
+) -> Void
 
 function clamp(
   floor: Int8, ceiling: Int8, value: Int8
