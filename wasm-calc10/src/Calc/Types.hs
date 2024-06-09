@@ -1,6 +1,8 @@
 module Calc.Types
   ( module Calc.Types.Annotation,
     module Calc.Types.Op,
+    module Calc.Types.Constructor,
+    module Calc.Types.Data,
     module Calc.Types.Identifier,
     module Calc.Types.Import,
     module Calc.Types.Expr,
@@ -19,6 +21,8 @@ where
 
 import Calc.Types.Ability
 import Calc.Types.Annotation
+import Calc.Types.Constructor
+import Calc.Types.Data
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Global
