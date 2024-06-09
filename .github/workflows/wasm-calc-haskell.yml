@@ -46,6 +46,9 @@ jobs:
           name: wasm-calc
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
+      - name: Build Nix stuff
+        run: nix develop -j auto --command true
+
       - name: Build the universe
         run: nix develop --command make build
 
