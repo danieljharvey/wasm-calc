@@ -58,18 +58,14 @@
           buildInputs = with haskellPackages; [
             hlint
             ormolu
-            haskell-language-server
+            #haskell-language-server
             ghcid
             cabal-fmt
             cabal-install
-            ghc
             # test tooling
             pkgs.nodejs
             pkgs.watchexec
             pkgs.nodePackages_latest.serve
-            pkgs.wabt
-            pkgs.emscripten
-            pkgs.wasmtime
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};
