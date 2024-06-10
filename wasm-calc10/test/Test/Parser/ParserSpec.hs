@@ -247,11 +247,34 @@ spec = do
               ( "type Void",
                 Data {dtName = DataName "Void", dtVars = mempty, dtConstructors = mempty}
               ),
-              ( "type Proxy a = Proxy",
+              ( "type Proxy<a> = Proxy",
                 Data
                   { dtName = DataName "Proxy",
                     dtVars = ["a"],
                     dtConstructors = M.singleton "Proxy" mempty
+                  }
+              ),
+              ( "type Either<e,a> = Left(e) | Right(a)",
+                Data
+                  { dtName = DataName "Either",
+                    dtVars = ["e", "a"],
+                    dtConstructors =
+                      M.fromList
+                        [ ("Left", [TVar mempty "e"]),
+                          ("Right", [TVar mempty "a"])
+                        ]
+                  }
+              ),
+              ( "type These<a,b> = This(a) | That(b) | These(a,b)",
+                Data
+                  { dtName = DataName "These",
+                    dtVars = ["a", "b"],
+                    dtConstructors =
+                      M.fromList
+                        [ ("This", [TVar mempty "a"]),
+                          ("That", [TVar mempty "b"]),
+                          ("These", [TVar mempty "a", TVar mempty "b"])
+                        ]
                   }
               )
             ]

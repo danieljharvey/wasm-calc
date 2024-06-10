@@ -2,6 +2,7 @@
 
 module Calc.Parser.Data (dataParser) where
 
+import Calc.Parser.Function (genericsParser)
 import Calc.Parser.Identifier
 import Calc.Parser.Shared
 import Calc.Parser.Type
@@ -33,7 +34,7 @@ typeDeclParserWithCons :: Parser (Data Annotation)
 typeDeclParserWithCons = do
   stringLiteral "type"
   tyName <- dataNameParser
-  tyArgs <- many identifierParser
+  tyArgs <- try genericsParser <|> pure mempty
   stringLiteral "="
   Data tyName tyArgs <$> manyTypeConstructors
 
@@ -49,10 +50,17 @@ manyTypeConstructors = do
 
 -----
 
+-- `Dog` or `Left(e)` or `Right(Int32)`
 oneTypeConstructor :: Parser (Map Constructor [Type Annotation])
 oneTypeConstructor = do
   constructor <- myLexeme constructorParserInternal
-  args <-
-    some typeParser -- (try simpleTypeParser <|> inBrackets typeParser)
-      <|> pure mempty
+  args <- try constructorArgsParser <|> pure mempty
   pure (M.singleton constructor args)
+
+-- `(a,b,Int32)`
+constructorArgsParser :: Parser [Type Annotation]
+constructorArgsParser = do
+  stringLiteral "("
+  types <- sepBy typeParser (stringLiteral ",")
+  stringLiteral ")"
+  pure types
