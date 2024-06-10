@@ -14,7 +14,7 @@
         # current compiler version, ideally, we'll put everything here
         # eventually
 
-        compilerVersion = "ghc963";
+        compilerVersion = "ghc965";
 
         # fix things
         haskell = pkgs.haskell // {
@@ -56,20 +56,17 @@
 
         devShell = pkgs.mkShell {
           buildInputs = with haskellPackages; [
+            ghc
             hlint
             ormolu
-            haskell-language-server
+            #haskell-language-server
             ghcid
             cabal-fmt
             cabal-install
-            ghc
             # test tooling
             pkgs.nodejs
             pkgs.watchexec
             pkgs.nodePackages_latest.serve
-            pkgs.wabt
-            pkgs.emscripten
-            pkgs.wasmtime
           ];
 
           inputsFrom = builtins.attrValues self.packages.${system};
