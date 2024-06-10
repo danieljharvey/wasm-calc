@@ -14,7 +14,7 @@
         # current compiler version, ideally, we'll put everything here
         # eventually
 
-        compilerVersion = "ghc963";
+        compilerVersion = "ghc965";
 
         # fix things
         haskell = pkgs.haskell // {
