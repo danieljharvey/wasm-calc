@@ -6,10 +6,12 @@ module Calc.Parser.Types
     ParserFunction,
     ParserModule,
     ParserPattern,
+    ParserData,
   )
 where
 
 import Calc.Types.Annotation
+import Calc.Types.Data
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Module
@@ -32,3 +34,5 @@ type ParserFunction = Function Annotation
 type ParserModule = [ModuleItem Annotation]
 
 type ParserPattern = Pattern Annotation
+
+type ParserData = Data Annotation

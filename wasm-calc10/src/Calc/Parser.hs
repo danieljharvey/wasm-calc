@@ -11,10 +11,13 @@ module Calc.Parser
     parseModuleAndFormatError,
     parsePattern,
     parsePatternAndFormatError,
+    parseData,
+    parseDataAndFormatError,
     replFilename,
   )
 where
 
+import Calc.Parser.Data
 import Calc.Parser.Expr
 import Calc.Parser.Function
 import Calc.Parser.Module
@@ -76,3 +79,11 @@ parsePattern = parse (space *> patternParser <* eof) replFilename
 -- | `parsePattern`, but format error to text
 parsePatternAndFormatError :: Text -> Either Text ParserPattern
 parsePatternAndFormatError = parseAndFormat (space *> patternParser <* eof)
+
+-- parse data type, using it all up
+parseData :: Text -> Either ParseErrorType ParserData
+parseData = parse (space *> dataParser <* eof) replFilename
+
+-- | `parseData`, but format error to text
+parseDataAndFormatError :: Text -> Either Text ParserData
+parseDataAndFormatError = parseAndFormat (space *> dataParser <* eof)

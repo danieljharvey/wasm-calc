@@ -4,6 +4,8 @@ module Calc.Parser.Identifier
   ( identifierParser,
     functionNameParser,
     typeVarParser,
+    dataNameParser,
+    constructorParserInternal,
   )
 where
 
@@ -14,10 +16,10 @@ import Control.Monad
 import qualified Data.Char as Char
 import Data.Set (Set)
 import qualified Data.Set as S
-import Data.Text (Text)
+import qualified Data.Text as T
 import Text.Megaparsec
 
-protectedNames :: Set Text
+protectedNames :: Set T.Text
 protectedNames =
   S.fromList
     [ "if",
@@ -30,13 +32,13 @@ protectedNames =
       "set"
     ]
 
-filterProtectedNames :: Text -> Maybe Text
+filterProtectedNames :: T.Text -> Maybe T.Text
 filterProtectedNames tx =
   if S.member tx protectedNames
     then Nothing
     else Just tx
 
-protectedTypeNames :: Set Text
+protectedTypeNames :: Set T.Text
 protectedTypeNames =
   S.fromList
     [ "Int16",
@@ -48,7 +50,7 @@ protectedTypeNames =
       "Box"
     ]
 
-filterProtectedTypeNames :: Text -> Maybe Text
+filterProtectedTypeNames :: T.Text -> Maybe T.Text
 filterProtectedTypeNames tx =
   if S.member tx protectedTypeNames
     then Nothing
@@ -82,3 +84,17 @@ typeVarParserInternal =
   maybePred
     (takeWhile1P (Just "type variable name") Char.isAlphaNum)
     (filterProtectedTypeNames >=> safeMkTypeVar)
+
+-- `Maybe`, `Either` etc
+dataNameParser :: Parser DataName
+dataNameParser = myLexeme (DataName <$> constructorParserInternal)
+
+-- use this when you are going to wrap myLexeme yourself
+constructorParserInternal :: Parser Constructor
+constructorParserInternal =
+  maybePred
+    constructor
+    (filterProtectedNames >=> safeMkConstructor)
+
+constructor :: Parser T.Text
+constructor = takeWhile1P (Just "constructor") Char.isAlphaNum

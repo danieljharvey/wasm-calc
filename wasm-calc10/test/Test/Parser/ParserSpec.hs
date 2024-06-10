@@ -7,6 +7,7 @@ import Calc.Module
 import Data.Foldable (traverse_)
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Test.Helpers
@@ -226,6 +227,62 @@ spec = do
                   Left e -> error (show e)
                   Right parsedMod ->
                     parsedMod $> () `shouldBe` module'
+        )
+        strings
+
+    describe "Data" $ do
+      let strings =
+            [ ( "type Colour = Red | Green | Blue",
+                Data
+                  { dtName = DataName "Colour",
+                    dtVars = mempty,
+                    dtConstructors =
+                      M.fromList
+                        [ ("Red", mempty),
+                          ("Green", mempty),
+                          ("Blue", mempty)
+                        ]
+                  }
+              ),
+              ( "type Void",
+                Data {dtName = DataName "Void", dtVars = mempty, dtConstructors = mempty}
+              ),
+              ( "type Proxy<a> = Proxy",
+                Data
+                  { dtName = DataName "Proxy",
+                    dtVars = ["a"],
+                    dtConstructors = M.singleton "Proxy" mempty
+                  }
+              ),
+              ( "type Either<e,a> = Left(e) | Right(a)",
+                Data
+                  { dtName = DataName "Either",
+                    dtVars = ["e", "a"],
+                    dtConstructors =
+                      M.fromList
+                        [ ("Left", [TVar mempty "e"]),
+                          ("Right", [TVar mempty "a"])
+                        ]
+                  }
+              ),
+              ( "type These<a,b> = This(a) | That(b) | These(a,b)",
+                Data
+                  { dtName = DataName "These",
+                    dtVars = ["a", "b"],
+                    dtConstructors =
+                      M.fromList
+                        [ ("This", [TVar mempty "a"]),
+                          ("That", [TVar mempty "b"]),
+                          ("These", [TVar mempty "a", TVar mempty "b"])
+                        ]
+                  }
+              )
+            ]
+      traverse_
+        ( \(str, dt) -> it (T.unpack str) $ do
+            case parseDataAndFormatError str of
+              Right parsedData -> parsedData $> () `shouldBe` dt
+              Left e -> error (T.unpack e)
         )
         strings
 

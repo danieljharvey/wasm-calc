@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Parser.Function (functionParser, functionNameParser) where
+module Calc.Parser.Function (functionParser, functionNameParser, genericsParser) where
 
 import Calc.Parser.Expr
 import Calc.Parser.Identifier
