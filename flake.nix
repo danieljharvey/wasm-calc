@@ -56,6 +56,7 @@
 
         devShell = pkgs.mkShell {
           buildInputs = with haskellPackages; [
+            ghc
             hlint
             ormolu
             #haskell-language-server
