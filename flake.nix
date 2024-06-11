@@ -60,7 +60,7 @@
             hlint
             ormolu
             #haskell-language-server
-            ghcid
+            pkgs.ghciwatch
             cabal-fmt
             cabal-install
             # test tooling

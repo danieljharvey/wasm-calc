@@ -1,5 +1,5 @@
 packages:
-  wasm-calc/wasm-calc.cabal,
+  wasm-calc1/wasm-calc1.cabal,
   wasm-calc2/wasm-calc2.cabal,
   wasm-calc3/wasm-calc3.cabal,
   wasm-calc4/wasm-calc4.cabal,

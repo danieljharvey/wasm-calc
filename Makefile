@@ -13,75 +13,7 @@ update:
 build:
 	cabal build all -j4 --enable-tests
 
-# calculator 1
-
-.PHONY: test-wasm-calc
-test-wasm-calc:
-	cabal run wasm-calc:tests
-
-.PHONY: run-wasm-calc
-run-wasm-calc:
-	cabal run wasm-calc
-
-# calculator 2
-
-.PHONY: test-wasm-calc2
-test-wasm-calc2:
-	cabal run wasm-calc2:tests
-
-.PHONY: run-wasm-calc2
-run-wasm-calc2:
-	cabal run wasm-calc2
-
-# calculator 3
-
-.PHONY: test-wasm-calc3
-test-wasm-calc3:
-	cabal run wasm-calc3:tests
-
-.PHONY: run-wasm-calc3
-run-wasm-calc3:
-	cabal run wasm-calc3
-
-# calculator 4
-
-.PHONY: test-wasm-calc4
-test-wasm-calc4:
-	cabal run wasm-calc4:tests
-
-.PHONY: run-wasm-calc4
-run-wasm-calc4:
-	cabal run wasm-calc4
-
-# calculator 5
-
-.PHONY: test-wasm-calc5
-test-wasm-calc5:
-	cabal run wasm-calc5:tests
-
-.PHONY: run-wasm-calc5
-run-wasm-calc5:
-	cabal run wasm-calc5
-
-# calculator 6
-
-.PHONY: test-wasm-calc6
-test-wasm-calc6:
-	cabal run wasm-calc6:tests
-
-.PHONY: run-wasm-calc6
-run-wasm-calc6:
-	cabal run wasm-calc6
-
 # calculator 7
-
-.PHONY: test-wasm-calc7
-test-wasm-calc7:
-	cabal run wasm-calc7:tests
-
-.PHONY: run-wasm-calc7
-run-wasm-calc7:
-	cabal run wasm-calc7 -- repl
 
 .PHONY: run-build-drawing-demo-7
 run-build-drawing-demo-7:
@@ -93,14 +25,6 @@ format-all-files-7:
 
 # calculator 8
 
-.PHONY: test-wasm-calc8
-test-wasm-calc8:
-	cabal run wasm-calc8:tests
-
-.PHONY: run-wasm-calc8
-run-wasm-calc8:
-	cabal run wasm-calc8 -- repl
-
 .PHONY: run-build-drawing-demo-8
 run-build-drawing-demo-8:
 	cabal run wasm-calc8 -- build wasm-calc8/demo/draw.calc > wasm-calc8/demo/draw.wasm
@@ -110,14 +34,6 @@ format-all-files-8:
 	find $(STATIC_FILES_8) -maxdepth 1 -type f -exec cabal run wasm-calc8 -- format {} \;
 
 # calculator 9
-
-.PHONY: test-wasm-calc9
-test-wasm-calc9:
-	cabal run wasm-calc9:tests
-
-.PHONY: run-wasm-calc9
-run-wasm-calc9:
-	cabal run wasm-calc9 -- repl
 
 .PHONY: run-build-malloc-9
 run-build-malloc-9:
@@ -135,10 +51,6 @@ format-all-files-9:
 test-wasm-calc10:
 	cabal run wasm-calc10:tests
 
-.PHONY: run-wasm-calc10
-run-wasm-calc10:
-	cabal run wasm-calc10 -- repl
-
 .PHONY: run-build-malloc-10
 run-build-malloc-10:
 	cabal build wasm-calc10
@@ -151,6 +63,31 @@ format-all-files-10:
 
 
 # end of calcs
+
+# run with `make watch version=9` to run tests / ghci for wasm-calc9
+.PHONY: watch
+version = 10
+watch:
+	ghciwatch --watch wasm-calc$(version) --command "cabal repl wasm-calc$(version)-tests" --after-startup-ghci 'main'
+
+# run with `make run version=8` to run wasm-calc8
+.PHONY: run
+version = 10
+run:
+	cabal run wasm-calc$(version) -- repl
+
+# run with `make test version=7` to run wasm-calc7 tests
+.PHONY: test
+version = 10
+test:
+	cabal run wasm-calc$(version):tests
+
+# run with `make format-all-files version=7` to format all static `.calc` files for wasm-calc7
+.PHONY: format-all-files
+version = 10
+STATIC_FILES = "./wasm-calc$(version)/test/static/"
+format-all-files:
+	find $(STATIC_FILES) -maxdepth 1 -type f -exec cabal run wasm-calc$(version) -- format {} \;
 
 .PHONY: freeze
 freeze:
