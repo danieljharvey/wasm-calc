@@ -40,6 +40,7 @@ exprParserInternal =
         do
           try annotationParser
           <|> try tupleParser
+          <|> constructorParser
           <|> boxParser
           <|> inBrackets (addLocation exprParserInternal)
           <|> primExprParser
@@ -190,3 +191,15 @@ setParser = label "set" $
     expr <- exprParserInternal
     stringLiteral ")"
     pure $ ESet mempty ident expr
+
+constructorParser :: Parser (Expr Annotation)
+constructorParser =
+  let argsParser = do
+        stringLiteral "("
+        args <- sepBy1 exprParserInternal (stringLiteral ",")
+        stringLiteral ")"
+        pure args
+   in label "constructor" $ addLocation $ do
+        constructor <- constructorParserInternal
+        args <- try argsParser <|> pure mempty
+        pure $ EConstructor mempty constructor args

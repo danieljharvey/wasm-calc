@@ -7,15 +7,13 @@ module Calc.Typecheck.Types
     TypecheckEnv (..),
     TypecheckGlobal (..),
     TypeScheme (..),
+    TCDataType(..)
   )
 where
 
+import qualified Data.Map.Strict as M
 import Calc.Typecheck.Error
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Type
-import Calc.Types.TypeVar
+import Calc.Types
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -23,11 +21,20 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Set as S
 import GHC.Natural
 
+-- | data type information for a single constructor
+data TCDataType ann = TCDataType {
+  tcdtName :: DataName,
+  tcdtGenerics :: [TypeVar],
+  tcdtArgs :: [Type ann]
+                                 }
+  deriving stock (Eq,Ord,Show)
+
 -- | temporary read-only state
 data TypecheckEnv ann = TypecheckEnv
   { tceVars :: HM.HashMap Identifier (Type ann),
     tceGenerics :: S.Set TypeVar,
-    tceMemoryLimit :: Natural
+    tceMemoryLimit :: Natural,
+    tceDataTypes :: M.Map Constructor (TCDataType ann)
   }
   deriving stock (Eq, Ord, Show)
 

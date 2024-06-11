@@ -7,12 +7,7 @@ module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 import Calc.ExprUtils
 import Calc.SourceSpan
 import Calc.TypeUtils
-import Calc.Types.Annotation
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
+import Calc.Types
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 import qualified Data.List as List
@@ -41,6 +36,7 @@ data TypeError ann
   | UnknownFloatLiteral ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
   | CantSetConstant ann Identifier
+  | ConstructorNotFound ann Constructor
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -87,6 +83,26 @@ typeErrorDiagnostic input e =
                 ]
             )
             []
+        (ConstructorNotFound ann constructor) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Constructor could not be found."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $ PP.pretty constructor
+                          )
+                      )
+                ]
+            )
+            []
+
         (UnknownFloatLiteral ann) ->
           Diag.Err
             Nothing

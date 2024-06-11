@@ -22,7 +22,11 @@ import Text.Megaparsec
 -- | top-level parser for type signatures
 typeParser :: Parser ParserType
 typeParser =
-  tyPrimitiveParser <|> tyTupleParser <|> tyBoxParser <|> tyVarParser
+  tyPrimitiveParser
+    <|> tyTupleParser
+    <|> tyConstructorParser
+    <|> tyBoxParser
+    <|> tyVarParser
 
 tyPrimitiveParser :: Parser ParserType
 tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
@@ -63,3 +67,15 @@ tyVarParser :: Parser ParserType
 tyVarParser = label "type variable" $
   addTypeLocation $ do
     TVar mempty <$> typeVarParser
+
+tyConstructorParser :: Parser ParserType
+tyConstructorParser =
+  let argsParser = do
+        stringLiteral "("
+        args <- sepBy1 typeParser (stringLiteral ",")
+        stringLiteral ")"
+        pure args
+   in label "type constructor" $ addTypeLocation $ do
+        dtName <- dataNameParser
+        args <- try argsParser <|> pure mempty
+        pure $ TConstructor mempty dtName args

@@ -4,6 +4,7 @@ module Calc.Typecheck.Infer
   )
 where
 
+import qualified Data.Map.Strict as M
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -11,14 +12,7 @@ import Calc.Typecheck.Helpers
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
 import Calc.Typecheck.Unify
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Prim
-import Calc.Types.Type
+import Calc.Types
 import Control.Monad (unless, when, zipWithM, zipWithM_)
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -383,6 +377,14 @@ checkLet maybeReturnTy ann pat expr rest = do
       Nothing -> infer rest
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
+lookupConstructor :: ann -> Constructor ->
+  TypecheckM ann (DataName, [TypeVar] ,[Type ann])
+lookupConstructor ann constructor = do
+  result <- asks (M.lookup constructor . tceDataTypes)
+  case result of
+    (Just (TCDataType dataType vars args)) -> pure (dataType,vars,args)
+    Nothing -> throwError $ ConstructorNotFound ann constructor
+
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
@@ -401,6 +403,13 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
+infer (EConstructor ann constructor args) = do
+  (dataType,vars, tyArgs) <- lookupConstructor ann constructor
+  typedArgs <- traverse infer args
+  monomorphisedArgs <-
+    calculateMonomorphisedTypes vars tyArgs (getOuterAnnotation <$> typedArgs)
+  let ty = TConstructor ann dataType (snd <$> monomorphisedArgs)
+  pure (EConstructor ty constructor typedArgs)
 infer (ELet ann pat expr rest) =
   checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =

@@ -22,7 +22,9 @@ import Test.Helpers
 import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
-runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
+runTC = runTypecheckM (TypecheckEnv {
+      tceVars = mempty ,tceGenerics = mempty ,tceMemoryLimit = 0,
+            tceDataTypes = mempty})
 
 testSucceedingExpr :: (Text, Text) -> Spec
 testSucceedingExpr (input, result) = it (show input) $ do
@@ -209,7 +211,10 @@ spec = do
                     "test itsTrue = True"
                   ],
                 tyInt32
-              )
+              ),
+              ( joinLines ["type Maybe<a> = Just(a) | Nothing",
+               "function main() -> Maybe(Int32) { Just(100) }"],
+               tyConstructor "Maybe" [tyInt32])
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding

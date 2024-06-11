@@ -29,58 +29,69 @@ elaborateModule ::
   forall ann.
   Module ann ->
   Either (TypeError ann) (Module (Type ann))
-elaborateModule (Module {mdTests, mdImports, mdGlobals, mdMemory, mdFunctions}) = do
-  let typecheckEnv =
-        TypecheckEnv
-          { tceVars = mempty,
-            tceGenerics = mempty,
-            tceMemoryLimit = case mdMemory of
-              Nothing -> 0
-              Just (LocalMemory {lmLimit}) -> lmLimit
-              Just (ImportedMemory {imLimit}) -> imLimit
+elaborateModule
+  ( Module
+      { mdTests,
+        mdImports,
+        mdGlobals,
+        mdMemory,
+        mdFunctions,
+        mdDataTypes
+      }
+    ) = do
+    let typecheckEnv =
+          TypecheckEnv
+            { tceVars = mempty,
+              tceGenerics = mempty,
+              tceMemoryLimit = case mdMemory of
+                Nothing -> 0
+                Just (LocalMemory {lmLimit}) -> lmLimit
+                Just (ImportedMemory {imLimit}) -> imLimit,
+              tceDataTypes = arrangeDataTypes mdDataTypes
+            }
+
+    runTypecheckM typecheckEnv $ do
+      globals <-
+        traverse
+          ( \global -> do
+              elabGlobal <- elaborateGlobal global
+              storeGlobal (glbIdentifier elabGlobal) (glbMutability elabGlobal) (glbAnn elabGlobal)
+              pure elabGlobal
+          )
+          mdGlobals
+
+      imports <-
+        traverse
+          ( \imp -> do
+              elabImport <- elaborateImport imp
+              storeFunction (impImportName elabImport) mempty (impAnn elabImport)
+              pure elabImport
+          )
+          mdImports
+
+      functions <-
+        traverse
+          ( \fn -> do
+              elabFn <- elaborateFunction fn
+              storeFunction
+                (fnFunctionName elabFn)
+                (S.fromList $ fnGenerics fn)
+                (fnAnn elabFn)
+              pure elabFn
+          )
+          mdFunctions
+
+      tests <- traverse elaborateTest mdTests
+
+      pure $
+        Module
+          { mdFunctions = functions,
+            mdImports = imports,
+            mdMemory = elaborateMemory <$> mdMemory,
+            mdGlobals = globals,
+            mdTests = tests,
+            mdDataTypes = mempty
           }
-
-  runTypecheckM typecheckEnv $ do
-    globals <-
-      traverse
-        ( \global -> do
-            elabGlobal <- elaborateGlobal global
-            storeGlobal (glbIdentifier elabGlobal) (glbMutability elabGlobal) (glbAnn elabGlobal)
-            pure elabGlobal
-        )
-        mdGlobals
-
-    imports <-
-      traverse
-        ( \imp -> do
-            elabImport <- elaborateImport imp
-            storeFunction (impImportName elabImport) mempty (impAnn elabImport)
-            pure elabImport
-        )
-        mdImports
-
-    functions <-
-      traverse
-        ( \fn -> do
-            elabFn <- elaborateFunction fn
-            storeFunction
-              (fnFunctionName elabFn)
-              (S.fromList $ fnGenerics fn)
-              (fnAnn elabFn)
-            pure elabFn
-        )
-        mdFunctions
-
-    tests <- traverse elaborateTest mdTests
-
-    pure $
-      Module
-        { mdFunctions = functions,
-          mdImports = imports,
-          mdMemory = elaborateMemory <$> mdMemory,
-          mdGlobals = globals,
-          mdTests = tests
-        }
 
 -- check a test expression has type `Bool`
 -- later we'll also check it does not use any imports

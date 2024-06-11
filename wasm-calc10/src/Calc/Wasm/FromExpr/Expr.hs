@@ -126,6 +126,7 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
+fromExpr (EConstructor {}) = error "fromExpr EConstructor"
 fromExpr (EBlock _ expr) =
   -- ignore block. todo: will we lose drops here
   fromExpr expr
@@ -151,7 +152,7 @@ fromExpr (EVar _ ident) = do
 fromExpr (EApply _ funcName args) = do
   (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
   let types =
-        calculateMonomorphisedTypes
+        monomorphiseTypes
           fGenerics
           (void . fst . getOuterAnnotation <$> args)
           fArgTypes
