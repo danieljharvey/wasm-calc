@@ -22,10 +22,6 @@
             "${compilerVersion}" =
               pkgs.haskell.packages."${compilerVersion}".override {
                 overrides = self: super: {
-                  # On aarch64-darwin, this creates a cycle for some reason; didn't look too much into it.
-                  ghcid = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.ghcid (drv: { enableSeparateBinOutput = false; }));
-                  # has wrong version of unix-compat, so we ignore it
-                  shelly = pkgs.haskell.lib.doJailbreak super.shelly;
                   # try and remove cycle
                   cabal-fmt = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.cabal-fmt (drv: {
                     enableSeparateBinOutput = false;
