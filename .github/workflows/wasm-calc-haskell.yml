@@ -49,35 +49,32 @@ jobs:
       - name: Build Nix stuff
         run: nix develop -j auto --command true
 
-      - name: Build the universe
-        run: nix develop --command make build
-
-      - name: Test wasm-calc
-        run: nix develop --command make test-wasm-calc
+      - name: Test wasm-calc1
+        run: nix develop --command make test version=1
 
       - name: Test wasm-calc2
-        run: nix develop --command make test-wasm-calc2
+        run: nix develop --command make test version=2
 
       - name: Test wasm-calc3
-        run: nix develop --command make test-wasm-calc3
+        run: nix develop --command make test version=3
 
       - name: Test wasm-calc4
-        run: nix develop --command make test-wasm-calc4
+        run: nix develop --command make test version=4
 
       - name: Test wasm-calc5
-        run: nix develop --command make test-wasm-calc5
+        run: nix develop --command make test version=5
 
       - name: Test wasm-calc6
-        run: nix develop --command make test-wasm-calc6
+        run: nix develop --command make test version=6
 
       - name: Test wasm-calc7
-        run: nix develop --command make test-wasm-calc7
+        run: nix develop --command make test version=7
 
       - name: Test wasm-calc8
-        run: nix develop --command make test-wasm-calc8
+        run: nix develop --command make test version=8
 
       - name: Test wasm-calc9
-        run: nix develop --command make test-wasm-calc9
+        run: nix develop --command make test version=9
 
       - name: Test wasm-calc10
-        run: nix develop --command make test-wasm-calc10
+        run: nix develop --command make test version=10

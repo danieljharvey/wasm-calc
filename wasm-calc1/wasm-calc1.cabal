@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               wasm-calc
+name:               wasm-calc1
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
@@ -68,7 +68,7 @@ library
   hs-source-dirs:   src
   default-language: Haskell2010
 
-test-suite wasm-calc-tests
+test-suite wasm-calc1-tests
   import:           shared
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
@@ -85,7 +85,7 @@ test-suite wasm-calc-tests
   main-is:          Main.hs
   default-language: Haskell2010
 
-executable wasm-calc
+executable wasm-calc1
   main-is:          Main.hs
   other-modules:    Calc.Repl
   hs-source-dirs:   app
@@ -99,6 +99,6 @@ executable wasm-calc
     , parser-combinators
     , text
     , wasm
-    , wasm-calc
+    , wasm-calc1
 
   default-language: Haskell2010
