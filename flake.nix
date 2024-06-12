@@ -55,7 +55,7 @@
             ghc
             hlint
             ormolu
-            #haskell-language-server
+            haskell-language-server
             pkgs.ghciwatch
             cabal-fmt
             cabal-install
