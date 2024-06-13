@@ -10,7 +10,7 @@ packages:
   wasm-calc9/wasm-calc9.cabal,
   wasm-calc10/wasm-calc10.cabal
 
-with-compiler: ghc-9.6.5
+with-compiler: ghc-9.8.2
 
 package diagnose
   flags: +megaparsec-compat
