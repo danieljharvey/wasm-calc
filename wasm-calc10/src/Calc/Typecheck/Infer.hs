@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Calc.Typecheck.Infer
   ( infer,
     check,
@@ -368,7 +370,7 @@ matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type an
 matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
   let pairs = M.fromList (zip dataTypeVars tyArgs)
       filteredTyArgs =
-        ( \arg -> case arg of
+        ( \case
             TVar _ var -> case M.lookup var pairs of
               Just ty -> ty
               Nothing -> error "cannot find"
@@ -379,7 +381,7 @@ matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
 
 checkConstructor :: Maybe (DataName, [Type ann]) -> ann -> Constructor -> [Expr ann] -> TypecheckM ann (Expr (Type ann))
 checkConstructor maybeTy ann constructor args = do
-  (dataTypeName, dataTypeVars, dataTypeArgs) <- 
+  (dataTypeName, dataTypeVars, dataTypeArgs) <-
     lookupConstructor ann constructor
 
   (typedArgs, fallbackTypes) <- case maybeTy of
@@ -388,8 +390,10 @@ checkConstructor maybeTy ann constructor args = do
 
       let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
       typedArgs <- zipWithM check filtered args
-      pure (typedArgs, 
-          M.fromList (zip dataTypeVars tyArgs))
+      pure
+        ( typedArgs,
+          M.fromList (zip dataTypeVars tyArgs)
+        )
     Nothing -> do
       typedArgs <- traverse infer args
       pure (typedArgs, mempty)

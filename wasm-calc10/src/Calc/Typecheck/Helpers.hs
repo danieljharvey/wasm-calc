@@ -20,7 +20,7 @@ import Calc.Typecheck.Generalise
 import Calc.Typecheck.Types
 import Calc.Typecheck.Unify
 import Calc.Types
-import Control.Monad ( when, zipWithM)
+import Control.Monad (when, zipWithM)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -196,8 +196,8 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
         case M.lookup tv mapped of
           Just a -> (tv, a)
           Nothing -> case M.lookup tv fallbacks of
-                       Just a -> (tv,a)
-                       Nothing -> error "could not find"
+            Just a -> (tv, a)
+            Nothing -> error "could not find"
   pure $ fromTv <$> typeVars
 
 flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
