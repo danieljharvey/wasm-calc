@@ -32,6 +32,8 @@ data TypeError ann
   | NonBoxedGenericValue ann (Type ann)
   | PatternMismatch (Type ann) (Pattern ann)
   | CantBindVoidValue (Pattern ann)
+  | ExpectedInteger ann TypePrim
+  | ExpectedFloat ann TypePrim
   | UnknownIntegerLiteral ann
   | UnknownFloatLiteral ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
@@ -63,6 +65,46 @@ typeErrorDiagnostic input e =
   let filename = "<repl>"
       diag = Diag.addFile mempty filename (T.unpack input)
       report = case e of
+        (ExpectedInteger ann tyPrim) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Expected an integer"
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $
+                              "Instead got " <> PP.pretty tyPrim
+                          )
+                      )
+                ]
+            )
+            []
+        (ExpectedFloat ann tyPrim) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Expected a float"
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $
+                              "Instead got " <> PP.pretty tyPrim
+                          )
+                      )
+                ]
+            )
+            []
         (CantSetConstant ann ident) ->
           Diag.Err
             Nothing
@@ -102,7 +144,6 @@ typeErrorDiagnostic input e =
                 ]
             )
             []
-
         (UnknownFloatLiteral ann) ->
           Diag.Err
             Nothing

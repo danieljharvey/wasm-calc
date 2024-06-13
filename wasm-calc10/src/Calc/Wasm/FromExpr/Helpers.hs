@@ -13,16 +13,17 @@ module Calc.Wasm.FromExpr.Helpers
     getFunctionMap,
     getImportMap,
     lookupFunction,
-    genericArgName,monomorphiseTypes
+    genericArgName,
+    monomorphiseTypes,
   )
 where
 
-import Calc.Typecheck.Helpers (calculateMonomorphisedTypes)
 import Calc.ExprUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
     runTypecheckM,
   )
+import Calc.Typecheck.Helpers (calculateMonomorphisedTypes)
 import Calc.Types
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
@@ -214,7 +215,6 @@ genericArgName :: TypeVar -> Identifier
 genericArgName generic =
   Identifier $ "generic_" <> T.pack (show generic)
 
-
 -- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
 -- then we know `a == Int32` and `b == Int64`.
 monomorphiseTypes ::
@@ -223,7 +223,7 @@ monomorphiseTypes ::
   [Type ann] ->
   [Type ann] ->
   [(TypeVar, Type ann)]
-monomorphiseTypes typeVars argTys fnArgTys =
+monomorphiseTypes typeVars fnArgTys argTys =
   let tcEnv =
         TypecheckEnv
           { tceVars = mempty,
@@ -231,9 +231,6 @@ monomorphiseTypes typeVars argTys fnArgTys =
             tceMemoryLimit = 0,
             tceDataTypes = mempty
           }
-
-  in case runTypecheckM tcEnv (calculateMonomorphisedTypes typeVars argTys fnArgTys) of
+   in case runTypecheckM tcEnv (calculateMonomorphisedTypes typeVars fnArgTys argTys mempty) of
         Right tvs -> tvs
         Left e -> error (show e)
-
-

@@ -71,8 +71,8 @@ bindExpr f (EIf ann predExpr thenExpr elseExpr) =
   EIf ann <$> f predExpr <*> f thenExpr <*> f elseExpr
 bindExpr f (ETuple ann a as) =
   ETuple ann <$> f a <*> traverse f as
-bindExpr f (EConstructor ann constructor args)
-  = EConstructor ann constructor <$> traverse f args
+bindExpr f (EConstructor ann constructor args) =
+  EConstructor ann constructor <$> traverse f args
 bindExpr f (EBox ann a) = EBox ann <$> f a
 bindExpr f (EAnn ann a b) = EAnn ann a <$> f b
 bindExpr f (ELoad ann a) = ELoad ann <$> f a

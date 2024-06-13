@@ -154,8 +154,8 @@ fromExpr (EApply _ funcName args) = do
   let types =
         monomorphiseTypes
           fGenerics
-          (void . fst . getOuterAnnotation <$> args)
           fArgTypes
+          (void . fst . getOuterAnnotation <$> args)
   dropArgs <- traverse (dropFunctionForType . snd) types
   wasmArgs <- traverse fromExpr args
   pure $ WApply fIndex (wasmArgs <> dropArgs)

@@ -47,7 +47,9 @@ protectedTypeNames =
       "Float32",
       "Float64",
       "Boolean",
-      "Box","True","False"
+      "Box",
+      "True",
+      "False"
     ]
 
 filterProtectedTypeNames :: T.Text -> Maybe T.Text

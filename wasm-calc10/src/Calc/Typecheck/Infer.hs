@@ -4,7 +4,6 @@ module Calc.Typecheck.Infer
   )
 where
 
-import qualified Data.Map.Strict as M
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -19,14 +18,15 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty (EApply ann fn args) =
   checkApply (Just ty) ann fn args
 check ty (EInfix ann op a b) =
   checkInfix (Just ty) ann op a b
-check ty (ETuple ann fstExpr restExpr) =
-  checkTuple (Just ty) ann fstExpr restExpr
+check (TContainer _ tyItems) (ETuple ann fstExpr restExpr) =
+  checkTuple (Just tyItems) ann fstExpr restExpr
 check ty (ELet ann pat expr rest) =
   checkLet (Just ty) ann pat expr rest
 check ty (EIf ann predExpr thenExpr elseExpr) =
@@ -37,20 +37,24 @@ check ty (EStore ann index expr) =
   checkStore (Just ty) ann index expr
 check ty (ESet ann ident expr) =
   checkSet (Just ty) ann ident expr
-check ty (EPrim _ (PFloatLit f)) = do
-  tyPrim <- case ty of
-    TPrim _ TFloat32 -> pure ty
-    TPrim _ TFloat64 -> pure ty
-    _ -> error "non float type error"
-  pure $ EPrim tyPrim (PFloatLit f)
-check ty (EPrim _ (PIntLit i)) = do
-  tyPrim <- case ty of
-    TPrim _ TInt8 -> pure ty
-    TPrim _ TInt16 -> pure ty
-    TPrim _ TInt32 -> pure ty
-    TPrim _ TInt64 -> pure ty
-    _ -> error "non int type error"
-  pure $ EPrim tyPrim (PIntLit i)
+check (TConstructor _ tyConstructor tyArgs) (EConstructor ann constructor args) =
+  checkConstructor (Just (tyConstructor, tyArgs)) ann constructor args
+check (TPrim tyAnn tyPrim) (EPrim _ (PFloatLit f)) = do
+  ty <-
+    TPrim tyAnn <$> case tyPrim of
+      TFloat32 -> pure tyPrim
+      TFloat64 -> pure tyPrim
+      _ -> throwError (ExpectedFloat tyAnn tyPrim)
+  pure $ EPrim ty (PFloatLit f)
+check (TPrim tyAnn tyPrim) (EPrim _ (PIntLit i)) = do
+  ty <-
+    TPrim tyAnn <$> case tyPrim of
+      TInt8 -> pure tyPrim
+      TInt16 -> pure tyPrim
+      TInt32 -> pure tyPrim
+      TInt64 -> pure tyPrim
+      _ -> throwError (ExpectedInteger tyAnn tyPrim)
+  pure $ EPrim ty (PIntLit i)
 check (TContainer tyAnn tyItems) (EBox _ inner) | length tyItems == 1 = do
   typedInner <- check (NE.head tyItems) inner
   let ty = TContainer tyAnn (NE.singleton (getOuterAnnotation typedInner))
@@ -330,12 +334,12 @@ checkPattern ty@(TContainer _ tyItems) pat@(PTuple _ p ps) = do
 checkPattern ty pat = throwError $ PatternMismatch ty pat
 
 checkTuple ::
-  Maybe (Type ann) ->
+  Maybe (NE.NonEmpty (Type ann)) ->
   ann ->
   Expr ann ->
   NE.NonEmpty (Expr ann) ->
   TypecheckM ann (Expr (Type ann))
-checkTuple (Just (TContainer _ tyItems)) ann fstExpr restExpr = do
+checkTuple (Just tyItems) ann fstExpr restExpr = do
   let tyFirst = NE.head tyItems
       tyRest = NE.fromList (NE.tail tyItems)
   typedFst <- check tyFirst fstExpr
@@ -359,7 +363,42 @@ checkTuple Nothing ann fstExpr restExpr = do
               (getOuterAnnotation <$> typedRest)
           )
   pure $ ETuple typ typedFst typedRest
-checkTuple _ _ _ _ = error "tuple mess"
+
+matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
+matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
+  let pairs = M.fromList (zip dataTypeVars tyArgs)
+      filteredTyArgs =
+        ( \arg -> case arg of
+            TVar _ var -> case M.lookup var pairs of
+              Just ty -> ty
+              Nothing -> error "cannot find"
+            otherTy -> otherTy
+        )
+          <$> dataTypeArgs
+   in filteredTyArgs
+
+checkConstructor :: Maybe (DataName, [Type ann]) -> ann -> Constructor -> [Expr ann] -> TypecheckM ann (Expr (Type ann))
+checkConstructor maybeTy ann constructor args = do
+  (dataTypeName, dataTypeVars, dataTypeArgs) <- 
+    lookupConstructor ann constructor
+
+  (typedArgs, fallbackTypes) <- case maybeTy of
+    Just (tyCons, tyArgs) -> do
+      unless (tyCons == dataTypeName) $ error "wrong"
+
+      let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+      typedArgs <- zipWithM check filtered args
+      pure (typedArgs, 
+          M.fromList (zip dataTypeVars tyArgs))
+    Nothing -> do
+      typedArgs <- traverse infer args
+      pure (typedArgs, mempty)
+
+  monomorphisedArgs <-
+    calculateMonomorphisedTypes dataTypeVars dataTypeArgs (getOuterAnnotation <$> typedArgs) fallbackTypes
+
+  let ty = TConstructor ann dataTypeName (snd <$> monomorphisedArgs)
+  pure (EConstructor ty constructor typedArgs)
 
 checkLet ::
   Maybe (Type ann) ->
@@ -377,13 +416,17 @@ checkLet maybeReturnTy ann pat expr rest = do
       Nothing -> infer rest
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
-lookupConstructor :: ann -> Constructor ->
-  TypecheckM ann (DataName, [TypeVar] ,[Type ann])
+lookupConstructor ::
+  ann ->
+  Constructor ->
+  TypecheckM ann (DataName, [TypeVar], [Type ann])
 lookupConstructor ann constructor = do
   result <- asks (M.lookup constructor . tceDataTypes)
   case result of
-    (Just (TCDataType dataType vars args)) -> pure (dataType,vars,args)
-    Nothing -> throwError $ ConstructorNotFound ann constructor
+    (Just (TCDataType dataType vars args)) ->
+      pure (dataType, vars, args)
+    Nothing ->
+      throwError $ ConstructorNotFound ann constructor
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
@@ -403,13 +446,8 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
-infer (EConstructor ann constructor args) = do
-  (dataType,vars, tyArgs) <- lookupConstructor ann constructor
-  typedArgs <- traverse infer args
-  monomorphisedArgs <-
-    calculateMonomorphisedTypes vars tyArgs (getOuterAnnotation <$> typedArgs)
-  let ty = TConstructor ann dataType (snd <$> monomorphisedArgs)
-  pure (EConstructor ty constructor typedArgs)
+infer (EConstructor ann constructor args) =
+  checkConstructor Nothing ann constructor args
 infer (ELet ann pat expr rest) =
   checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =

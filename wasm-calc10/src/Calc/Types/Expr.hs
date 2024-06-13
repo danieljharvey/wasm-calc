@@ -69,8 +69,10 @@ instance PP.Pretty (Expr ann) where
   pretty (EConstructor _ constructor []) =
     PP.pretty constructor
   pretty (EConstructor _ constructor args) =
-    PP.pretty constructor <>
-      "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> args)) <> ")"
+    PP.pretty constructor
+      <> "("
+      <> PP.cat (PP.punctuate "," (PP.pretty <$> args))
+      <> ")"
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
   pretty (EIf _ predExpr thenExpr elseExpr) =
