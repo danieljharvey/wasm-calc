@@ -241,7 +241,11 @@ spec = do
                     "function main() -> These(Boolean,Int32) { These(True,100) }"
                   ],
                 tyConstructor "These" [tyBool, tyInt32]
-              )
+              ),
+              ( joinLines
+                  ["type Either<e,a> = Left(e) | Right(a)",
+                      "function main() -> Int32 { let _ = Right(True); 300 }"],
+                      tyInt32)
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
