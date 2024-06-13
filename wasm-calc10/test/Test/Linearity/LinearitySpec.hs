@@ -15,7 +15,15 @@ import qualified Data.Text as T
 import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
-runTC = runTypecheckM (TypecheckEnv mempty mempty 0)
+runTC =
+  runTypecheckM
+    ( TypecheckEnv
+        { tceVars = mempty,
+          tceGenerics = mempty,
+          tceMemoryLimit = 0,
+          tceDataTypes = mempty
+        }
+    )
 
 spec :: Spec
 spec = do

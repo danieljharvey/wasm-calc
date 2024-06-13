@@ -106,6 +106,7 @@ offsetForType (TPrim _ TFloat64) =
   memorySize F64
 offsetForType (TPrim _ TBool) =
   memorySize I32
+offsetForType (TConstructor {}) = error "offsetForType TConstructor"
 offsetForType (TPrim _ TVoid) =
   error "offsetForType TVoid"
 offsetForType (TContainer _ _) =
@@ -134,6 +135,7 @@ memorySizeForType (TPrim _ TBool) =
   memorySize I32
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
+memorySizeForType (TConstructor {}) = error "memorySizeForType TConstructor"
 memorySizeForType (TContainer _ as) =
   getSum (foldMap (Sum . memorySizeForType) as)
 memorySizeForType (TFunction {}) =

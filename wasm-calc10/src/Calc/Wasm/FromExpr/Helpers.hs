@@ -13,28 +13,23 @@ module Calc.Wasm.FromExpr.Helpers
     getFunctionMap,
     getImportMap,
     lookupFunction,
-    calculateMonomorphisedTypes,
     genericArgName,
+    monomorphiseTypes,
   )
 where
 
 import Calc.ExprUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
-    TypecheckState (..),
     runTypecheckM,
   )
-import Calc.Typecheck.Generalise
-import Calc.Typecheck.Unify (unify)
+import Calc.Typecheck.Helpers (calculateMonomorphisedTypes)
 import Calc.Types
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Control.Monad.Except
 import Control.Monad.State
-import Data.Foldable (traverse_)
-import qualified Data.HashMap.Strict as HM
-import Data.Hashable
 import qualified Data.List as List
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
@@ -137,46 +132,6 @@ addGeneratedFunction wasmFunc = do
   startingDigit <- gets (fromIntegral . length . fesGenerated)
   pure (WasmGeneratedRef $ startingDigit - 1)
 
--- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
--- then we know `a == Int32` and `b == Int64`.
-calculateMonomorphisedTypes ::
-  (Show ann) =>
-  [TypeVar] ->
-  [Type ann] ->
-  [Type ann] ->
-  [(TypeVar, Type ann)]
-calculateMonomorphisedTypes typeVars argTys fnArgTys =
-  let tcEnv =
-        TypecheckEnv
-          { tceVars = mempty,
-            tceGenerics = mempty,
-            tceMemoryLimit = 0
-          }
-
-      response = runTypecheckM tcEnv $ do
-        (fresh, freshArgTys) <- generaliseMany (S.fromList typeVars) fnArgTys
-        traverse_ (uncurry unify) (zip argTys freshArgTys)
-        unified <- gets tcsUnified
-        let fixedMap = flipMap fresh
-        let mapped =
-              foldMap
-                ( \(k, a) -> case HM.lookup k fixedMap of
-                    Just tv -> M.singleton tv a
-                    Nothing -> mempty
-                )
-                (HM.toList unified)
-        let fromTv tv =
-              case M.lookup tv mapped of
-                Just a -> (tv, a)
-                Nothing -> error "could not find thing"
-        pure $ fromTv <$> typeVars
-   in case response of
-        Right tvs -> tvs
-        Left e -> error (show e)
-
-flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
-flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
-
 -- take only the information about globals that we need
 -- we assume each global uses no imports or functions
 getGlobalMap ::
@@ -254,7 +209,28 @@ scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
   pure Pointer
+scalarFromType (TConstructor {}) = error "scalarFromType"
 
 genericArgName :: TypeVar -> Identifier
 genericArgName generic =
   Identifier $ "generic_" <> T.pack (show generic)
+
+-- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
+-- then we know `a == Int32` and `b == Int64`.
+monomorphiseTypes ::
+  (Show ann) =>
+  [TypeVar] ->
+  [Type ann] ->
+  [Type ann] ->
+  [(TypeVar, Type ann)]
+monomorphiseTypes typeVars fnArgTys argTys =
+  let tcEnv =
+        TypecheckEnv
+          { tceVars = mempty,
+            tceGenerics = mempty,
+            tceMemoryLimit = 0,
+            tceDataTypes = mempty
+          }
+   in case runTypecheckM tcEnv (calculateMonomorphisedTypes typeVars fnArgTys argTys mempty) of
+        Right tvs -> tvs
+        Left e -> error (show e)

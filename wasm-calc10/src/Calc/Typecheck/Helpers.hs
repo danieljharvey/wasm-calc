@@ -10,24 +10,25 @@ module Calc.Typecheck.Helpers
     storeFunction,
     storeGlobal,
     lookupGlobal,
+    arrangeDataTypes,
+    calculateMonomorphisedTypes,
   )
 where
 
 import Calc.Typecheck.Error
 import Calc.Typecheck.Generalise
 import Calc.Typecheck.Types
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Calc.Types.TypeVar
+import Calc.Typecheck.Unify
+import Calc.Types
 import Control.Monad (when, zipWithM)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Foldable (traverse_)
 import qualified Data.HashMap.Strict as HM
+import Data.Hashable
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
 -- | run a typechecking computation, discarding any Writer output
@@ -47,6 +48,15 @@ runTypecheckM env action =
         ( runReaderT (getTypecheckM action) env
         )
         typecheckState
+
+arrangeDataTypes :: [Data ann] -> M.Map Constructor (TCDataType ann)
+arrangeDataTypes =
+  foldMap
+    ( \(Data {dtName, dtVars, dtConstructors}) ->
+        let f (constructor, args) =
+              M.singleton constructor (TCDataType dtName dtVars args)
+         in foldMap f (M.toList dtConstructors)
+    )
 
 storeFunction ::
   FunctionName ->
@@ -160,3 +170,35 @@ withFunctionEnv args generics =
                 tceGenerics = generics
               }
         )
+
+-- if we run `fn thing<a,b>(one:a, two: b)` as `thing((1:Int32), (2: Int64))`
+-- then we know `a == Int32` and `b == Int64`.
+calculateMonomorphisedTypes ::
+  [TypeVar] ->
+  [Type ann] ->
+  [Type ann] ->
+  M.Map TypeVar (Type ann) ->
+  TypecheckM ann [(TypeVar, Type ann)]
+calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
+  (fresh, freshArgTys) <-
+    generaliseMany (S.fromList typeVars) fnArgTys
+  traverse_ (uncurry unify) (zip argTys freshArgTys)
+  unified <- gets tcsUnified
+  let fixedMap = flipMap fresh
+      mapped =
+        foldMap
+          ( \(k, a) -> case HM.lookup k fixedMap of
+              Just tv -> M.singleton tv a
+              Nothing -> mempty
+          )
+          (HM.toList unified)
+      fromTv tv =
+        case M.lookup tv mapped of
+          Just a -> (tv, a)
+          Nothing -> case M.lookup tv fallbacks of
+            Just a -> (tv, a)
+            Nothing -> error "could not find"
+  pure $ fromTv <$> typeVars
+
+flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
+flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList

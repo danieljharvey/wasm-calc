@@ -47,7 +47,9 @@ protectedTypeNames =
       "Float32",
       "Float64",
       "Boolean",
-      "Box"
+      "Box",
+      "True",
+      "False"
     ]
 
 filterProtectedTypeNames :: T.Text -> Maybe T.Text
@@ -94,7 +96,7 @@ constructorParserInternal :: Parser Constructor
 constructorParserInternal =
   maybePred
     constructor
-    (filterProtectedNames >=> safeMkConstructor)
+    (filterProtectedTypeNames >=> safeMkConstructor)
 
 constructor :: Parser T.Text
 constructor = takeWhile1P (Just "constructor") Char.isAlphaNum

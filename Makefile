@@ -43,7 +43,9 @@ run-build-malloc-10:
 .PHONY: watch
 version = 10
 watch:
-	ghciwatch --watch wasm-calc$(version) --command "cabal repl wasm-calc$(version)-tests" --after-startup-ghci 'main'
+	ghciwatch --watch wasm-calc$(version) \
+		--command "cabal repl wasm-calc$(version)-tests" \
+		--test-ghci 'main'
 
 # run with `make run version=8` to run wasm-calc8
 .PHONY: run

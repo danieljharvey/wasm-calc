@@ -10,7 +10,7 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Helpers (calculateMonomorphisedTypes)
+import Calc.Wasm.FromExpr.Helpers (monomorphiseTypes)
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Data.Foldable (traverse_)
@@ -29,11 +29,11 @@ spec = do
   describe "FromWasmSpec" $ do
     describe "calculateMonomorphisedTypes" $ do
       it "Ints" $ do
-        calculateMonomorphisedTypes @() ["a", "b"] [tyInt32, tyInt64] [tyVar "a", tyVar "b"]
+        monomorphiseTypes @() ["a", "b"] [tyVar "a", tyVar "b"] [tyInt32, tyInt64]
           `shouldBe` [("a", tyInt32), ("b", tyInt64)]
 
       it "Ints reversed" $ do
-        calculateMonomorphisedTypes @() ["a", "b"] [tyInt64, tyInt32] [tyVar "b", tyVar "a"]
+        monomorphiseTypes @() ["a", "b"] [tyVar "b", tyVar "a"] [tyInt64, tyInt32]
           `shouldBe` [("a", tyInt32), ("b", tyInt64)]
 
     describe "createDropFunction" $ do

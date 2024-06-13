@@ -7,12 +7,7 @@ module Calc.Typecheck.Error (TypeError (..), typeErrorDiagnostic) where
 import Calc.ExprUtils
 import Calc.SourceSpan
 import Calc.TypeUtils
-import Calc.Types.Annotation
-import Calc.Types.FunctionName
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
+import Calc.Types
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 import qualified Data.List as List
@@ -37,10 +32,13 @@ data TypeError ann
   | NonBoxedGenericValue ann (Type ann)
   | PatternMismatch (Type ann) (Pattern ann)
   | CantBindVoidValue (Pattern ann)
+  | ExpectedInteger ann TypePrim
+  | ExpectedFloat ann TypePrim
   | UnknownIntegerLiteral ann
   | UnknownFloatLiteral ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
   | CantSetConstant ann Identifier
+  | ConstructorNotFound ann Constructor
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -67,6 +65,46 @@ typeErrorDiagnostic input e =
   let filename = "<repl>"
       diag = Diag.addFile mempty filename (T.unpack input)
       report = case e of
+        (ExpectedInteger ann tyPrim) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Expected an integer"
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $
+                              "Instead got " <> PP.pretty tyPrim
+                          )
+                      )
+                ]
+            )
+            []
+        (ExpectedFloat ann tyPrim) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Expected a float"
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $
+                              "Instead got " <> PP.pretty tyPrim
+                          )
+                      )
+                ]
+            )
+            []
         (CantSetConstant ann ident) ->
           Diag.Err
             Nothing
@@ -82,6 +120,25 @@ typeErrorDiagnostic input e =
                       ( Diag.This
                           ( prettyPrint
                               "Perhaps declare this with 'global mut' instead?"
+                          )
+                      )
+                ]
+            )
+            []
+        (ConstructorNotFound ann constructor) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint "Constructor could not be found."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      ann
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint $ PP.pretty constructor
                           )
                       )
                 ]

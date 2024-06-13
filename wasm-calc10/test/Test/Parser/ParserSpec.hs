@@ -37,7 +37,9 @@ spec = do
               ("(Boolean, Boolean, Int64)", tyContainer [tyBool, tyBool, tyInt64]),
               ("a", tyVar "a"),
               ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
-              ("Box(a)", tyContainer [tyVar "a"])
+              ("Box(a)", tyContainer [tyVar "a"]),
+              ("Colour", tyConstructor "Colour" mempty),
+              ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"])
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -54,7 +56,8 @@ spec = do
                 mdImports = mempty,
                 mdMemory = Nothing,
                 mdGlobals = mempty,
-                mdTests = mempty
+                mdTests = mempty,
+                mdDataTypes = mempty
               }
       let strings =
             [ ( "export function increment(a: Int64) -> Int64 { a + 1 }",
@@ -212,6 +215,21 @@ spec = do
                           { tesAnn = (),
                             tesName = "itsTrue",
                             tesExpr = bool True
+                          }
+                      ]
+                  }
+              ),
+              ( joinLines ["type Maybe<a> = Just(a) | Nothing"],
+                emptyModule
+                  { mdDataTypes =
+                      [ Data
+                          { dtName = DataName "Maybe",
+                            dtVars = ["a"],
+                            dtConstructors =
+                              M.fromList
+                                [ ("Just", [TVar mempty "a"]),
+                                  ("Nothing", mempty)
+                                ]
                           }
                       ]
                   }
@@ -433,7 +451,9 @@ spec = do
                   (bool True)
                   (EBlock () (ELet () (PVar () "a") (bool True) (bool False)))
                   (bool False)
-              )
+              ),
+              ("Red", EConstructor () "Red" []),
+              ("Some(1)", EConstructor () "Some" [int 1])
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

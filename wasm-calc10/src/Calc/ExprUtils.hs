@@ -21,6 +21,7 @@ getOuterAnnotation (EPrim ann _) = ann
 getOuterAnnotation (ELet ann _ _ _) = ann
 getOuterAnnotation (EIf ann _ _ _) = ann
 getOuterAnnotation (EVar ann _) = ann
+getOuterAnnotation (EConstructor ann _ _) = ann
 getOuterAnnotation (EApply ann _ _) = ann
 getOuterAnnotation (ETuple ann _ _) = ann
 getOuterAnnotation (EBox ann _) = ann
@@ -38,6 +39,7 @@ mapOuterExprAnnotation f expr' =
     EInfix ann a b c -> EInfix (f ann) a b c
     EPrim ann a -> EPrim (f ann) a
     ELet ann a b c -> ELet (f ann) a b c
+    EConstructor ann a args -> EConstructor (f ann) a args
     EIf ann a b c -> EIf (f ann) a b c
     EVar ann a -> EVar (f ann) a
     EApply ann a b -> EApply (f ann) a b
@@ -69,6 +71,8 @@ bindExpr f (EIf ann predExpr thenExpr elseExpr) =
   EIf ann <$> f predExpr <*> f thenExpr <*> f elseExpr
 bindExpr f (ETuple ann a as) =
   ETuple ann <$> f a <*> traverse f as
+bindExpr f (EConstructor ann constructor args) =
+  EConstructor ann constructor <$> traverse f args
 bindExpr f (EBox ann a) = EBox ann <$> f a
 bindExpr f (EAnn ann a b) = EAnn ann a <$> f b
 bindExpr f (ELoad ann a) = ELoad ann <$> f a

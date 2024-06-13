@@ -15,6 +15,7 @@ module Test.Helpers
     tyFloat64,
     tyBool,
     tyContainer,
+    tyConstructor,
     tyVar,
   )
 where
@@ -67,6 +68,10 @@ tyContainer :: (Monoid ann) => [Type ann] -> Type ann
 tyContainer = \case
   (a : rest) -> TContainer mempty (a NE.:| rest)
   _ -> error "not enough items for tyContainer"
+
+tyConstructor :: (Monoid ann) => Constructor -> [Type ann] -> Type ann
+tyConstructor =
+  TConstructor mempty . DataName
 
 tyVar :: (Monoid ann) => String -> Type ann
 tyVar = TVar mempty . TypeVar . fromString

@@ -1,8 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Calc.Parser.Module (moduleParser, moduleItemParser) where
+module Calc.Parser.Module (moduleItemParser) where
 
+import Calc.Parser.Data
 import Calc.Parser.Expr
 import Calc.Parser.Function
 import Calc.Parser.Identifier
@@ -91,7 +92,9 @@ testParser = myLexeme
 
 moduleItemParser :: Parser (ModuleItem Annotation)
 moduleItemParser =
-  ModuleFunction
+  ModuleData
+    <$> dataParser
+      <|> ModuleFunction
     <$> functionParser
       <|> ModuleGlobal
     <$> globalParser
@@ -100,21 +103,3 @@ moduleItemParser =
       <|> try (ModuleMemory <$> memoryParser)
       <|> ModuleImport
     <$> importParser
-
--- we really need to parse all the different parts in any order then put them
--- together in here
-moduleParser :: Parser (Module Annotation)
-moduleParser = do
-  memory <- optional (try memoryParser)
-  globals <- many globalParser
-  imports <- many importParser
-  funcs <- many functionParser
-  tests <- many testParser
-  pure $
-    Module
-      { mdFunctions = funcs,
-        mdImports = imports,
-        mdMemory = memory,
-        mdGlobals = globals,
-        mdTests = tests
-      }
