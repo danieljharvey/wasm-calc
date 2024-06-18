@@ -308,8 +308,11 @@ spec = do
               ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
               ("True && True", "Boolean"),
               ("False || True", "Boolean"),
-              ("let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3", "Int64"),
-              ("let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner", "Int64")
+              ("let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3", 
+                  "Int64"),
+              ("let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner", 
+                "Int64"),
+              ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64")
             ]
 
       describe "Successfully typechecking expressions" $ do

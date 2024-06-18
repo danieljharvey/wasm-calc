@@ -37,6 +37,7 @@ patternToDropPaths (PBox (ty, drops) a) addPath =
   let dropContainer =
         ([addPath (PathFetch ty) | drops == Just DropMe])
    in patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) 0 . addPath) <> dropContainer
+patternToDropPaths (PLiteral {}) _ = mempty
 patternToDropPaths (PTuple (ty, drops) a as) addPath =
   let offsetList = getOffsetList ty
       dropContainer =
@@ -56,6 +57,7 @@ patternToPaths ::
   (Path ann -> Path ann) ->
   M.Map Identifier (Path ann)
 patternToPaths (PWildcard _) _ = mempty
+patternToPaths (PLiteral {}) _ = mempty
 patternToPaths (PVar ty ident) addPath =
   M.singleton ident (addPath (PathFetch ty))
 patternToPaths (PBox _ pat) addPath =

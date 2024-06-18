@@ -196,6 +196,8 @@ addLetBinding (PWildcard ty) = do
               }
         )
       pure $ PVar (ty, dropForType ty) ident
+addLetBinding (PLiteral ty prim)
+  = pure $ PLiteral (ty, Nothing) prim
 addLetBinding (PBox ty pat) =
   PBox (ty, dropForType ty) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do
@@ -226,6 +228,7 @@ decorate (ELet ty pat expr rest) = do
     <*> decorate rest -- keep hold of the stuff we learned
 decorate (EPrim ty prim) =
   pure $ EPrim (ty, Nothing) prim
+decorate (EMatch {}) = error "decorate EMatch"
 decorate (EInfix ty op a b) =
   EInfix (ty, Nothing) op <$> decorate a <*> decorate b
 decorate (EIf ty predExpr thenExpr elseExpr) = do
