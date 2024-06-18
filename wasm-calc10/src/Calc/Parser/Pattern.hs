@@ -5,6 +5,7 @@ module Calc.Parser.Pattern
   )
 where
 
+import Calc.Parser.Primitives
 import Calc.Parser.Identifier
 import Calc.Parser.Shared
 import Calc.Parser.Types
@@ -22,6 +23,7 @@ patternParser =
             <|> try patWildcardParser
             <|> try patVariableParser
             <|> patBoxParser
+            <|> patPrimParser
         )
     )
 
@@ -63,3 +65,11 @@ patBoxParser = label "box" $
     inner <- patternParser
     _ <- stringLiteral ")"
     pure inner
+
+----
+
+patPrimParser :: Parser ParserPattern
+patPrimParser
+  = withLocation PLiteral primParser
+
+
