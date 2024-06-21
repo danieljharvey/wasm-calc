@@ -82,6 +82,7 @@ common shared
     Calc.Typecheck
     Calc.Typecheck.Elaborate
     Calc.Typecheck.Error
+    Calc.Typecheck.Exhaustiveness
     Calc.Typecheck.Generalise
     Calc.Typecheck.Helpers
     Calc.Typecheck.Infer
@@ -159,6 +160,7 @@ test-suite wasm-calc10-tests
     Test.Parser.ParserSpec
     Test.PrettyPrint.PrettyPrintSpec
     Test.RunNode
+    Test.Typecheck.ExhaustivenessSpec
     Test.Typecheck.TypecheckSpec
     Test.Wasm.FromWasmSpec
     Test.Wasm.WasmSpec

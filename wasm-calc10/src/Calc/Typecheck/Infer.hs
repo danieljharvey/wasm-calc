@@ -3,6 +3,7 @@
 module Calc.Typecheck.Infer
   ( infer,
     check,
+    checkPattern
   )
 where
 
@@ -322,6 +323,13 @@ checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
 checkPattern ty@(TPrim _ TBool) (PLiteral ann (PBool bool))
   = pure (PLiteral (ty $> ann) (PBool bool))
+checkPattern ty@(TPrim _ intLit) (PLiteral ann (PIntLit int))
+  | intLit == TInt8 || intLit == TInt16 || intLit == TInt32 || intLit == TInt64
+  = pure (PLiteral (ty $> ann) (PIntLit  int))
+checkPattern ty@(TPrim _ floatLit) (PLiteral ann (PFloatLit float))
+  | floatLit == TFloat32 || floatLit == TFloat64
+  = pure (PLiteral (ty $> ann) (PFloatLit  float))
+
 checkPattern (TPrim _ TVoid) pat@(PVar _ _) =
   throwError (CantBindVoidValue pat)
 checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
