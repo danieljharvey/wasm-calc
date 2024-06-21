@@ -6,7 +6,6 @@ module Calc.Typecheck.Infer
   )
 where
 
-import qualified Data.HashMap.Strict as HM
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -319,12 +318,13 @@ checkApply maybeTy ann fnName args = do
 
   pure (EApply (ty $> ann) fnName elabArgs)
 
-checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann),
-  HM.HashMap Identifier (Type ann))
-checkPattern ty (PWildcard _) = pure (PWildcard ty,mempty)
+checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
+checkPattern ty (PWildcard _) = pure (PWildcard ty)
+checkPattern ty@(TPrim _ TBool) (PLiteral ann (PBool bool))
+  = pure (PLiteral (ty $> ann) (PBool bool))
 checkPattern (TPrim _ TVoid) pat@(PVar _ _) =
   throwError (CantBindVoidValue pat)
-checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var, M.singleton var ty)
+checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
 checkPattern ty@(TContainer _ tyItems) (PBox _ a)
   | length tyItems == 1 =
       PBox ty <$> checkPattern (NE.head tyItems) a
@@ -438,23 +438,13 @@ checkMatch :: ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> Typechec
 checkMatch ann matchExpr pats = do
       elabExpr <- infer matchExpr
       let withPair (pat, patExpr) = do
-            (elabPat, newVars) <- checkPattern (getOuterAnnotation elabExpr) pat
-            elabPatExpr <- withNewVars newVars (infer patExpr)
+            elabPat <- checkPattern (getOuterAnnotation elabExpr) pat
+            elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) (infer patExpr)
             pure (elabPat, elabPatExpr)
       elabPats <- traverse withPair pats
       let allTypes = getOuterAnnotation . snd <$> elabPats
       typ <- combineMany allTypes
-      pure (EMatch typ elabExpr elabPats)
-
--- given a map of identifiers to types, run the enclosed action
--- useful for typechecking the right hand side of a pattern match, where
--- we add in the bound variables (but they don't exist outside this context)
-withNewVars ::
-  HM.HashMap Identifier (Type ann) ->
-  TypecheckM ann a ->
-  TypecheckM ann a
-withNewVars vars =
-  local (\env -> env {tceVars = vars <> tceVars env})
+      pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
 
 -- | used to combine branches of if or case matches
 combineMany ::

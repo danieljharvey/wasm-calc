@@ -70,6 +70,6 @@ patBoxParser = label "box" $
 
 patPrimParser :: Parser ParserPattern
 patPrimParser
-  = withLocation PLiteral primParser
+  = myLexeme $ withLocation PLiteral primParser
 
 
