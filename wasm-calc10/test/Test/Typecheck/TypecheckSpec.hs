@@ -7,11 +7,7 @@ import Calc.ExprUtils
 import Calc.Module
 import Calc.Parser
 import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
+import Calc.Types
 import Control.Monad
 import Data.Either (isLeft)
 import Data.Foldable (traverse_)
@@ -345,7 +341,9 @@ spec = do
                       (PVar () "a")
                       (NE.fromList [PVar () "b", PVar () "c"])
                   )
-              )
+              ),
+              ("case True { True -> (1: Int64), 1 -> (2: Int64) }", PatternMismatch tyBool (PLiteral () (PIntLit 1))),
+              ("case True { True -> (1: Int64), False -> False }", TypeMismatch tyInt64 tyBool)
             ]
 
       describe "Failing typechecking expressions" $ do
