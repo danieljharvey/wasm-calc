@@ -5,9 +5,9 @@
 module Calc.Types.Pattern where
 
 import Calc.Types.Identifier
+import Calc.Types.Prim
 import qualified Data.List.NonEmpty as NE
 import qualified Prettyprinter as PP
-import Calc.Types.Prim
 
 data Pattern ann
   = PVar ann Identifier

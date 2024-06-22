@@ -5,8 +5,8 @@ module Calc.Parser.Pattern
   )
 where
 
-import Calc.Parser.Primitives
 import Calc.Parser.Identifier
+import Calc.Parser.Primitives
 import Calc.Parser.Shared
 import Calc.Parser.Types
 import Calc.Types.Pattern
@@ -69,7 +69,5 @@ patBoxParser = label "box" $
 ----
 
 patPrimParser :: Parser ParserPattern
-patPrimParser
-  = myLexeme $ withLocation PLiteral primParser
-
-
+patPrimParser =
+  myLexeme $ withLocation PLiteral primParser

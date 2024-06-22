@@ -68,7 +68,7 @@ bindExpr f (ELet ann ident a b) =
 bindExpr _ (EVar ann a) =
   pure $ EVar ann a
 bindExpr f (EMatch ann expr pats) =
-  EMatch ann <$> f expr <*> traverse (\(pat,patExpr) -> (,) pat <$> f patExpr) pats
+  EMatch ann <$> f expr <*> traverse (\(pat, patExpr) -> (,) pat <$> f patExpr) pats
 bindExpr f (EApply ann fn args) =
   EApply ann fn <$> traverse f args
 bindExpr f (EIf ann predExpr thenExpr elseExpr) =

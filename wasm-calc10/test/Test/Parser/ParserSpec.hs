@@ -455,25 +455,34 @@ spec = do
               ),
               ("Red", EConstructor () "Red" []),
               ("Some(1)", EConstructor () "Some" [int 1]),
-              ("case a { (1,2) -> 0, (a,b) -> a + b }",
-                EMatch () (var "a") (NE.fromList $ [
-                    (patTuple [patInt 1, patInt 2],
-                        int 0),
-                   (patTuple [patVar "a" , patVar "b" ],
-                      EInfix () OpAdd (var "a") (var "b") )
-
-                  ])
+              ( "case a { (1,2) -> 0, (a,b) -> a + b }",
+                EMatch
+                  ()
+                  (var "a")
+                  ( NE.fromList $
+                      [ ( patTuple [patInt 1, patInt 2],
+                          int 0
+                        ),
+                        ( patTuple [patVar "a", patVar "b"],
+                          EInfix () OpAdd (var "a") (var "b")
+                        )
+                      ]
+                  )
               ),
-              ("case a { 1 -> 0, other -> other }",
-                EMatch () (var "a") (NE.fromList $ [
-                    (patInt 1 ,
-                        int 0),
-                   (patVar "other" ,
-                      var "other")
-
-                  ])
+              ( "case a { 1 -> 0, other -> other }",
+                EMatch
+                  ()
+                  (var "a")
+                  ( NE.fromList $
+                      [ ( patInt 1,
+                          int 0
+                        ),
+                        ( patVar "other",
+                          var "other"
+                        )
+                      ]
+                  )
               )
-
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

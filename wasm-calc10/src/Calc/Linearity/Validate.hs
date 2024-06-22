@@ -196,8 +196,8 @@ addLetBinding (PWildcard ty) = do
               }
         )
       pure $ PVar (ty, dropForType ty) ident
-addLetBinding (PLiteral ty prim)
-  = pure $ PLiteral (ty, Nothing) prim
+addLetBinding (PLiteral ty prim) =
+  pure $ PLiteral (ty, Nothing) prim
 addLetBinding (PBox ty pat) =
   PBox (ty, dropForType ty) <$> addLetBinding pat
 addLetBinding (PTuple ty p ps) = do
