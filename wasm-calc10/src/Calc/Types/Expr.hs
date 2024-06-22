@@ -68,9 +68,10 @@ instance PP.Pretty (Expr ann) where
       <+> PP.line
       <> PP.pretty rest
   pretty (EMatch _ expr _pats) =
-    "case" <+> PP.pretty expr <+> "{"
-
-    <> "}"
+    "case"
+      <+> PP.pretty expr
+      <+> "{"
+      <> "}"
   pretty (EConstructor _ constructor []) =
     PP.pretty constructor
   pretty (EConstructor _ constructor args) =

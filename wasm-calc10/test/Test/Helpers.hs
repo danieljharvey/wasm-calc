@@ -17,7 +17,9 @@ module Test.Helpers
     tyContainer,
     tyConstructor,
     tyVar,
-    patTuple,patInt,patVar
+    patTuple,
+    patInt,
+    patVar,
   )
 where
 
@@ -87,6 +89,3 @@ patInt = PLiteral mempty . PIntLit
 
 patVar :: (Monoid ann) => String -> Pattern ann
 patVar = PVar mempty . fromString
-
-
-

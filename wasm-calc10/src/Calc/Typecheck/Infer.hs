@@ -3,13 +3,14 @@
 module Calc.Typecheck.Infer
   ( infer,
     check,
-    checkPattern
+    checkPattern,
   )
 where
 
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
+import Calc.Typecheck.Exhaustiveness
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
@@ -321,15 +322,14 @@ checkApply maybeTy ann fnName args = do
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
-checkPattern ty@(TPrim _ TBool) (PLiteral ann (PBool bool))
-  = pure (PLiteral (ty $> ann) (PBool bool))
+checkPattern ty@(TPrim _ TBool) (PLiteral ann (PBool bool)) =
+  pure (PLiteral (ty $> ann) (PBool bool))
 checkPattern ty@(TPrim _ intLit) (PLiteral ann (PIntLit int))
-  | intLit == TInt8 || intLit == TInt16 || intLit == TInt32 || intLit == TInt64
-  = pure (PLiteral (ty $> ann) (PIntLit  int))
+  | intLit == TInt8 || intLit == TInt16 || intLit == TInt32 || intLit == TInt64 =
+      pure (PLiteral (ty $> ann) (PIntLit int))
 checkPattern ty@(TPrim _ floatLit) (PLiteral ann (PFloatLit float))
-  | floatLit == TFloat32 || floatLit == TFloat64
-  = pure (PLiteral (ty $> ann) (PFloatLit  float))
-
+  | floatLit == TFloat32 || floatLit == TFloat64 =
+      pure (PLiteral (ty $> ann) (PFloatLit float))
 checkPattern (TPrim _ TVoid) pat@(PVar _ _) =
   throwError (CantBindVoidValue pat)
 checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
@@ -444,15 +444,18 @@ lookupConstructor ann constructor = do
 
 checkMatch :: ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
 checkMatch ann matchExpr pats = do
-      elabExpr <- infer matchExpr
-      let withPair (pat, patExpr) = do
-            elabPat <- checkPattern (getOuterAnnotation elabExpr) pat
-            elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) (infer patExpr)
-            pure (elabPat, elabPatExpr)
-      elabPats <- traverse withPair pats
-      let allTypes = getOuterAnnotation . snd <$> elabPats
-      typ <- combineMany allTypes
-      pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
+  elabExpr <- infer matchExpr
+  let withPair (pat, patExpr) = do
+        elabPat <- checkPattern (getOuterAnnotation elabExpr) pat
+        elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) (infer patExpr)
+        pure (elabPat, elabPatExpr)
+  elabPats <- traverse withPair pats
+  let allTypes = getOuterAnnotation . snd <$> elabPats
+  typ <- combineMany allTypes
+  case validatePatterns ann (fst <$> NE.toList elabPats) of
+    Right _ -> pure ()
+    Left patternMatchError -> throwError (PatternMatchError patternMatchError)
+  pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
 
 -- | used to combine branches of if or case matches
 combineMany ::

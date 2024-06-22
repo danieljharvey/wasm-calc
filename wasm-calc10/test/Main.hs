@@ -5,8 +5,8 @@ import Test.Hspec
 import qualified Test.Linearity.LinearitySpec
 import qualified Test.Parser.ParserSpec
 import qualified Test.PrettyPrint.PrettyPrintSpec
-import qualified Test.Typecheck.TypecheckSpec
 import qualified Test.Typecheck.ExhaustivenessSpec
+import qualified Test.Typecheck.TypecheckSpec
 import qualified Test.Wasm.FromWasmSpec
 import qualified Test.Wasm.WasmSpec
 
