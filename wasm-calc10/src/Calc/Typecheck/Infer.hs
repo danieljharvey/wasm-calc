@@ -29,6 +29,8 @@ check ty (EApply ann fn args) =
   checkApply (Just ty) ann fn args
 check ty (EInfix ann op a b) =
   checkInfix (Just ty) ann op a b
+check ty (EMatch ann matchExpr pats) =
+  checkMatch (Just ty) ann matchExpr pats
 check (TContainer _ tyItems) (ETuple ann fstExpr restExpr) =
   checkTuple (Just tyItems) ann fstExpr restExpr
 check ty (ELet ann pat expr rest) =
@@ -442,12 +444,15 @@ lookupConstructor ann constructor = do
     Nothing ->
       throwError $ ConstructorNotFound ann constructor
 
-checkMatch :: ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
-checkMatch ann matchExpr pats = do
+checkMatch :: Maybe (Type ann) -> ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
+checkMatch maybeTy ann matchExpr pats = do
   elabExpr <- infer matchExpr
   let withPair (pat, patExpr) = do
         elabPat <- checkPattern (getOuterAnnotation elabExpr) pat
-        elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) (infer patExpr)
+        elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) $
+            case maybeTy of
+              Just ty -> check ty patExpr
+              Nothing -> infer patExpr
         pure (elabPat, elabPatExpr)
   elabPats <- traverse withPair pats
   let allTypes = getOuterAnnotation . snd <$> elabPats
@@ -474,7 +479,7 @@ infer (EPrim ann prim) =
     PIntLit _ -> throwError (UnknownIntegerLiteral ann)
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
 infer (EMatch ann matchExpr pats) =
-  checkMatch ann matchExpr pats
+  checkMatch Nothing ann matchExpr pats
 infer (EBox ann inner) = do
   typedInner <- infer inner
   pure $

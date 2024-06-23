@@ -176,7 +176,10 @@ spec = do
                     "function main() -> Int32 { let _ = Right(True); 300 }"
                   ],
                 tyInt32
-              )
+              ),
+              ("function main() -> Int32 { case True { True -> 1, False -> 2 } }", 
+                  tyInt32)
+
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
