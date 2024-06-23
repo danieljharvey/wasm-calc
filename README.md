@@ -166,14 +166,21 @@ We provide a size upfront so any other allocations start after this.
 
 ```
 import env.memory as memory 1000
+
 import console.log as consoleLog(number: Int64) -> Void
-export function test() -> Int64 { let (a,b) = ((1: Int64), (2: Int64)); let _ = consoleLog(a + b); 100 }
+
+export function test() -> Int64 { 
+    let (a,b) = ((1: Int64), (2: Int64)); 
+    let _ = consoleLog(a + b); 
+    100 
+}
 ```
 
 - Read and write from globals
 
 ```
 global immutable: Int64 = 1
+
 function main() -> Int64 {
     immutable + 1
 }
@@ -181,6 +188,7 @@ function main() -> Int64 {
 
 ```
 global mut counter: Int64 = 0
+
 function main() -> Int64 {
     set(counter, 2);
     counter
