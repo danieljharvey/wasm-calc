@@ -2,11 +2,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.Typecheck.ExhaustivenessSpec (spec) where
+module Test.Typecheck.PatternsSpec (spec) where
 
 import Calc.Parser
 import Calc.Typecheck
-import Calc.Typecheck.Exhaustiveness
+import Calc.Typecheck.Patterns
 import Control.Monad
 import Data.Foldable (traverse_)
 import qualified Data.Set as S

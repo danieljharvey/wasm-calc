@@ -82,10 +82,15 @@ common shared
     Calc.Typecheck
     Calc.Typecheck.Elaborate
     Calc.Typecheck.Error
-    Calc.Typecheck.Exhaustiveness
+    Calc.Typecheck.Error.PatternMatchError
+    Calc.Typecheck.Error.TypeError
     Calc.Typecheck.Generalise
     Calc.Typecheck.Helpers
     Calc.Typecheck.Infer
+    Calc.Typecheck.Patterns
+    Calc.Typecheck.Patterns.Annihilate
+    Calc.Typecheck.Patterns.Generate
+    Calc.Typecheck.Patterns.Validate
     Calc.Typecheck.Substitute
     Calc.Typecheck.Types
     Calc.Typecheck.Unify
@@ -161,7 +166,7 @@ test-suite wasm-calc10-tests
     Test.Parser.ParserSpec
     Test.PrettyPrint.PrettyPrintSpec
     Test.RunNode
-    Test.Typecheck.ExhaustivenessSpec
+    Test.Typecheck.PatternsSpec
     Test.Typecheck.TypecheckSpec
     Test.Wasm.FromWasmSpec
     Test.Wasm.WasmSpec

@@ -10,7 +10,7 @@ where
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
-import Calc.Typecheck.Exhaustiveness
+import Calc.Typecheck.Patterns
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types

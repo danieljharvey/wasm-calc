@@ -7,7 +7,6 @@ import Calc.ExprUtils
 import Calc.Module
 import Calc.Parser
 import Calc.Typecheck
-import Calc.Typecheck.Exhaustiveness
 import Calc.Types
 import Control.Monad
 import Data.Either (isLeft)
