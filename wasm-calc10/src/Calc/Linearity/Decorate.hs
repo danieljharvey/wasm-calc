@@ -6,11 +6,10 @@
 {-# LANGUAGE TupleSections #-}
 
 module Calc.Linearity.Decorate
-  ( decorate
+  ( decorate,
   )
 where
 
-import Debug.Trace
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -25,6 +24,7 @@ import Data.Bifunctor (second)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import qualified Data.Text as T
+import Debug.Trace
 import GHC.Natural
 
 getFresh :: (MonadState (LinearState ann) m) => m Natural
@@ -63,19 +63,18 @@ addLetBinding pat = do
 
 decoratePattern ::
   (MonadState (LinearState ann) m) =>
-
   Pattern (Type ann) ->
-  m (Pattern (Type ann, Maybe (Drops ann)),
-    M.Map (UserDefined Identifier) (LinearityType, ann)
-
+  m
+    ( Pattern (Type ann, Maybe (Drops ann)),
+      M.Map (UserDefined Identifier) (LinearityType, ann)
     )
 decoratePattern (PVar ty ident) = do
   let idents =
-              M.singleton
-                (UserDefined ident)
-                ( if isPrimitive ty then LTPrimitive else LTBoxed,
-                  getOuterTypeAnnotation ty
-                )
+        M.singleton
+          (UserDefined ident)
+          ( if isPrimitive ty then LTPrimitive else LTBoxed,
+            getOuterTypeAnnotation ty
+          )
   pure (PVar (ty, Nothing) ident, idents)
 decoratePattern (PWildcard ty) = do
   case ty of
@@ -84,41 +83,39 @@ decoratePattern (PWildcard ty) = do
       i <- getFresh
       let ident = Identifier $ "_fresh_name" <> T.pack (show i)
           idents =
-                  M.singleton
-                    (Internal ident)
-                    ( if isPrimitive ty then LTPrimitive else LTBoxed,
-                      getOuterTypeAnnotation ty
-                    )
+            M.singleton
+              (Internal ident)
+              ( if isPrimitive ty then LTPrimitive else LTBoxed,
+                getOuterTypeAnnotation ty
+              )
       pure (PVar (ty, dropForType ty) ident, idents)
 decoratePattern (PLiteral ty prim) =
   pure (PLiteral (ty, Nothing) prim, mempty)
 decoratePattern (PBox ty pat) = do
   (decoratedPat, innerIdents) <- decoratePattern pat
-  pure (  PBox (ty, dropForType ty) decoratedPat, innerIdents)
+  pure (PBox (ty, dropForType ty) decoratedPat, innerIdents)
 decoratePattern (PTuple ty p ps) = do
   (decoratedPat, innerIdents) <- decoratePattern p
   decoratedPatsAndIdents <- traverse decoratePattern ps
 
   let allIdents = innerIdents <> foldMap snd decoratedPatsAndIdents
 
-  pure (PTuple (ty, dropForType ty) decoratedPat
-        (fst <$> decoratedPatsAndIdents), allIdents)
-
-
-
-
-
-
-
-
+  pure
+    ( PTuple
+        (ty, dropForType ty)
+        decoratedPat
+        (fst <$> decoratedPatsAndIdents),
+      allIdents
+    )
 
 dropForType :: Type ann -> Maybe (Drops an)
 dropForType ty = if isPrimitive ty then Nothing else Just DropMe
 
 decorate ::
   (Show ann) =>
-  (MonadState (LinearState ann) m,
-      MonadWriter (M.Map Identifier (Type ann)) m) =>
+  ( MonadState (LinearState ann) m,
+    MonadWriter (M.Map Identifier (Type ann)) m
+  ) =>
   Expr (Type ann) ->
   m (Expr (Type ann, Maybe (Drops ann)))
 decorate (EVar ty ident) = do
@@ -143,8 +140,8 @@ decorate (EMatch ty expr pats) = do
   -- as they only exist in `patExpr`
   let decoratePair (pat, patExpr) = do
         (decoratedPat, idents) <- decoratePattern pat
-        traceShowM (decoratedPat,idents)
-        (decoratedPatExpr,patIdents) <- runWriterT (decorate patExpr)
+        traceShowM (decoratedPat, idents)
+        (decoratedPatExpr, patIdents) <- runWriterT (decorate patExpr)
         pure (patIdents, (decoratedPat, decoratedPatExpr))
 
   decoratedPatterns <- traverse decoratePair pats

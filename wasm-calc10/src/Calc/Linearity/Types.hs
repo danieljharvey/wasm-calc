@@ -8,13 +8,13 @@ module Calc.Linearity.Types
     LinearityType (..),
     LinearState (..),
     UserDefined (..),
-    Drops(..)
+    Drops (..),
   )
 where
 
+import Calc.Types.Identifier
 import Calc.Types.Type
 import qualified Data.List.NonEmpty as NE
-import Calc.Types.Identifier
 import qualified Data.Map as M
 import GHC.Natural
 

@@ -81,6 +81,17 @@ fromLet pat expr rest = do
             wasmRestWithDrops
             indexes
 
+fromMatch ::
+  (MonadState FromExprState m, MonadError FromWasmError m, Eq ann, Show ann) =>
+  Expr (Type ann, Maybe (Drops ann)) ->
+  NE.NonEmpty (Pattern (Type ann, Maybe (Drops ann)), Expr (Type ann, Maybe (Drops ann))) ->
+  m WasmExpr
+fromMatch expr _pats = do
+  wasmExpr <- fromExpr expr
+
+  -- TODO: actually make this do something good
+  pure wasmExpr
+
 -- | we use a combination of the value and the type
 fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim
 fromPrim _ (PBool b) = pure $ WPBool b
@@ -126,7 +137,8 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
-fromExpr (EMatch {}) = error "EMarch fromExpr"
+fromExpr (EMatch _ expr pats) =
+  fromMatch expr pats
 fromExpr (EConstructor {}) = error "fromExpr EConstructor"
 fromExpr (EBlock _ expr) =
   -- ignore block. todo: will we lose drops here

@@ -28,7 +28,7 @@ runTC =
 spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
-    fdescribe "decorate" $ do
+    describe "decorate" $ do
       let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
