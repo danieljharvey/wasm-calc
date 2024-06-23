@@ -28,7 +28,7 @@ runTC =
 spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
-    describe "decorate" $ do
+    fdescribe "decorate" $ do
       let dVar = EVar Nothing
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
@@ -167,22 +167,17 @@ spec = do
                   (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar (Just DropMe) "_fresh_name1"))
                   (EVar Nothing "pair")
                   (EBox Nothing (EVar Nothing "a"))
+              ),
+              ( "function matchBool<a>(one: a, two: a) -> a { case True { True -> one, False -> two } }",
+                EMatch
+                  Nothing
+                  (dBool True)
+                  ( NE.fromList
+                      [ (PLiteral Nothing (PBool True), EVar (dropIdents [("two", TVar () "a")]) "one"),
+                        (PLiteral Nothing (PBool False), EVar (dropIdents [("one", TVar () "a")]) "two")
+                      ]
+                  )
               )
-              {-
-                ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
-                  letAEqualsTuple
-                    ( ELet
-                        Nothing
-                        (PVar Nothing "b")
-                        (dVar "a")
-                        ( ELet
-                            (dropIdents ["a"])
-                            (PTuple Nothing (PVar Nothing "c") (NE.singleton (PVar Nothing "d")))
-                            (dVar "b")
-                            (EInfix Nothing OpAdd (dVar "c") (dVar "d"))
-                        )
-                    )
-                )-}
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do

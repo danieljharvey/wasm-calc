@@ -59,6 +59,7 @@ common shared
     Calc.Dependencies
     Calc.ExprUtils
     Calc.Linearity
+    Calc.Linearity.Decorate
     Calc.Linearity.Error
     Calc.Linearity.Types
     Calc.Linearity.Validate

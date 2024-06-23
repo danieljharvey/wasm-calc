@@ -4,8 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Patterns.Annihilate
-  (
-    annihilatePattern
+  ( annihilatePattern,
   )
 where
 
@@ -53,9 +52,9 @@ isComplete _ = False
 
 annihilatePattern :: Pattern a -> [Pattern b] -> [Pattern b]
 annihilatePattern pat =
-      filter
-        ( not
-            . annihilate
-              (void pat)
-            . void
-        )
+  filter
+    ( not
+        . annihilate
+          (void pat)
+        . void
+    )

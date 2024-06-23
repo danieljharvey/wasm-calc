@@ -4,16 +4,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Patterns.Validate
-  ( 
-    validatePatterns,
+  ( validatePatterns,
     missingPatterns,
     redundantPatterns,
   )
 where
 
+import Calc.TypeUtils
+import Calc.Typecheck.Error.PatternMatchError
 import Calc.Typecheck.Patterns.Annihilate
 import Calc.Typecheck.Patterns.Generate
-import Calc.TypeUtils
 import Calc.Types.Pattern
 import Calc.Types.Type
 import Control.Monad.Except
@@ -21,7 +21,6 @@ import Data.Foldable (foldl')
 import Data.Functor (void)
 import Data.List (nub)
 import qualified Data.Set as S
-import Calc.Typecheck.Error.PatternMatchError
 
 validatePatterns ::
   ( MonadError (PatternMatchError ann) m
@@ -48,7 +47,7 @@ missingPatterns ::
   [Pattern ()]
 missingPatterns patterns =
   let generated = mconcat $ generate <$> patterns
-  in nub $ foldr annihilatePattern (S.toList generated) (void <$> patterns)
+   in nub $ foldr annihilatePattern (S.toList generated) (void <$> patterns)
 
 ----- what about redundent stuff?
 

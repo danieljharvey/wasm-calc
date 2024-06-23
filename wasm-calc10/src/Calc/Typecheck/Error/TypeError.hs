@@ -7,6 +7,7 @@ module Calc.Typecheck.Error.TypeError (TypeError (..), typeErrorDiagnostic) wher
 import Calc.ExprUtils
 import Calc.SourceSpan
 import Calc.TypeUtils
+import Calc.Typecheck.Error.PatternMatchError
 import Calc.Types
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
@@ -18,7 +19,6 @@ import qualified Error.Diagnose as Diag
 import GHC.Natural
 import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
-import Calc.Typecheck.Error.PatternMatchError
 
 data TypeError ann
   = PredicateIsNotBoolean ann (Type ann)

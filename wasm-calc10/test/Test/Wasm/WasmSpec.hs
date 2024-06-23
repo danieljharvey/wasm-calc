@@ -27,105 +27,6 @@ import Test.Helpers
 import Test.Hspec
 import Test.RunNode
 
--- these are saved in a file that is included in compilation
-testJSSource :: LB.ByteString
-testJSSource =
-  LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
-
--- | compile module or spit out error
-compile :: T.Text -> Wasm.Module
-compile input =
-  case parseModuleAndFormatError input of
-    Left e -> error (show e)
-    Right parsedModuleItems ->
-      case resolveModule parsedModuleItems of
-        Left resolveError -> error (show resolveError)
-        Right parsedMod -> case treeShakeModule <$> elaborateModule parsedMod of
-          Left typeErr -> error (show typeErr)
-          Right typedMod ->
-            case validateModule typedMod of
-              Left e -> error (show e)
-              Right _ ->
-                case FromExpr.fromModule typedMod of
-                  Left e -> error (show e)
-                  Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount wasmMod)
-
--- add a `alloccount` function that returns state of allocator
-addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
-addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
-  let testFuncIndex =
-        ToWasm.WasmFunctionRef (fromIntegral $ length wmFunctions - 1)
-      testFuncReturnType =
-        ToWasm.wfReturnType (last wmFunctions)
-      expr = case ToWasm.moduleUsesAllocator wasmMod of
-        ToWasm.UsesAllocator ->
-          ToWasm.WSequence
-            testFuncReturnType
-            (ToWasm.WApply testFuncIndex mempty)
-            ToWasm.WAllocCount
-        ToWasm.DoesNotUseAllocator ->
-          ToWasm.WPrim (ToWasm.WPInt32 0)
-
-      runAllocFunction =
-        ToWasm.WasmFunction
-          { ToWasm.wfName = "alloccount",
-            ToWasm.wfExpr = expr,
-            ToWasm.wfPublic = True,
-            ToWasm.wfArgs = mempty,
-            ToWasm.wfReturnType = ToWasm.I32,
-            ToWasm.wfLocals = mempty,
-            ToWasm.wfAbilities = mempty
-          }
-   in wasmMod {ToWasm.wmFunctions = wmFunctions <> [runAllocFunction]}
-
--- | test using the built-in `wasm` package interpreter
-testWithInterpreter :: (T.Text, Wasm.Value) -> Spec
-testWithInterpreter (input, result) = it (show input) $ do
-  let actualWasmModule = compile input
-  resp <- runWasm "test" actualWasmModule
-  resp `shouldBe` Just [result]
-  -- do we deallocate everything?
-  allocResp <- runWasm "alloccount" actualWasmModule
-  allocResp `shouldBe` Just [Wasm.VI32 0]
-
--- | in fear of getting incredibly meta, run the tests from this module
--- using the built-in `wasm` interpreter
-runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
-runTestsWithInterpreter (input, result) = it (show input) $ do
-  case parseModuleAndFormatError input of
-    Left e -> error (show e)
-    Right parsedModuleItems ->
-      case resolveModule parsedModuleItems of
-        Left e -> error (show e)
-        Right parsedModule -> case elaborateModule parsedModule of
-          Left typeErr -> error (show typeErr)
-          Right typedMod -> do
-            resp <- testModule typedMod
-            resp `shouldBe` result
-
--- | output actual WASM files for testing
--- test them with node
-testWithNode :: (T.Text, T.Text) -> Spec
-testWithNode (input, result) = it (show input) $ do
-  withSystemTempDirectory "wasmnode" $ \directory -> do
-    let actualWasmModule = compile input
-        inputHash = hash input
-        wasmFilename = directory <> "/" <> show inputHash <> ".wasm"
-        jsFilename = directory <> "/test.mjs"
-
-    -- write test.js to a file
-    liftIO (LB.writeFile jsFilename testJSSource)
-
-    -- write module to a file so we can run it with `wasmtime` etc
-    liftIO (writeModule wasmFilename actualWasmModule)
-
-    -- run node js, get output
-    (success, output) <- runScriptFromFile wasmFilename jsFilename
-    output `shouldBe` T.unpack result
-    -- check it succeeded
-    success `shouldBe` True
-
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
@@ -405,6 +306,9 @@ spec = do
                     asTest "let value = Box(Box((1: Int64))); useDrop(value)"
                   ],
                 Wasm.VI64 100
+              ),
+              ( asTest "case True { True -> 1, False -> 2 }",
+                Wasm.VI64 1
               )
             ]
 
@@ -450,3 +354,104 @@ spec = do
 
       describe "From tests" $ do
         traverse_ runTestsWithInterpreter testVals
+
+-- these are saved in a file that is included in compilation
+testJSSource :: LB.ByteString
+testJSSource =
+  LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
+
+-- | compile module or spit out error
+compile :: T.Text -> Wasm.Module
+compile input =
+  case parseModuleAndFormatError input of
+    Left e -> error (show e)
+    Right parsedModuleItems ->
+      case resolveModule parsedModuleItems of
+        Left resolveError -> error (show resolveError)
+        Right parsedMod -> case treeShakeModule <$> elaborateModule parsedMod of
+          Left typeErr -> error (show typeErr)
+          Right typedMod ->
+            case validateModule typedMod of
+              Left e -> error (show e)
+              Right _ ->
+                case FromExpr.fromModule typedMod of
+                  Left e -> error (show e)
+                  Right wasmMod ->
+                    ToWasm.moduleToWasm (addAllocCount wasmMod)
+
+-- add a `alloccount` function that returns state of allocator
+addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
+addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
+  let testFuncIndex =
+        ToWasm.WasmFunctionRef (fromIntegral $ length wmFunctions - 1)
+      testFuncReturnType =
+        ToWasm.wfReturnType (last wmFunctions)
+      expr = case ToWasm.moduleUsesAllocator wasmMod of
+        ToWasm.UsesAllocator ->
+          ToWasm.WSequence
+            testFuncReturnType
+            (ToWasm.WApply testFuncIndex mempty)
+            ToWasm.WAllocCount
+        ToWasm.DoesNotUseAllocator ->
+          ToWasm.WPrim (ToWasm.WPInt32 0)
+
+      runAllocFunction =
+        ToWasm.WasmFunction
+          { ToWasm.wfName = "alloccount",
+            ToWasm.wfExpr = expr,
+            ToWasm.wfPublic = True,
+            ToWasm.wfArgs = mempty,
+            ToWasm.wfReturnType = ToWasm.I32,
+            ToWasm.wfLocals = mempty,
+            ToWasm.wfAbilities = mempty
+          }
+   in wasmMod {ToWasm.wmFunctions = wmFunctions <> [runAllocFunction]}
+
+-- | test using the built-in `wasm` package interpreter
+testWithInterpreter :: (T.Text, Wasm.Value) -> Spec
+testWithInterpreter (input, result) = it (show input) $ do
+  let actualWasmModule = compile input
+  resp <- runWasm "test" actualWasmModule
+  resp `shouldBe` Just [result]
+  -- do we deallocate everything?
+  allocResp <- runWasm "alloccount" actualWasmModule
+  allocResp `shouldBe` Just [Wasm.VI32 0]
+
+-- | in fear of getting incredibly meta, run the tests from this module
+-- using the built-in `wasm` interpreter
+runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
+runTestsWithInterpreter (input, result) = it (show input) $ do
+  case parseModuleAndFormatError input of
+    Left e -> error (show e)
+    Right parsedModuleItems ->
+      case resolveModule parsedModuleItems of
+        Left e -> error (show e)
+        Right parsedModule -> case elaborateModule parsedModule of
+          Left typeErr -> error (show typeErr)
+          Right typedMod -> do
+            resp <- testModule typedMod
+            resp `shouldBe` result
+
+-- | output actual WASM files for testing
+-- test them with node
+testWithNode :: (T.Text, T.Text) -> Spec
+testWithNode (input, result) = it (show input) $ do
+  withSystemTempDirectory "wasmnode" $ \directory -> do
+    let actualWasmModule = compile input
+        inputHash = hash input
+        wasmFilename = directory <> "/" <> show inputHash <> ".wasm"
+        jsFilename = directory <> "/test.mjs"
+
+    -- write test.js to a file
+    liftIO (LB.writeFile jsFilename testJSSource)
+
+    -- write module to a file so we can run it with `wasmtime` etc
+    liftIO (writeModule wasmFilename actualWasmModule)
+
+    -- run node js, get output
+    (success, output) <- runScriptFromFile wasmFilename jsFilename
+    output `shouldBe` T.unpack result
+    -- check it succeeded
+    success `shouldBe` True
+
+

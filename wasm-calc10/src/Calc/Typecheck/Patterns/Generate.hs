@@ -4,8 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Patterns.Generate
-  (
-    generate,
+  ( generate,
   )
 where
 
@@ -44,4 +43,3 @@ generateFromPattern pat = S.singleton (void pat)
 -- | generate all the patterns, then remove ourselves
 generate :: Pattern (Type ann) -> S.Set (Pattern ())
 generate pat = S.difference (generateFromPattern pat) (S.singleton $ void pat)
-

@@ -10,8 +10,8 @@ where
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
-import Calc.Typecheck.Patterns
 import Calc.Typecheck.Helpers
+import Calc.Typecheck.Patterns
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
 import Calc.Typecheck.Unify
@@ -450,9 +450,9 @@ checkMatch maybeTy ann matchExpr pats = do
   let withPair (pat, patExpr) = do
         elabPat <- checkPattern (getOuterAnnotation elabExpr) pat
         elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) $
-            case maybeTy of
-              Just ty -> check ty patExpr
-              Nothing -> infer patExpr
+          case maybeTy of
+            Just ty -> check ty patExpr
+            Nothing -> infer patExpr
         pure (elabPat, elabPatExpr)
   elabPats <- traverse withPair pats
   let allTypes = getOuterAnnotation . snd <$> elabPats
