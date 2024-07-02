@@ -15,6 +15,7 @@ module Calc.Wasm.FromExpr.Helpers
     lookupFunction,
     genericArgName,
     monomorphiseTypes,
+    fromPrim,
   )
 where
 
@@ -234,3 +235,21 @@ monomorphiseTypes typeVars fnArgTys argTys =
    in case runTypecheckM tcEnv (calculateMonomorphisedTypes typeVars fnArgTys argTys mempty) of
         Right tvs -> tvs
         Left e -> error (show e)
+
+-- | we use a combination of the value and the type
+fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim
+fromPrim _ (PBool b) = pure $ WPBool b
+fromPrim (TPrim _ TFloat32) (PFloatLit f) =
+  pure $ WPFloat32 (realToFrac f)
+fromPrim (TPrim _ TFloat64) (PFloatLit f) =
+  pure $ WPFloat64 f
+fromPrim (TPrim _ TInt8) (PIntLit i) =
+  pure (WPInt32 (fromIntegral i))
+fromPrim (TPrim _ TInt16) (PIntLit i) =
+  pure (WPInt32 (fromIntegral i))
+fromPrim (TPrim _ TInt32) (PIntLit i) =
+  pure (WPInt32 (fromIntegral i))
+fromPrim (TPrim _ TInt64) (PIntLit i) =
+  pure (WPInt64 (fromIntegral i))
+fromPrim ty prim =
+  throwError $ PrimWithNonNumberType prim (void ty)

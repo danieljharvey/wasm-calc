@@ -126,6 +126,8 @@ common shared
     Calc.Wasm.FromExpr.Helpers
     Calc.Wasm.FromExpr.Module
     Calc.Wasm.FromExpr.Patterns
+    Calc.Wasm.FromExpr.Patterns.Paths
+    Calc.Wasm.FromExpr.Patterns.Predicates
     Calc.Wasm.FromExpr.Types
     Calc.Wasm.Run
     Calc.Wasm.ToWasm
