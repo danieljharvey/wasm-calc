@@ -93,7 +93,8 @@ runTestsWithInterpreter (input, result) = it (show input) $ do
 testWithNode :: (T.Text, T.Text) -> Spec
 testWithNode (input, result) = it (show input) $ do
   -- get git root folder, explode it if it fails somehow
-  (_, gitRoot) <- getGitRoot
+  let gitRoot = "." -- (_, gitRoot) <- getGitRoot
+
   let actualWasmModule = compile input
       inputHash = hash input
       wasmFilename = gitRoot <> "/wasm-calc9/test/output/" <> show inputHash <> ".wasm"

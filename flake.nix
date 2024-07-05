@@ -61,7 +61,7 @@
              })               (old:
              {
                 # copy the client into the package
-               testSystemDepends = [pkgs.git pkgs.nodejs];
+               testToolDepends = [pkgs.git pkgs.nodejs];
               });
 
         defaultPackage = self.packages.${system}.wasm-calc9;

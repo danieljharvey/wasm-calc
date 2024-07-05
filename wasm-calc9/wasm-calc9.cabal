@@ -143,6 +143,7 @@ test-suite wasm-calc9-tests
     , aeson
     , hspec          >=2.8.3 && <3
     , hspec-core     >=2.8.3 && <3
+    , temporary
     , typed-process
 
   main-is:          Main.hs
