@@ -20,23 +20,6 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
 
-      - name: Cache cabal global package db
-        id: cabal-global
-        uses: actions/cache@v3
-        with:
-          path: ~/.cabal
-          key: ${{ runner.os }}-2-wasm-calc-cabal-global-${{ matrix.plan.ghc }}-${{ hashFiles('**.freeze') }}
-          restore-keys: |
-            ${{ runner.os }}-2-wasm-calc-cabal-global-${{ matrix.plan.ghc }}
-
-      - name: Cache .cabal-work
-        uses: actions/cache@v3
-        with:
-          path: dist-newstyle
-          key: ${{ runner.os }}-2-wasm-calc-cabal-work-${{ matrix.plan.ghc }}-${{ hashFiles('**.freeze') }}
-          restore-keys: |
-            ${{ runner.os }}-2-wasm-calc-cabal-work-${{ matrix.plan.ghc }}
-
       - uses: cachix/install-nix-action@v25
         with:
           nix_path: nixpkgs=channel:nixos-unstable
@@ -46,35 +29,6 @@ jobs:
           name: wasm-calc
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-      - name: Build Nix stuff
-        run: nix develop -j auto --command true
+      - name: Build everything
+        run: nix flake check -j auto
 
-      - name: Test wasm-calc1
-        run: nix develop --command make test version=1
-
-      - name: Test wasm-calc2
-        run: nix develop --command make test version=2
-
-      - name: Test wasm-calc3
-        run: nix develop --command make test version=3
-
-      - name: Test wasm-calc4
-        run: nix develop --command make test version=4
-
-      - name: Test wasm-calc5
-        run: nix develop --command make test version=5
-
-      - name: Test wasm-calc6
-        run: nix develop --command make test version=6
-
-      - name: Test wasm-calc7
-        run: nix develop --command make test version=7
-
-      - name: Test wasm-calc8
-        run: nix develop --command make test version=8
-
-      - name: Test wasm-calc9
-        run: nix develop --command make test version=9
-
-      - name: Test wasm-calc10
-        run: nix develop --command make test version=10
