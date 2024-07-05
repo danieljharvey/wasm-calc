@@ -65,7 +65,7 @@
                   testToolDepends = [ pkgs.nodejs ];
                 });
 
-          wasm-calc = makeCalc "wasm-calc" ./wasm-calc;
+          wasm-calc1 = makeCalc "wasm-calc1" ./wasm-calc1;
           wasm-calc2 = makeCalc "wasm-calc2" ./wasm-calc2;
           wasm-calc3 = makeCalc "wasm-calc3" ./wasm-calc3;
           wasm-calc4 = makeCalc "wasm-calc4" ./wasm-calc4;
@@ -80,20 +80,20 @@
         {
           packages =
             {
-              inherit wasm-calc wasm-calc2 wasm-calc3
+              inherit wasm-calc1 wasm-calc2 wasm-calc3
                 wasm-calc4 wasm-calc5 wasm-calc6
                 wasm-calc7 wasm-calc8 wasm-calc9 wasm-calc10;
             };
 
           # sneaky way to 'build all'
           checks = {
-            inherit wasm-calc wasm-calc2 wasm-calc3
+            inherit wasm-calc1 wasm-calc2 wasm-calc3
               wasm-calc4 wasm-calc5 wasm-calc6
               wasm-calc7 wasm-calc8 wasm-calc9
               wasm-calc10;
           };
 
-          defaultPackage = self.packages.${system}.wasm-calc9;
+          defaultPackage = self.packages.${system}.wasm-calc10;
 
           devShell = pkgs.mkShell {
 
