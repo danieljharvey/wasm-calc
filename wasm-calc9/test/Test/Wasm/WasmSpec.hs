@@ -1,8 +1,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-
+  {-# LANGUAGE TemplateHaskell #-}
 module Test.Wasm.WasmSpec (spec) where
 
+import qualified Data.ByteString.Lazy as LB
+import Data.FileEmbed
+import System.IO.Temp
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Parser
@@ -21,6 +24,11 @@ import qualified Language.Wasm.Structure as Wasm
 import Test.Helpers
 import Test.Hspec
 import Test.RunNode
+
+-- these are saved in a file that is included in compilation
+testJSSource :: LB.ByteString
+testJSSource =
+  LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -92,20 +100,23 @@ runTestsWithInterpreter (input, result) = it (show input) $ do
 -- test them with node
 testWithNode :: (T.Text, T.Text) -> Spec
 testWithNode (input, result) = it (show input) $ do
-  -- get git root folder, explode it if it fails somehow
-  let gitRoot = "." -- (_, gitRoot) <- getGitRoot
+  withSystemTempDirectory "wasmnode" $ \directory -> do
+    let actualWasmModule = compile input
+        inputHash = hash input
+        wasmFilename = directory <> "/" <> show inputHash <> ".wasm"
+        jsFilename = directory <> "/test.mjs"
 
-  let actualWasmModule = compile input
-      inputHash = hash input
-      wasmFilename = gitRoot <> "/wasm-calc9/test/output/" <> show inputHash <> ".wasm"
-      jsFilename = gitRoot <> "/wasm-calc9/test/output/test.mjs"
-  -- write module to a file so we can run it with `wasmtime` etc
-  liftIO (writeModule wasmFilename actualWasmModule)
-  -- run node js, get output
-  (success, output) <- runScriptFromFile wasmFilename jsFilename
-  output `shouldBe` T.unpack result
-  -- check it succeeded
-  success `shouldBe` True
+    -- write test.js to a file
+    liftIO (LB.writeFile jsFilename testJSSource)
+
+    -- write module to a file so we can run it with `wasmtime` etc
+    liftIO (writeModule wasmFilename actualWasmModule)
+
+    -- run node js, get output
+    (success, output) <- runScriptFromFile wasmFilename jsFilename
+    output `shouldBe` T.unpack result
+    -- check it succeeded
+    success `shouldBe` True
 
 spec :: Spec
 spec = do
