@@ -55,13 +55,20 @@
       in
       {
         packages.wasm-calc9 =
-          haskellPackages.callCabal2nix "wasm-calc9" ./wasm-calc9 rec {
+          pkgs.haskell.lib.overrideCabal (haskellPackages.callCabal2nix "wasm-calc9" ./wasm-calc9 {
             # Dependency overrides go here
-          };
+
+             })               (old:
+             {
+                # copy the client into the package
+               testSystemDepends = [pkgs.git pkgs.nodejs];
+              });
 
         defaultPackage = self.packages.${system}.wasm-calc9;
 
         devShell = pkgs.mkShell {
+          nativeBuildInputs = with haskellPackages; [ pkgs.git pkgs.nodejs ];
+
           buildInputs = with haskellPackages; [
             ghc
             hlint
