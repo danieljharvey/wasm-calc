@@ -430,6 +430,9 @@ checkLet maybeReturnTy ann pat expr rest = do
     case maybeReturnTy of
       Just returnTy -> check returnTy rest
       Nothing -> infer rest
+  case validatePatterns ann [typedPat] of
+    Right _ -> pure ()
+    Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
 lookupConstructor ::

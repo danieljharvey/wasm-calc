@@ -24,7 +24,6 @@ import Data.Bifunctor (second)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import qualified Data.Text as T
-import Debug.Trace
 import GHC.Natural
 
 getFresh :: (MonadState (LinearState ann) m) => m Natural
@@ -139,8 +138,7 @@ decorate (EMatch ty expr pats) = do
   -- need to work out a way of scoping variables created in patterns
   -- as they only exist in `patExpr`
   let decoratePair (pat, patExpr) = do
-        (decoratedPat, idents) <- decoratePattern pat
-        traceShowM (decoratedPat, idents)
+        (decoratedPat, _idents) <- decoratePattern pat
         (decoratedPatExpr, patIdents) <- runWriterT (decorate patExpr)
         pure (patIdents, (decoratedPat, decoratedPatExpr))
 

@@ -307,12 +307,17 @@ spec = do
                   ],
                 Wasm.VI64 100
               ),
+              ( asTest "case (100: Int64) { a -> a }", Wasm.VI64 100),
               ( asTest "case True { True -> 1, False -> 2 }",
                 Wasm.VI64 1
+              ),
+              ( asTest "case False { True -> 1, False -> 2 }",
+                Wasm.VI64 2
               )
+
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
     describe "Run tests" $ do

@@ -284,7 +284,11 @@ spec = do
               ),
               ("case True { True -> (1: Int64), 1 -> (2: Int64) }", PatternMismatch tyBool (PLiteral () (PIntLit 1))),
               ("case True { True -> (1: Int64), False -> False }", TypeMismatch tyInt64 tyBool),
-              ("case True { True -> True , True -> False }", PatternMatchError (MissingPatterns () [PLiteral () (PBool False)]))
+              ("case True { True -> True , True -> False }", PatternMatchError (MissingPatterns () [PLiteral () (PBool False)])),
+              ("let (_,False) = (True,False); True", PatternMatchError (MissingPatterns () [
+                      PTuple () (PWildcard ()) (NE.singleton  $ PLiteral () (PBool True))
+                                                                                           ]))
+
             ]
 
       describe "Failing typechecking expressions" $ do

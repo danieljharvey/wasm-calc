@@ -130,7 +130,7 @@ spec = do
         )
         testVals
 
-    fdescribe "Predicates" $ do
+    describe "Predicates" $ do
       describe "predicateToWasm" $ do
         let testVals =
               [ ( Equals [] tyBool (PBool True),
