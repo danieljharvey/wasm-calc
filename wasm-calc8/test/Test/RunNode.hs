@@ -4,7 +4,6 @@ module Test.RunNode
   ( runScriptFromFile,
     lbsToString,
     withCache,
-    getGitRoot,
   )
 where
 
@@ -16,12 +15,6 @@ import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)
 import System.Exit
 import qualified System.Process.Typed as Process
-
-getGitRoot :: (MonadIO m) => m (Bool, String)
-getGitRoot = do
-  let binaryName = "git"
-      args = ["rev-parse", "--show-toplevel"]
-  runProcess binaryName args
 
 runProcess :: (MonadIO m) => String -> [String] -> m (Bool, String)
 runProcess binaryName args = do

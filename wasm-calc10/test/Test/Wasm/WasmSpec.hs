@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Test.Wasm.WasmSpec (spec) where
 
@@ -14,14 +15,22 @@ import qualified Calc.Wasm.FromExpr.Module as FromExpr
 import Calc.Wasm.Run
 import qualified Calc.Wasm.ToWasm as ToWasm
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as LB
+import Data.FileEmbed
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)
 import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure as Wasm
+import System.IO.Temp
 import Test.Helpers
 import Test.Hspec
 import Test.RunNode
+
+-- these are saved in a file that is included in compilation
+testJSSource :: LB.ByteString
+testJSSource =
+  LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -99,19 +108,23 @@ runTestsWithInterpreter (input, result) = it (show input) $ do
 -- test them with node
 testWithNode :: (T.Text, T.Text) -> Spec
 testWithNode (input, result) = it (show input) $ do
-  -- get git root folder, explode it if it fails somehow
-  (True, gitRoot) <- getGitRoot
-  let actualWasmModule = compile input
-      inputHash = hash input
-      wasmFilename = gitRoot <> "/wasm-calc10/test/output/" <> show inputHash <> ".wasm"
-      jsFilename = gitRoot <> "/wasm-calc10/test/output/test.mjs"
-  -- write module to a file so we can run it with `wasmtime` etc
-  liftIO (writeModule wasmFilename actualWasmModule)
-  -- run node js, get output
-  (success, output) <- runScriptFromFile wasmFilename jsFilename
-  output `shouldBe` T.unpack result
-  -- check it succeeded
-  success `shouldBe` True
+  withSystemTempDirectory "wasmnode" $ \directory -> do
+    let actualWasmModule = compile input
+        inputHash = hash input
+        wasmFilename = directory <> "/" <> show inputHash <> ".wasm"
+        jsFilename = directory <> "/test.mjs"
+
+    -- write test.js to a file
+    liftIO (LB.writeFile jsFilename testJSSource)
+
+    -- write module to a file so we can run it with `wasmtime` etc
+    liftIO (writeModule wasmFilename actualWasmModule)
+
+    -- run node js, get output
+    (success, output) <- runScriptFromFile wasmFilename jsFilename
+    output `shouldBe` T.unpack result
+    -- check it succeeded
+    success `shouldBe` True
 
 spec :: Spec
 spec = do

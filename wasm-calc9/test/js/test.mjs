@@ -5,9 +5,9 @@ const filename = process.argv[2];
 const wasmBytes = await fs.readFile(filename);
 
 async function go() {
-
   const imports = {
-    console : {log : console.log},
+    console : {log : a => console.log(a)},
+    env : {memory : new WebAssembly.Memory({initial : 1})}
   };
 
   const {instance} = await WebAssembly.instantiate(wasmBytes, imports);
