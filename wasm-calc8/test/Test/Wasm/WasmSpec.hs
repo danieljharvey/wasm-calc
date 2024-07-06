@@ -1,11 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-  {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Test.Wasm.WasmSpec (spec) where
-
-import qualified Data.ByteString.Lazy as LB
-import Data.FileEmbed
-import System.IO.Temp
 
 import Calc.Linearity (validateModule)
 import Calc.Parser
@@ -15,11 +11,14 @@ import Calc.Wasm.FromExpr.Expr
 import Calc.Wasm.Run
 import Calc.Wasm.ToWasm.Module
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as LB
+import Data.FileEmbed
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)
 import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure as Wasm
+import System.IO.Temp
 import Test.Helpers
 import Test.Hspec
 import Test.RunNode
@@ -28,7 +27,6 @@ import Test.RunNode
 testJSSource :: LB.ByteString
 testJSSource =
   LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
-
 
 -- | compile module or spit out error
 compile :: T.Text -> Wasm.Module
@@ -73,7 +71,6 @@ testWithNode (input, result) = it (show input) $ do
     output `shouldBe` T.unpack result
     -- check it succeeded
     success `shouldBe` True
-
 
 spec :: Spec
 spec = do

@@ -1,11 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-  {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Test.Wasm.WasmSpec (spec) where
 
-import qualified Data.ByteString.Lazy as LB
-import Data.FileEmbed
-import System.IO.Temp
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Parser
@@ -16,11 +14,14 @@ import qualified Calc.Wasm.FromExpr.Module as FromExpr
 import Calc.Wasm.Run
 import qualified Calc.Wasm.ToWasm as ToWasm
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as LB
+import Data.FileEmbed
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)
 import qualified Data.Text as T
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure as Wasm
+import System.IO.Temp
 import Test.Helpers
 import Test.Hspec
 import Test.RunNode
