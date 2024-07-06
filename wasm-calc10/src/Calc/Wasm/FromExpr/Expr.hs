@@ -2,7 +2,6 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import GHC.Natural
 import Calc.ExprUtils
 import Calc.Linearity (Drops (..))
 import Calc.Types
@@ -21,49 +20,50 @@ import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import GHC.Natural
 
-
-patternBindings :: (MonadError FromWasmError m, MonadState FromExprState m, Show ann, Eq ann)
- => Pattern (Type ann, Maybe (Drops ann)) -> Expr (Type ann, Maybe (Drops ann))
-  -> Natural -> m WasmExpr
+patternBindings ::
+  (MonadError FromWasmError m, MonadState FromExprState m, Show ann, Eq ann) =>
+  Pattern (Type ann, Maybe (Drops ann)) ->
+  Expr (Type ann, Maybe (Drops ann)) ->
+  Natural ->
+  m WasmExpr
 patternBindings pat patExpr index = do
-      let paths = patternToPaths (fst <$> pat) id
+  let paths = patternToPaths (fst <$> pat) id
 
-      -- turn patterns into indexes and expressions
-      indexes <-
-        traverse
-          ( \(ident, path) -> do
-              let ty = typeFromPath path
-              -- wasm type of var
-              bindingType <- liftEither (scalarFromType ty)
-              -- named binding
-              bindingIndex <- addLocal (Just ident) bindingType
-              -- get type we're going to be grabbing
-              fetchExpr <- fromPath index path
-              -- return some stuff
-              pure (bindingIndex, fetchExpr)
-          )
-          (M.toList paths)
+  -- turn patterns into indexes and expressions
+  indexes <-
+    traverse
+      ( \(ident, path) -> do
+          let ty = typeFromPath path
+          -- wasm type of var
+          bindingType <- liftEither (scalarFromType ty)
+          -- named binding
+          bindingIndex <- addLocal (Just ident) bindingType
+          -- get type we're going to be grabbing
+          fetchExpr <- fromPath index path
+          -- return some stuff
+          pure (bindingIndex, fetchExpr)
+      )
+      (M.toList paths)
 
-      -- convert the continuation expr
-      wasmPatExpr <- fromExpr patExpr
+  -- convert the continuation expr
+  wasmPatExpr <- fromExpr patExpr
 
-      -- drop items in the match expr we will no longer need
-      dropPaths <-
-        traverse (addDropsFromPath index) (patternToDropPaths pat id)
+  -- drop items in the match expr we will no longer need
+  dropPaths <-
+    traverse (addDropsFromPath index) (patternToDropPaths pat id)
 
-      -- take care of stuff we've pattern matched into oblivion
-      let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPaths
+  -- take care of stuff we've pattern matched into oblivion
+  let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPaths
 
-      pure $ foldr
-            ( \(bindingIndex, fetchExpr) thisExpr ->
-                WLet bindingIndex fetchExpr thisExpr
-            )
-            wasmPatExprWithDrops
-            indexes
-
-
-
+  pure $
+    foldr
+      ( \(bindingIndex, fetchExpr) thisExpr ->
+          WLet bindingIndex fetchExpr thisExpr
+      )
+      wasmPatExprWithDrops
+      indexes
 
 fromLet ::
   ( Eq ann,
@@ -101,7 +101,7 @@ fromMatch ::
   NE.NonEmpty (Pattern (Type ann, Maybe (Drops ann)), Expr (Type ann, Maybe (Drops ann))) ->
   m WasmExpr
 fromMatch expr pats = do
-  let (headPat,headExpr) = NE.head pats
+  let (headPat, headExpr) = NE.head pats
   case NE.nonEmpty (NE.tail pats) of
     Nothing -> do
       -- single match, use the `let` code
@@ -109,7 +109,7 @@ fromMatch expr pats = do
     Just _nePats -> do
       -- actual multiple patterns
 
-       -- get type of the main expr
+      -- get type of the main expr
       wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
       -- first we make a nameless binding of the whole value
       index <- addLocal Nothing wasmType
@@ -124,9 +124,6 @@ fromMatch expr pats = do
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $ WLet index wasmExpr wasmPatExpr
-
-
-
 
 fromExprWithDrops ::
   ( MonadError FromWasmError m,

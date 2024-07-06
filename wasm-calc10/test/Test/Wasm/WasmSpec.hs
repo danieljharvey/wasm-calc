@@ -307,14 +307,13 @@ spec = do
                   ],
                 Wasm.VI64 100
               ),
-              ( asTest "case (100: Int64) { a -> a }", Wasm.VI64 100),
+              (asTest "case (100: Int64) { a -> a }", Wasm.VI64 100),
               ( asTest "case True { True -> 1, False -> 2 }",
                 Wasm.VI64 1
               ),
               ( asTest "case False { True -> 1, False -> 2 }",
                 Wasm.VI64 2
               )
-
             ]
 
       fdescribe "From expressions" $ do
@@ -458,5 +457,3 @@ testWithNode (input, result) = it (show input) $ do
     output `shouldBe` T.unpack result
     -- check it succeeded
     success `shouldBe` True
-
-
