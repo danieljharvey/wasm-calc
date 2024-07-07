@@ -153,6 +153,6 @@ spec = do
         traverse_
           ( \(predicate, val, expected) ->
               it (show predicate) $ do
-                predicateToWasm @_ @() predicate val `shouldBe` Right expected
+                predicateToWasm @_ @() val predicate `shouldBe` Right expected
           )
           testVals

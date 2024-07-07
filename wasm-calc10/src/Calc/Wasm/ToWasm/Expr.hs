@@ -190,6 +190,7 @@ exprToWasm (WGlobalSet index expr) = do
   exprToWasm expr
   offset <- globalOffset
   tell [Wasm.SetGlobal (index + offset)]
+exprToWasm WUnreachable = tell [Wasm.Unreachable]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of

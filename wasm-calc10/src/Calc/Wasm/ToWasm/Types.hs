@@ -128,4 +128,5 @@ data WasmExpr
   | WStore WasmType WasmExpr WasmExpr -- unsafe store from linear memory, index, item
   | WGlobalSet Natural WasmExpr -- set global value
   | WReturnVoid -- return nothing
+  | WUnreachable
   deriving stock (Eq, Ord, Show)

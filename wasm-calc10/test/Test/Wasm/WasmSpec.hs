@@ -313,6 +313,9 @@ spec = do
               ),
               ( asTest "case False { True -> 1, False -> 2 }",
                 Wasm.VI64 2
+              ),
+              ( asTest "case (6: Int64) { 1 -> 1, 0 -> 2, _ -> 0 }",
+                Wasm.VI64 0
               )
             ]
 

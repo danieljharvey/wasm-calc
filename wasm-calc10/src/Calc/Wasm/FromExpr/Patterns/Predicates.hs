@@ -31,8 +31,8 @@ predicatesFromPattern (PTuple _ p ps) path =
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean
-predicateToWasm :: (MonadError FromWasmError m) => Predicate ann -> WasmExpr -> m WasmExpr
-predicateToWasm (Equals path tyPrim primValue) wasmValue = do
+predicateToWasm :: (MonadError FromWasmError m) => WasmExpr -> Predicate ann -> m WasmExpr
+predicateToWasm wasmValue (Equals path tyPrim primValue) = do
   wasmPrim <- fromPrim tyPrim primValue
   wasmPath <-
     reverse
