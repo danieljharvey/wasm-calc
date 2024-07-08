@@ -56,6 +56,7 @@ redundantPatterns ::
   [Pattern (Type ann)]
 redundantPatterns patterns = do
   let generated = mconcat $ generate <$> patterns
+      originalPatterns = void <$> patterns
       -- add index, the first pattern is never redundant
       patternsWithIndex = zip patterns ([0 ..] :: [Int])
    in snd $
@@ -66,5 +67,5 @@ redundantPatterns patterns = do
                     then (rest, redundant <> [pat])
                     else (rest, redundant)
           )
-          (S.toList generated, mempty)
+          (originalPatterns <> S.toList generated, mempty)
           patternsWithIndex

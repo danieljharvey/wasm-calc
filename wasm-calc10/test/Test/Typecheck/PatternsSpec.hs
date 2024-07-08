@@ -57,7 +57,9 @@ spec = do
             [ (["_"], "a", []),
               (["True", "False"], "Boolean", []),
               (["_", "1"], "Int32", ["1"]),
-              (["1", "_"], "Int32", [])
+              (["1", "_"], "Int32", []),
+              (["1", "2", "_"], "Int32", [])
+
             ]
 
       describe "Successfully returns redundant patterns" $ do

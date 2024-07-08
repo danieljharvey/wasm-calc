@@ -123,12 +123,13 @@ fromMatch expr pats = do
       -- fold through patterns
       wasmPatExpr <- foldr
         ( \(pat, patExpr) wholeExpr -> do
-            predExprs <- traverse (predicateToWasm (WVar index)) (predicatesFromPattern (fst <$> pat) mempty)
+            predExprs <- traverse (predicateToWasm (WVar index))
+                                (predicatesFromPattern (fst <$> pat) mempty)
             wasmPatExpr <- patternBindings pat patExpr index
             WIf wasmReturnType (andExprs predExprs) wasmPatExpr <$> wholeExpr
         )
         (pure WUnreachable)
-        (reverse (NE.toList pats))
+        (NE.toList pats)
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $ WLet index wasmExpr wasmPatExpr

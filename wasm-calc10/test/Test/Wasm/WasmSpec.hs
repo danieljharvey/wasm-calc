@@ -78,6 +78,7 @@ spec = do
                 Wasm.VF64 101.0
               ),
               (asTest "if False then 1 else (2: Int64)", Wasm.VI64 2),
+              ( asTest "if True then if True then 1 else 2 else 3", Wasm.VI64 1),
               ("export function test() -> Int32 { if (1 : Int64) == 1 then 7 else 10 }", Wasm.VI32 7),
               ( "export function test() -> Boolean { if 2 == (1 : Int32) then True else False }",
                 Wasm.VI32 0
@@ -314,12 +315,18 @@ spec = do
               ( asTest "case False { True -> 1, False -> 2 }",
                 Wasm.VI64 2
               ),
-              ( asTest "case (6: Int64) { 1 -> 1, 0 -> 2, _ -> 0 }",
+              ( asTest "case (6: Int64) { 1 -> 1, _ -> 0 }",
                 Wasm.VI64 0
               ),
+              ( asTest "case ((1:Int64),(2: Int64)) { (a,b) -> a + b }",Wasm.VI64 3 )
+                ,
               (
-                asTest "case ((1: Int32),(2:Int32)) { (1,1) -> 1, (2,2) -> 2, (_,_) -> 0 }",
-                  Wasm.VI64 0
+                asTest "case ((1: Int32),(2:Int32)) { (1,2) -> 1, (2,2) -> 2, (_,_) -> 0 }",
+                  Wasm.VI64 1
+              ),
+              (
+                asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
+                  Wasm.VI64 1
               )
             ]
 

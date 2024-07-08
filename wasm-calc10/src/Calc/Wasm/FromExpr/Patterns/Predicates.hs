@@ -34,6 +34,7 @@ predicatesFromPattern (PTuple _ p ps) path =
 predicateToWasm :: (MonadError FromWasmError m) => WasmExpr -> Predicate ann -> m WasmExpr
 predicateToWasm wasmValue (Equals path tyPrim primValue) = do
   wasmPrim <- fromPrim tyPrim primValue
+  wasmType <- liftEither $ scalarFromType tyPrim
   wasmPath <-
     reverse
       <$> traverse
@@ -43,7 +44,7 @@ predicateToWasm wasmValue (Equals path tyPrim primValue) = do
               <*> pure index
         )
         path
-  pure $ predicateToWasmInner wasmPath (WInfix I8 OpEquals (WPrim wasmPrim)) wasmValue
+  pure $ predicateToWasmInner wasmPath (WInfix wasmType OpEquals (WPrim wasmPrim)) wasmValue
 
 -- | inner function that works on just Wasm IR types
 predicateToWasmInner ::
