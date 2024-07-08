@@ -98,8 +98,10 @@ fromLet pat expr rest = do
 fromMatch ::
   (MonadState FromExprState m, MonadError FromWasmError m, Eq ann, Show ann) =>
   Expr (Type ann, Maybe (Drops ann)) ->
-  NE.NonEmpty (Pattern (Type ann, Maybe (Drops ann)),
-      Expr (Type ann, Maybe (Drops ann))) ->
+  NE.NonEmpty
+    ( Pattern (Type ann, Maybe (Drops ann)),
+      Expr (Type ann, Maybe (Drops ann))
+    ) ->
   m WasmExpr
 fromMatch expr pats = do
   let (headPat, headExpr) = NE.head pats
@@ -121,24 +123,27 @@ fromMatch expr pats = do
       wasmReturnType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation headExpr
 
       -- fold through patterns
-      wasmPatExpr <- foldr
-        ( \(pat, patExpr) wholeExpr -> do
-            predExprs <- traverse (predicateToWasm (WVar index))
-                                (predicatesFromPattern (fst <$> pat) mempty)
-            wasmPatExpr <- patternBindings pat patExpr index
-            WIf wasmReturnType (andExprs predExprs) wasmPatExpr <$> wholeExpr
-        )
-        (pure WUnreachable)
-        (NE.toList pats)
+      wasmPatExpr <-
+        foldr
+          ( \(pat, patExpr) wholeExpr -> do
+              predExprs <-
+                traverse
+                  (predicateToWasm (WVar index))
+                  (predicatesFromPattern (fst <$> pat) mempty)
+              wasmPatExpr <- patternBindings pat patExpr index
+              WIf wasmReturnType (andExprs predExprs) wasmPatExpr <$> wholeExpr
+          )
+          (pure WUnreachable)
+          (NE.toList pats)
 
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $ WLet index wasmExpr wasmPatExpr
 
 andExprs :: [WasmExpr] -> WasmExpr
-andExprs exprs
-  = case NE.nonEmpty exprs of
-      Nothing -> WPrim (WPBool True)
-      Just neExprs -> foldr (WInfix I32 OpAnd) (NE.head neExprs) (NE.tail neExprs)
+andExprs exprs =
+  case NE.nonEmpty exprs of
+    Nothing -> WPrim (WPBool True)
+    Just neExprs -> foldr (WInfix I32 OpAnd) (NE.head neExprs) (NE.tail neExprs)
 
 fromExprWithDrops ::
   ( MonadError FromWasmError m,

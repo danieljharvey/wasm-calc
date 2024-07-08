@@ -1,6 +1,6 @@
 module Calc.Wasm.FromExpr.Patterns
   ( module Calc.Wasm.FromExpr.Patterns.Paths,
-  module Calc.Wasm.FromExpr.Patterns.Predicates
+    module Calc.Wasm.FromExpr.Patterns.Predicates,
   )
 where
 
