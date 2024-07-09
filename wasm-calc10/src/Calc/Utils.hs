@@ -1,4 +1,4 @@
-module Calc.Utils (prettyShow, ltrace, neZipWith, neZipWithM, neUnzip) where
+module Calc.Utils (prettyShow, ltrace, ltraceM, neZipWith, neZipWithM, neUnzip) where
 
 -- useful junk goes here
 
@@ -31,6 +31,9 @@ neUnzip = bimap NE.fromList NE.fromList . unzip . NE.toList
 
 ltrace :: (Show a) => String -> a -> a
 ltrace lbl x = Debug.trace (lbl <> ": " <> TL.unpack (PS.pShow x)) x
+
+ltraceM :: (Show a, Monad m) => String -> a -> m ()
+ltraceM lbl x = Debug.traceM (lbl <> ": " <> TL.unpack (PS.pShow x))
 
 prettyShow :: (Show a) => a -> String
 prettyShow = TL.unpack . PS.pShow

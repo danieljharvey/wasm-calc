@@ -144,7 +144,17 @@ decorate (EMatch ty expr pats) = do
 
   decoratedPatterns <- traverse decoratePair pats
 
-  pure $ EMatch (ty, Nothing) decoratedExpr (snd <$> decoratedPatterns)
+  let allIdents = foldMap fst decoratedPatterns
+
+  -- now we know all the idents, we can decorate each pattern with the ones
+  -- it's missing
+  let decorateWithIdents (idents, (pat, patExpr)) =
+        let dropIdents = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference allIdents idents))
+         in (pat, mapOuterExprAnnotation (second (const dropIdents)) patExpr)
+
+  let decoratedPatternsWithIdents = decorateWithIdents <$> decoratedPatterns
+
+  pure $ EMatch (ty, Nothing) decoratedExpr decoratedPatternsWithIdents
 decorate (EInfix ty op a b) =
   EInfix (ty, Nothing) op <$> decorate a <*> decorate b
 decorate (EIf ty predExpr thenExpr elseExpr) = do

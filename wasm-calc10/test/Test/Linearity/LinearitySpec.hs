@@ -177,6 +177,17 @@ spec = do
                         (PLiteral Nothing (PBool False), EVar (dropIdents [("one", TVar () "a")]) "two")
                       ]
                   )
+              ),
+              ( "function matchInts<a>(one: a, two: a, three: a) -> a { case (1: Int32) { 1 -> one, 2 -> two, _ -> three } }",
+                EMatch
+                  Nothing
+                  (EAnn Nothing dTyInt32 (dInt 1))
+                  ( NE.fromList
+                      [ (PLiteral Nothing (PIntLit 1), EVar (dropIdents [("three", TVar () "a"), ("two", TVar () "a")]) "one"),
+                        (PLiteral Nothing (PIntLit 2), EVar (dropIdents [("one", TVar () "a"), ("three", TVar () "a")]) "two"),
+                        (PVar Nothing "_fresh_name1", EVar (dropIdents [("one", TVar () "a"), ("two", TVar () "a")]) "three")
+                      ]
+                  )
               )
             ]
       traverse_

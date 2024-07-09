@@ -324,11 +324,28 @@ spec = do
               ),
               ( asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
                 Wasm.VI64 1
+              ),
+              ( asTest $
+                  joinLines
+                    [ "let struct: (Box(Int64), Box(Int64)) = (Box(1), Box(2));",
+                      "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
+                    ],
+                Wasm.VI64 1
+              ),
+              ( asTest $
+                  joinLines
+                    [ "let pair: (Int64,Int64) = (1,2);",
+                      "case pair { (a,2) -> { let box: Box(Int64) = Box(100); let Box(b) = box; a + b}, (_,_) -> 400 }"
+                    ],
+                Wasm.VI64 101
               )
             ]
 
       describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
+
+      describe "Deallocations for expressions" $ do
+        traverse_ testDeallocation testVals
 
     describe "Run tests" $ do
       let testVals =
@@ -428,6 +445,11 @@ testWithInterpreter (input, result) = it (show input) $ do
   let actualWasmModule = compile input
   resp <- runWasm "test" actualWasmModule
   resp `shouldBe` Just [result]
+
+-- | test everything is deallocated using the built-in `wasm` package interpreter
+testDeallocation :: (T.Text, Wasm.Value) -> Spec
+testDeallocation (input, _) = it (show input) $ do
+  let actualWasmModule = compile input
   -- do we deallocate everything?
   allocResp <- runWasm "alloccount" actualWasmModule
   allocResp `shouldBe` Just [Wasm.VI32 0]
