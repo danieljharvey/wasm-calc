@@ -135,19 +135,35 @@ spec = do
         let testVals =
               [ ( Equals [] tyBool (PBool True),
                   WVar 100,
-                  WInfix I8 OpEquals (WPrim (WPBool True)) (WVar 100)
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPBool True))
+                    (WVar 100)
                 ),
                 ( Equals [] tyInt32 (PIntLit 42),
                   WVar 100,
-                  WInfix I8 OpEquals (WPrim (WPInt32 42)) (WVar 100)
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPInt32 42))
+                    (WVar 100)
                 ),
                 ( Equals [(tyInt32, 0)] tyInt32 (PIntLit 42),
                   WVar 100,
-                  WInfix I8 OpEquals (WPrim (WPInt32 42)) (WTupleAccess I32 (WVar 100) 0)
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPInt32 42))
+                    (WTupleAccess I32 (WVar 100) 0)
                 ),
                 ( Equals [(tyInt32, 0), (tyInt64, 1)] tyInt32 (PIntLit 42),
                   WVar 100,
-                  WInfix I8 OpEquals (WPrim (WPInt32 42)) (WTupleAccess I32 (WTupleAccess I64 (WVar 100) 1) 0)
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPInt32 42))
+                    (WTupleAccess I32 (WTupleAccess I64 (WVar 100) 1) 0)
                 )
               ]
         traverse_

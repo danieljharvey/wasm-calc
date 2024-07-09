@@ -10,6 +10,7 @@ import Calc.Types.Prim
 import Calc.Types.Type
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Control.Monad.Except
 import qualified Data.List.NonEmpty as NE
@@ -25,9 +26,16 @@ predicatesFromPattern (PLiteral ty prim) path = [Equals path ty prim]
 predicatesFromPattern (PVar {}) _ = mempty
 predicatesFromPattern (PBox _ inner) path =
   predicatesFromPattern inner (path <> [(getOuterPatternAnnotation inner, 0)])
-predicatesFromPattern (PTuple _ p ps) path =
+predicatesFromPattern (PTuple ty p ps) path =
   let allPs = zip (p : NE.toList ps) [0 ..]
-   in foldMap (\(pat, index) -> predicatesFromPattern pat (path <> [(getOuterPatternAnnotation pat, index)])) allPs
+      offsetList = getOffsetList ty
+   in foldMap
+        ( \(pat, index) ->
+            predicatesFromPattern
+              pat
+              (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
+        )
+        allPs
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean
