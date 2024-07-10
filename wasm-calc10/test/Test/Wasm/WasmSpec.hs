@@ -4,7 +4,6 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Debug.Trace
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Module
@@ -66,7 +65,7 @@ spec = do
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ {-(asTest "42", Wasm.VI64 42),
+            [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -342,7 +341,7 @@ spec = do
                       "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
                     ],
                 Wasm.VI64 1
-              ),-}
+              ),
               ( asTest $
                   joinLines
                     [
@@ -353,10 +352,18 @@ spec = do
               ( asTest $
                   joinLines
                     [
+                      "case (1:Int64) { 1 -> { let Box(b) = Box((100: Int64)); 1 + b}, _ -> 400 }"
+                    ],
+                Wasm.VI64 101
+              ),
+              ( asTest $
+                  joinLines
+                    [
                       "case ((1:Int64),(2:Int64)) { (a,2) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}, (_,_) -> 400 }"
                     ],
                 Wasm.VI64 101
               )
+
 
 
             ]
@@ -429,7 +436,7 @@ compile input =
                 case FromExpr.fromModule typedMod of
                   Left e -> error (show e)
                   Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount (traceShowId wasmMod))
+                    ToWasm.moduleToWasm (addAllocCount wasmMod)
 
 -- add a `alloccount` function that returns state of allocator
 addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule

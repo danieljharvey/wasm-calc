@@ -84,10 +84,15 @@ fromLet pat expr rest = do
     else do
       -- get type of the main expr
       wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
-      -- first we make a nameless binding of the whole value
-      index <- addLocal Nothing wasmType
+
       -- convert expr
       wasmExpr <- fromExpr expr
+
+      -- if the matching expr isn't already a variable,
+      -- we make a nameless binding of the whole value
+      index <- case wasmExpr of
+                 WVar i -> pure i
+                 _ -> addLocal Nothing wasmType
 
       -- convert rest of pattern match
       wasmRest <- patternBindings pat rest index
@@ -131,7 +136,10 @@ fromMatch expr pats = do
                   (predicateToWasm (WVar index))
                   (predicatesFromPattern (fst <$> pat) mempty)
               wasmPatExpr <- patternBindings pat patExpr index
-              WIf wasmReturnType (andExprs predExprs) wasmPatExpr <$> wholeExpr
+              case NE.nonEmpty predExprs of
+                Nothing -> pure wasmPatExpr
+                Just neExprs ->
+                  WIf wasmReturnType (andExprs neExprs) wasmPatExpr <$> wholeExpr
           )
           (pure WUnreachable)
           (NE.toList pats)
@@ -139,11 +147,9 @@ fromMatch expr pats = do
       -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
       pure $ WLet index wasmExpr wasmPatExpr
 
-andExprs :: [WasmExpr] -> WasmExpr
-andExprs exprs =
-  case NE.nonEmpty exprs of
-    Nothing -> WPrim (WPBool True)
-    Just neExprs -> foldr (WInfix I32 OpAnd) (NE.head neExprs) (NE.tail neExprs)
+andExprs :: NE.NonEmpty WasmExpr -> WasmExpr
+andExprs neExprs =
+    foldr (WInfix I32 OpAnd) (NE.head neExprs) (NE.tail neExprs)
 
 fromExprWithDrops ::
   ( MonadError FromWasmError m,
