@@ -51,7 +51,7 @@ predicateToWasm wasmValue (Equals path tyPrim primValue) = do
               <$> liftEither (scalarFromType ty)
               <*> pure index
         )
-        path
+        (reverse path)
   pure $ predicateToWasmInner wasmPath (WInfix wasmType OpEquals (WPrim wasmPrim)) wasmValue
 
 -- | inner function that works on just Wasm IR types

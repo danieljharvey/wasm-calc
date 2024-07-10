@@ -163,7 +163,7 @@ spec = do
                     I32
                     OpEquals
                     (WPrim (WPInt32 42))
-                    (WTupleAccess I32 (WTupleAccess I64 (WVar 100) 1) 0)
+                    (WTupleAccess I64 (WTupleAccess I32 (WVar 100) 0) 1)
                 )
               ]
         traverse_

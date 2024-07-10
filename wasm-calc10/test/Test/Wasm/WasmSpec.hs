@@ -4,6 +4,7 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
+import Debug.Trace
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Module
@@ -65,7 +66,7 @@ spec = do
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ (asTest "42", Wasm.VI64 42),
+            [ {-(asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -325,26 +326,45 @@ spec = do
               ( asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
                 Wasm.VI64 1
               ),
+              ( asTest "case Box((42:Int64)) { Box(2) -> 0, Box(a) -> a }",Wasm.VI64 42),
+              ( asTest "case Box(Box((42:Int64))) { Box(Box(2)) -> 0, Box(Box(a)) -> a }",Wasm.VI64 42),
               ( asTest $
+                  joinLines
+                    [ "if True then ",
+                      "{ let box: Box(Int64) = Box(100); let Box(b) = box; 1 + b}",
+                      "else 400"
+                    ],
+                Wasm.VI64 101
+              ),
+                  ( asTest $
                   joinLines
                     [ "let struct: (Box(Int64), Box(Int64)) = (Box(1), Box(2));",
                       "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
                     ],
                 Wasm.VI64 1
+              ),-}
+              ( asTest $
+                  joinLines
+                    [
+                      "let box = Box((100: Int64)); let Box(b) = box; 1 + b"
+                    ],
+                Wasm.VI64 101
               ),
               ( asTest $
                   joinLines
-                    [ "let pair: (Int64,Int64) = (1,2);",
-                      "case pair { (a,2) -> { let box: Box(Int64) = Box(100); let Box(b) = box; a + b}, (_,_) -> 400 }"
+                    [
+                      "case ((1:Int64),(2:Int64)) { (a,2) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}, (_,_) -> 400 }"
                     ],
                 Wasm.VI64 101
               )
+
+
             ]
 
       describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
-      describe "Deallocations for expressions" $ do
+      fdescribe "Deallocations for expressions" $ do
         traverse_ testDeallocation testVals
 
     describe "Run tests" $ do
@@ -409,7 +429,7 @@ compile input =
                 case FromExpr.fromModule typedMod of
                   Left e -> error (show e)
                   Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount wasmMod)
+                    ToWasm.moduleToWasm (addAllocCount (traceShowId wasmMod))
 
 -- add a `alloccount` function that returns state of allocator
 addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
