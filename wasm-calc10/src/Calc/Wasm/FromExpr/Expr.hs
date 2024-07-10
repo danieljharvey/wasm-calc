@@ -48,7 +48,7 @@ patternBindings pat patExpr index = do
       (M.toList paths)
 
   -- convert the continuation expr
-  wasmPatExpr <- fromExpr patExpr
+  wasmPatExpr <- fromExprWithDrops patExpr
 
   -- drop items in the match expr we will no longer need
   dropPaths <-
@@ -119,10 +119,15 @@ fromMatch expr pats = do
 
       -- get type of the main expr
       wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
-      -- first we make a nameless binding of the whole value
-      index <- addLocal Nothing wasmType
+
       -- convert expr
       wasmExpr <- fromExpr expr
+
+      -- if the matching expr isn't already a variable,
+      -- we make a nameless binding of the whole value
+      index <- case wasmExpr of
+                 WVar i -> pure i
+                 _ -> addLocal Nothing wasmType
 
       -- return type of exprs
       wasmReturnType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation headExpr
