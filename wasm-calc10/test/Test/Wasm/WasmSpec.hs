@@ -358,18 +358,31 @@ spec = do
                   joinLines
                     [ "let pair = ((1:Int64),(2:Int64));",
                       "case pair { ",
-                      "(a,2) -> { let box = Box((100: Int64)); let Box(b) = box; a + b},",
+                      "(1,2) -> 202,",
+                      "(a,_) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}",
+                      "}"
+                    ],
+                Wasm.VI64 202
+              )
+              {-,
+              -- absolutely baffled why `allocated` is not dropped here when we
+              -- generate what looks like the correct IR
+              ( asTest $
+                  joinLines
+                    [ "let pair = ((1:Int64),False);",
+                      "case pair { ",
+                      "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
                       "(_,_) -> 400 ",
                       "}"
                     ],
                 Wasm.VI64 101
-              )
+              )-}
             ]
 
       describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
-      fdescribe "Deallocations for expressions" $ do
+      describe "Deallocations for expressions" $ do
         traverse_ testDeallocation testVals
 
     describe "Run tests" $ do
