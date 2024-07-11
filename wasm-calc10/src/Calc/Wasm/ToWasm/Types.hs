@@ -17,6 +17,7 @@ where
 
 import Calc.Types.Ability
 import Calc.Types.Function
+import Calc.Types.Identifier
 import Calc.Types.Op
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -111,7 +112,7 @@ data WasmFunctionRef
 data WasmExpr
   = WPrim WasmPrim
   | WInfix WasmType Op WasmExpr WasmExpr
-  | WLet Natural WasmExpr WasmExpr
+  | WLet (Maybe Identifier) Natural WasmExpr WasmExpr
   | WSequence WasmType WasmExpr WasmExpr -- first type, do first, return second
   | WIf WasmType WasmExpr WasmExpr WasmExpr -- return type, pred, then, else
   | WVar Natural

@@ -325,8 +325,8 @@ spec = do
               ( asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
                 Wasm.VI64 1
               ),
-              ( asTest "case Box((42:Int64)) { Box(2) -> 0, Box(a) -> a }",Wasm.VI64 42),
-              ( asTest "case Box(Box((42:Int64))) { Box(Box(2)) -> 0, Box(Box(a)) -> a }",Wasm.VI64 42),
+              (asTest "case Box((42:Int64)) { Box(2) -> 0, Box(a) -> a }", Wasm.VI64 42),
+              (asTest "case Box(Box((42:Int64))) { Box(Box(2)) -> 0, Box(Box(a)) -> a }", Wasm.VI64 42),
               ( asTest $
                   joinLines
                     [ "if True then ",
@@ -335,7 +335,7 @@ spec = do
                     ],
                 Wasm.VI64 101
               ),
-                  ( asTest $
+              ( asTest $
                   joinLines
                     [ "let struct: (Box(Int64), Box(Int64)) = (Box(1), Box(2));",
                       "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
@@ -344,28 +344,26 @@ spec = do
               ),
               ( asTest $
                   joinLines
-                    [
-                      "let box = Box((100: Int64)); let Box(b) = box; 1 + b"
+                    [ "let box = Box((100: Int64)); let Box(b) = box; 1 + b"
                     ],
                 Wasm.VI64 101
               ),
               ( asTest $
                   joinLines
-                    [
-                      "case (1:Int64) { 1 -> { let Box(b) = Box((100: Int64)); 1 + b}, _ -> 400 }"
+                    [ "case (1:Int64) { 1 -> { let Box(b) = Box((100: Int64)); 1 + b}, _ -> 400 }"
                     ],
                 Wasm.VI64 101
               ),
               ( asTest $
                   joinLines
-                    [
-                      "case ((1:Int64),(2:Int64)) { (a,2) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}, (_,_) -> 400 }"
+                    [ "let pair = ((1:Int64),(2:Int64));",
+                      "case pair { ",
+                      "(a,2) -> { let box = Box((100: Int64)); let Box(b) = box; a + b},",
+                      "(_,_) -> 400 ",
+                      "}"
                     ],
                 Wasm.VI64 101
               )
-
-
-
             ]
 
       describe "From expressions" $ do
