@@ -22,7 +22,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty (EApply ann fn args) =
@@ -43,8 +42,6 @@ check ty (EStore ann index expr) =
   checkStore (Just ty) ann index expr
 check ty (ESet ann ident expr) =
   checkSet (Just ty) ann ident expr
-check (TConstructor _ tyConstructor tyArgs) (EConstructor ann constructor args) =
-  checkConstructor (Just (tyConstructor, tyArgs)) ann constructor args
 check (TPrim tyAnn tyPrim) (EPrim _ (PFloatLit f)) = do
   ty <-
     TPrim tyAnn <$> case tyPrim of
@@ -378,44 +375,6 @@ checkTuple Nothing ann fstExpr restExpr = do
           )
   pure $ ETuple typ typedFst typedRest
 
-matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
-matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
-  let pairs = M.fromList (zip dataTypeVars tyArgs)
-      filteredTyArgs =
-        ( \case
-            TVar _ var -> case M.lookup var pairs of
-              Just ty -> ty
-              Nothing -> error "cannot find"
-            otherTy -> otherTy
-        )
-          <$> dataTypeArgs
-   in filteredTyArgs
-
-checkConstructor :: Maybe (DataName, [Type ann]) -> ann -> Constructor -> [Expr ann] -> TypecheckM ann (Expr (Type ann))
-checkConstructor maybeTy ann constructor args = do
-  (dataTypeName, dataTypeVars, dataTypeArgs) <-
-    lookupConstructor ann constructor
-
-  (typedArgs, fallbackTypes) <- case maybeTy of
-    Just (tyCons, tyArgs) -> do
-      unless (tyCons == dataTypeName) $ error "wrong"
-
-      let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
-      typedArgs <- zipWithM check filtered args
-      pure
-        ( typedArgs,
-          M.fromList (zip dataTypeVars tyArgs)
-        )
-    Nothing -> do
-      typedArgs <- traverse infer args
-      pure (typedArgs, mempty)
-
-  monomorphisedArgs <-
-    calculateMonomorphisedTypes dataTypeVars dataTypeArgs (getOuterAnnotation <$> typedArgs) fallbackTypes
-
-  let ty = TConstructor ann dataTypeName (snd <$> monomorphisedArgs)
-  pure (EConstructor ty constructor typedArgs)
-
 checkLet ::
   Maybe (Type ann) ->
   ann ->
@@ -434,18 +393,6 @@ checkLet maybeReturnTy ann pat expr rest = do
     Right _ -> pure ()
     Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
-
-lookupConstructor ::
-  ann ->
-  Constructor ->
-  TypecheckM ann (DataName, [TypeVar], [Type ann])
-lookupConstructor ann constructor = do
-  result <- asks (M.lookup constructor . tceDataTypes)
-  case result of
-    (Just (TCDataType dataType vars args)) ->
-      pure (dataType, vars, args)
-    Nothing ->
-      throwError $ ConstructorNotFound ann constructor
 
 checkMatch :: Maybe (Type ann) -> ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
 checkMatch maybeTy ann matchExpr pats = do
@@ -492,8 +439,6 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
-infer (EConstructor ann constructor args) =
-  checkConstructor Nothing ann constructor args
 infer (ELet ann pat expr rest) =
   checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =

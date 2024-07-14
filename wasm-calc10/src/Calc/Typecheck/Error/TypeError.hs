@@ -39,7 +39,6 @@ data TypeError ann
   | UnknownFloatLiteral ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
   | CantSetConstant ann Identifier
-  | ConstructorNotFound ann Constructor
   | PatternMatchError (PatternMatchError ann)
   deriving stock (Eq, Ord, Show)
 
@@ -127,26 +126,6 @@ typeErrorDiagnostic input e =
                         ( Diag.This
                             ( prettyPrint
                                 "Perhaps declare this with 'global mut' instead?"
-                            )
-                        )
-                  ]
-              )
-              []
-        (ConstructorNotFound ann constructor) ->
-          Diag.addReport diag $
-            Diag.Err
-              Nothing
-              ( prettyPrint "Constructor could not be found."
-              )
-              ( catMaybes
-                  [ (,)
-                      <$> positionFromAnnotation
-                        filename
-                        input
-                        ann
-                      <*> pure
-                        ( Diag.This
-                            ( prettyPrint $ PP.pretty constructor
                             )
                         )
                   ]

@@ -1,9 +1,0 @@
-type Colour = Blue | Green | Red
-
-type Maybe<a> = Just(a) | Nothing
-
-type Either<e,a> = Left(e) | Right(a)
-
-type These<a,b> = That(b) | These(a, b) | This(a)
-
-type Expr<ann> = EBool(ann, Boolean) | EInt(ann, Int32)

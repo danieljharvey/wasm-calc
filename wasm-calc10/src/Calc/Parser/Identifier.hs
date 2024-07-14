@@ -4,8 +4,6 @@ module Calc.Parser.Identifier
   ( identifierParser,
     functionNameParser,
     typeVarParser,
-    dataNameParser,
-    constructorParserInternal,
   )
 where
 
@@ -86,17 +84,3 @@ typeVarParserInternal =
   maybePred
     (takeWhile1P (Just "type variable name") Char.isAlphaNum)
     (filterProtectedTypeNames >=> safeMkTypeVar)
-
--- `Maybe`, `Either` etc
-dataNameParser :: Parser DataName
-dataNameParser = myLexeme (DataName <$> constructorParserInternal)
-
--- use this when you are going to wrap myLexeme yourself
-constructorParserInternal :: Parser Constructor
-constructorParserInternal =
-  maybePred
-    constructor
-    (filterProtectedTypeNames >=> safeMkConstructor)
-
-constructor :: Parser T.Text
-constructor = takeWhile1P (Just "constructor") Char.isAlphaNum

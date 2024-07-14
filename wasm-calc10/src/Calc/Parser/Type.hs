@@ -24,7 +24,6 @@ typeParser :: Parser ParserType
 typeParser =
   tyPrimitiveParser
     <|> tyTupleParser
-    <|> tyConstructorParser
     <|> tyBoxParser
     <|> tyVarParser
 
@@ -67,15 +66,3 @@ tyVarParser :: Parser ParserType
 tyVarParser = label "type variable" $
   addTypeLocation $ do
     TVar mempty <$> typeVarParser
-
-tyConstructorParser :: Parser ParserType
-tyConstructorParser =
-  let argsParser = do
-        stringLiteral "("
-        args <- sepBy1 typeParser (stringLiteral ",")
-        stringLiteral ")"
-        pure args
-   in label "type constructor" $ addTypeLocation $ do
-        dtName <- dataNameParser
-        args <- try argsParser <|> pure mempty
-        pure $ TConstructor mempty dtName args

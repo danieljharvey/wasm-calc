@@ -190,7 +190,6 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
-fromExpr (EConstructor {}) = error "fromExpr EConstructor"
 fromExpr (EBlock (_, Just _) _) = do
   error "found drops on block"
 fromExpr (EBlock _ expr) = do
