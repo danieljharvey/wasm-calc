@@ -20,6 +20,50 @@ import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import GHC.Natural
+
+patternBindings ::
+  (MonadError FromWasmError m, MonadState FromExprState m, Show ann, Eq ann) =>
+  Pattern (Type ann, Maybe (Drops ann)) ->
+  Expr (Type ann, Maybe (Drops ann)) ->
+  Natural ->
+  m WasmExpr
+patternBindings pat patExpr index = do
+  let paths = patternToPaths (fst <$> pat) id
+
+  -- turn patterns into indexes and expressions
+  indexes <-
+    traverse
+      ( \(ident, path) -> do
+          let ty = typeFromPath path
+          -- wasm type of var
+          bindingType <- liftEither (scalarFromType ty)
+          -- named binding
+          bindingIndex <- addLocal (Just ident) bindingType
+          -- get type we're going to be grabbing
+          fetchExpr <- fromPath index path
+          -- return some stuff
+          pure (ident, bindingIndex, fetchExpr)
+      )
+      (M.toList paths)
+
+  -- convert the continuation expr
+  wasmPatExpr <- fromExprWithDrops patExpr
+
+  -- drop items in the match expr we will no longer need
+  dropPaths <-
+    traverse (addDropsFromPath index) (patternToDropPaths pat id)
+
+  -- take care of stuff we've pattern matched into oblivion
+  let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPaths
+
+  pure $
+    foldr
+      ( \(ident, bindingIndex, fetchExpr) thisExpr ->
+          WLet (Just ident) bindingIndex fetchExpr thisExpr
+      )
+      wasmPatExprWithDrops
+      indexes
 
 fromLet ::
   ( Eq ann,
@@ -40,64 +84,82 @@ fromLet pat expr rest = do
     else do
       -- get type of the main expr
       wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
-      -- first we make a nameless binding of the whole value
-      index <- addLocal Nothing wasmType
+
       -- convert expr
       wasmExpr <- fromExpr expr
 
-      -- turn patterns into indexes and expressions
-      indexes <-
-        traverse
-          ( \(ident, path) -> do
-              let ty = typeFromPath path
-              -- wasm type of var
-              bindingType <- liftEither (scalarFromType ty)
-              -- named binding
-              bindingIndex <- addLocal (Just ident) bindingType
-              -- get type we're going to be grabbing
-              fetchExpr <- fromPath index path
-              -- return some stuff
-              pure (bindingIndex, fetchExpr)
+      -- if the matching expr isn't already a variable,
+      -- we make a nameless binding of the whole value
+      case wasmExpr of
+        WVar i -> patternBindings pat rest i
+        _ -> do
+          index <- addLocal Nothing wasmType
+
+          -- convert rest of pattern match
+          wasmRest <- patternBindings pat rest index
+
+          -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
+          pure $ WLet Nothing index wasmExpr wasmRest
+
+fromMatch ::
+  (MonadState FromExprState m, MonadError FromWasmError m, Eq ann, Show ann) =>
+  Expr (Type ann, Maybe (Drops ann)) ->
+  NE.NonEmpty
+    ( Pattern (Type ann, Maybe (Drops ann)),
+      Expr (Type ann, Maybe (Drops ann))
+    ) ->
+  m WasmExpr
+fromMatch expr pats = do
+  let (headPat, headExpr) = NE.head pats
+  case NE.nonEmpty (NE.tail pats) of
+    Nothing -> do
+      -- single match, use the `let` code
+      fromLet headPat expr headExpr
+    Just _nePats -> do
+      -- actual multiple patterns
+
+      -- get type of the main expr
+      wasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation expr
+
+      -- convert expr
+      wasmExpr <- fromExpr expr
+
+      -- if the matching expr isn't already a variable,
+      -- we make a nameless binding of the whole value
+      (needsLet, index) <- case wasmExpr of
+        WVar i -> pure (False, i)
+        _ -> (,) True <$> addLocal Nothing wasmType
+
+      -- return type of exprs
+      wasmReturnType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation headExpr
+
+      -- fold through patterns
+      wasmPatExpr <-
+        foldr
+          ( \(pat, patExpr) wholeExpr -> do
+              predExprs <-
+                traverse
+                  (predicateToWasm (WVar index))
+                  (predicatesFromPattern (fst <$> pat) mempty)
+              wasmPatExpr <- patternBindings pat patExpr index
+              case NE.nonEmpty predExprs of
+                Nothing -> pure wasmPatExpr
+                Just neExprs ->
+                  WIf wasmReturnType (andExprs neExprs) wasmPatExpr <$> wholeExpr
           )
-          (M.toList paths)
+          (pure WUnreachable)
+          (NE.toList pats)
 
-      -- convert the rest
-      wasmRest <- fromExpr rest
+      -- let's not make more temporary bindings we need, for the sake of
+      -- reading our IR
+      if needsLet
+        then -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
+          pure $ WLet Nothing index wasmExpr wasmPatExpr
+        else pure wasmPatExpr
 
-      -- drop items in the match expr we will no longer need
-      dropPaths <-
-        traverse (addDropsFromPath index) (patternToDropPaths pat id)
-
-      -- take care of stuff we've pattern matched into oblivion
-      let wasmRestWithDrops = foldr (WSequence Void) wasmRest dropPaths
-
-      -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
-      pure $
-        WLet index wasmExpr $
-          foldr
-            ( \(bindingIndex, fetchExpr) thisExpr ->
-                WLet bindingIndex fetchExpr thisExpr
-            )
-            wasmRestWithDrops
-            indexes
-
--- | we use a combination of the value and the type
-fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim
-fromPrim _ (PBool b) = pure $ WPBool b
-fromPrim (TPrim _ TFloat32) (PFloatLit f) =
-  pure $ WPFloat32 (realToFrac f)
-fromPrim (TPrim _ TFloat64) (PFloatLit f) =
-  pure $ WPFloat64 f
-fromPrim (TPrim _ TInt8) (PIntLit i) =
-  pure (WPInt32 (fromIntegral i))
-fromPrim (TPrim _ TInt16) (PIntLit i) =
-  pure (WPInt32 (fromIntegral i))
-fromPrim (TPrim _ TInt32) (PIntLit i) =
-  pure (WPInt32 (fromIntegral i))
-fromPrim (TPrim _ TInt64) (PIntLit i) =
-  pure (WPInt64 (fromIntegral i))
-fromPrim ty prim =
-  throwError $ PrimWithNonNumberType prim (void ty)
+andExprs :: NE.NonEmpty WasmExpr -> WasmExpr
+andExprs neExprs =
+  foldr (WInfix I32 OpAnd) (NE.head neExprs) (NE.tail neExprs)
 
 fromExprWithDrops ::
   ( MonadError FromWasmError m,
@@ -126,11 +188,15 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
-fromExpr (EBlock _ expr) =
-  -- ignore block. todo: will we lose drops here
+fromExpr (EMatch _ expr pats) =
+  fromMatch expr pats
+fromExpr (EBlock (_, Just _) _) = do
+  error "found drops on block"
+fromExpr (EBlock _ expr) = do
   fromExpr expr
+fromExpr (EAnn (_, Just _) _ _) = do
+  error "found drops on annotation"
 fromExpr (EAnn _ _ expr) =
-  -- ignore type annotations. todo: will we lose drops here
   fromExpr expr
 fromExpr (ELet _ pat expr rest) =
   fromLet pat expr rest

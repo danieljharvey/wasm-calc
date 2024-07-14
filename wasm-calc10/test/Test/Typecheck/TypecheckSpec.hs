@@ -7,11 +7,7 @@ import Calc.ExprUtils
 import Calc.Module
 import Calc.Parser
 import Calc.Typecheck
-import Calc.Types.Function
-import Calc.Types.Module
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
+import Calc.Types
 import Control.Monad
 import Data.Either (isLeft)
 import Data.Foldable (traverse_)
@@ -20,72 +16,6 @@ import qualified Data.List.NonEmpty as NE
 import Data.Text (Text)
 import Test.Helpers
 import Test.Hspec
-
-runTC :: TypecheckM ann a -> Either (TypeError ann) a
-runTC =
-  runTypecheckM
-    ( TypecheckEnv
-        { tceVars = mempty,
-          tceGenerics = mempty,
-          tceMemoryLimit = 0
-        }
-    )
-
-testSucceedingExpr :: (Text, Text) -> Spec
-testSucceedingExpr (input, result) = it (show input) $ do
-  case (,) <$> parseExprAndFormatError input <*> parseTypeAndFormatError result of
-    Left e -> error (show e)
-    Right (expr, tyResult) -> do
-      getOuterAnnotation <$> runTC (infer (void expr))
-        `shouldBe` Right (void tyResult)
-
-testFailingExpr :: (Text, TypeError ()) -> Spec
-testFailingExpr (input, result) = it (show input) $ do
-  case parseExprAndFormatError input of
-    Left e -> error (show e)
-    Right expr -> do
-      getOuterAnnotation <$> runTC (infer (void expr))
-        `shouldBe` Left result
-
-testSucceedingFunction :: (Text, Type ()) -> Spec
-testSucceedingFunction (input, fn) =
-  it (show input) $ do
-    case parseFunctionAndFormatError input of
-      Left e -> error (show e)
-      Right parsedFn ->
-        fnAnn <$> runTC (elaborateFunction (void parsedFn))
-          `shouldBe` Right fn
-
-testSucceedingModule :: (Text, Type ()) -> Spec
-testSucceedingModule (input, md) =
-  it (show input) $ do
-    case parseModuleAndFormatError input of
-      Left e -> error (show e)
-      Right parsedModuleItems ->
-        case resolveModule parsedModuleItems of
-          Left e -> error (show e)
-          Right parsedMod ->
-            getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
-              `shouldBe` Right md
-
--- | find function called 'main'
-getMainFunction :: Module ann -> Function ann
-getMainFunction (Module {mdFunctions}) =
-  case List.find (\fn -> fnFunctionName fn == "main") mdFunctions of
-    Just fn -> fn
-    Nothing -> error "Could not find 'main' function"
-
-testFailingModule :: Text -> Spec
-testFailingModule input =
-  it (show input) $ do
-    case parseModuleAndFormatError input of
-      Left e -> error (show e)
-      Right parsedModuleItems ->
-        case resolveModule parsedModuleItems of
-          Left e -> error (show e)
-          Right parsedMod ->
-            elaborateModule (void parsedMod)
-              `shouldSatisfy` isLeft
 
 spec :: Spec
 spec = do
@@ -216,6 +146,9 @@ spec = do
                     "test itsTrue = True"
                   ],
                 tyInt32
+              ),
+              ( "function main() -> Int32 { case True { True -> 1, False -> 2 } }",
+                tyInt32
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -279,8 +212,13 @@ spec = do
               ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
               ("True && True", "Boolean"),
               ("False || True", "Boolean"),
-              ("let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3", "Int64"),
-              ("let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner", "Int64")
+              ( "let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3",
+                "Int64"
+              ),
+              ( "let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner",
+                "Int64"
+              ),
+              ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64")
             ]
 
       describe "Successfully typechecking expressions" $ do
@@ -313,8 +251,85 @@ spec = do
                       (PVar () "a")
                       (NE.fromList [PVar () "b", PVar () "c"])
                   )
+              ),
+              ("case True { True -> (1: Int64), 1 -> (2: Int64) }", PatternMismatch tyBool (PLiteral () (PIntLit 1))),
+              ("case True { True -> (1: Int64), False -> False }", TypeMismatch tyInt64 tyBool),
+              ("case True { True -> True , True -> False }", PatternMatchError (MissingPatterns () [PLiteral () (PBool False)])),
+              ( "let (_,False) = (True,False); True",
+                PatternMatchError
+                  ( MissingPatterns
+                      ()
+                      [ PTuple () (PWildcard ()) (NE.singleton $ PLiteral () (PBool True))
+                      ]
+                  )
               )
             ]
 
       describe "Failing typechecking expressions" $ do
         traverse_ testFailingExpr failing
+
+runTC :: TypecheckM ann a -> Either (TypeError ann) a
+runTC =
+  runTypecheckM
+    ( TypecheckEnv
+        { tceVars = mempty,
+          tceGenerics = mempty,
+          tceMemoryLimit = 0
+        }
+    )
+
+testSucceedingExpr :: (Text, Text) -> Spec
+testSucceedingExpr (input, result) = it (show input) $ do
+  case (,) <$> parseExprAndFormatError input <*> parseTypeAndFormatError result of
+    Left e -> error (show e)
+    Right (expr, tyResult) -> do
+      getOuterAnnotation <$> runTC (infer (void expr))
+        `shouldBe` Right (void tyResult)
+
+testFailingExpr :: (Text, TypeError ()) -> Spec
+testFailingExpr (input, result) = it (show input) $ do
+  case parseExprAndFormatError input of
+    Left e -> error (show e)
+    Right expr -> do
+      getOuterAnnotation <$> runTC (infer (void expr))
+        `shouldBe` Left result
+
+testSucceedingFunction :: (Text, Type ()) -> Spec
+testSucceedingFunction (input, fn) =
+  it (show input) $ do
+    case parseFunctionAndFormatError input of
+      Left e -> error (show e)
+      Right parsedFn ->
+        fnAnn <$> runTC (elaborateFunction (void parsedFn))
+          `shouldBe` Right fn
+
+testSucceedingModule :: (Text, Type ()) -> Spec
+testSucceedingModule (input, md) =
+  it (show input) $ do
+    case parseModuleAndFormatError input of
+      Left e -> error (show e)
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod ->
+            getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
+              `shouldBe` Right md
+
+-- | find function called 'main'
+getMainFunction :: Module ann -> Function ann
+getMainFunction (Module {mdFunctions}) =
+  case List.find (\fn -> fnFunctionName fn == "main") mdFunctions of
+    Just fn -> fn
+    Nothing -> error "Could not find 'main' function"
+
+testFailingModule :: Text -> Spec
+testFailingModule input =
+  it (show input) $ do
+    case parseModuleAndFormatError input of
+      Left e -> error (show e)
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod ->
+            elaborateModule (void parsedMod)
+              `shouldSatisfy` isLeft

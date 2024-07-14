@@ -16,6 +16,9 @@ module Test.Helpers
     tyBool,
     tyContainer,
     tyVar,
+    patTuple,
+    patInt,
+    patVar,
   )
 where
 
@@ -70,3 +73,14 @@ tyContainer = \case
 
 tyVar :: (Monoid ann) => String -> Type ann
 tyVar = TVar mempty . TypeVar . fromString
+
+patTuple :: (Monoid ann) => [Pattern ann] -> Pattern ann
+patTuple = \case
+  (a : rest) -> PTuple mempty a (NE.fromList rest)
+  _ -> error "not enough items for patTuple"
+
+patInt :: (Monoid ann) => Word64 -> Pattern ann
+patInt = PLiteral mempty . PIntLit
+
+patVar :: (Monoid ann) => String -> Pattern ann
+patVar = PVar mempty . fromString

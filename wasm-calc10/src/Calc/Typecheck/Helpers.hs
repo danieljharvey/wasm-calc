@@ -115,6 +115,7 @@ lookupGlobal ann identifier = do
       throwError (VarNotFound ann identifier allGlobalIdentifiers)
 
 identifiersFromPattern :: Pattern ann -> Type ann -> TypecheckM ann [(Identifier, Type ann)]
+identifiersFromPattern (PLiteral {}) _ = pure mempty
 identifiersFromPattern (PVar _ identifier) ty =
   pure [(identifier, ty)]
 identifiersFromPattern (PBox _ pat) (TContainer _ tys)

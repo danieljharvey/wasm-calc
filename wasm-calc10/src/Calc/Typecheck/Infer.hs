@@ -3,6 +3,7 @@
 module Calc.Typecheck.Infer
   ( infer,
     check,
+    checkPattern,
   )
 where
 
@@ -10,11 +11,12 @@ import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
+import Calc.Typecheck.Patterns
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
 import Calc.Typecheck.Unify
 import Calc.Types
-import Control.Monad (unless, when, zipWithM, zipWithM_)
+import Control.Monad (foldM, unless, when, zipWithM, zipWithM_)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -26,6 +28,8 @@ check ty (EApply ann fn args) =
   checkApply (Just ty) ann fn args
 check ty (EInfix ann op a b) =
   checkInfix (Just ty) ann op a b
+check ty (EMatch ann matchExpr pats) =
+  checkMatch (Just ty) ann matchExpr pats
 check (TContainer _ tyItems) (ETuple ann fstExpr restExpr) =
   checkTuple (Just tyItems) ann fstExpr restExpr
 check ty (ELet ann pat expr rest) =
@@ -317,6 +321,14 @@ checkApply maybeTy ann fnName args = do
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
+checkPattern ty@(TPrim _ TBool) (PLiteral ann (PBool bool)) =
+  pure (PLiteral (ty $> ann) (PBool bool))
+checkPattern ty@(TPrim _ intLit) (PLiteral ann (PIntLit int))
+  | intLit == TInt8 || intLit == TInt16 || intLit == TInt32 || intLit == TInt64 =
+      pure (PLiteral (ty $> ann) (PIntLit int))
+checkPattern ty@(TPrim _ floatLit) (PLiteral ann (PFloatLit float))
+  | floatLit == TFloat32 || floatLit == TFloat64 =
+      pure (PLiteral (ty $> ann) (PFloatLit float))
 checkPattern (TPrim _ TVoid) pat@(PVar _ _) =
   throwError (CantBindVoidValue pat)
 checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
@@ -377,7 +389,35 @@ checkLet maybeReturnTy ann pat expr rest = do
     case maybeReturnTy of
       Just returnTy -> check returnTy rest
       Nothing -> infer rest
+  case validatePatterns ann [typedPat] of
+    Right _ -> pure ()
+    Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
+
+checkMatch :: Maybe (Type ann) -> ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
+checkMatch maybeTy ann matchExpr pats = do
+  elabExpr <- infer matchExpr
+  let withPair (pat, patExpr) = do
+        elabPat <- checkPattern (getOuterAnnotation elabExpr) pat
+        elabPatExpr <- withVar pat (getOuterAnnotation elabExpr) $
+          case maybeTy of
+            Just ty -> check ty patExpr
+            Nothing -> infer patExpr
+        pure (elabPat, elabPatExpr)
+  elabPats <- traverse withPair pats
+  let allTypes = getOuterAnnotation . snd <$> elabPats
+  typ <- combineMany allTypes
+  case validatePatterns ann (fst <$> NE.toList elabPats) of
+    Right _ -> pure ()
+    Left patternMatchError -> throwError (PatternMatchError patternMatchError)
+  pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
+
+-- | used to combine branches of if or case matches
+combineMany ::
+  NE.NonEmpty (Type ann) ->
+  TypecheckM ann (Type ann)
+combineMany types =
+  foldM unify (NE.head types) (NE.tail types)
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
@@ -388,6 +428,8 @@ infer (EPrim ann prim) =
     PBool _ -> pure (EPrim (TPrim ann TBool) prim)
     PIntLit _ -> throwError (UnknownIntegerLiteral ann)
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
+infer (EMatch ann matchExpr pats) =
+  checkMatch Nothing ann matchExpr pats
 infer (EBox ann inner) = do
   typedInner <- infer inner
   pure $

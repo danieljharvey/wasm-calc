@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -166,22 +167,59 @@ spec = do
                   (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar (Just DropMe) "_fresh_name1"))
                   (EVar Nothing "pair")
                   (EBox Nothing (EVar Nothing "a"))
+              ),
+              ( "function matchBool<a>(one: a, two: a) -> a { case True { True -> one, False -> two } }",
+                EMatch
+                  Nothing
+                  (dBool True)
+                  ( NE.fromList
+                      [ (PLiteral Nothing (PBool True), EVar (dropIdents [("two", TVar () "a")]) "one"),
+                        (PLiteral Nothing (PBool False), EVar (dropIdents [("one", TVar () "a")]) "two")
+                      ]
+                  )
+              ),
+              ( "function matchInts<a>(one: a, two: a, three: a) -> a { case (1: Int32) { 1 -> one, 2 -> two, _ -> three } }",
+                EMatch
+                  Nothing
+                  (EAnn Nothing dTyInt32 (dInt 1))
+                  ( NE.fromList
+                      [ (PLiteral Nothing (PIntLit 1), EVar (dropIdents [("three", TVar () "a"), ("two", TVar () "a")]) "one"),
+                        (PLiteral Nothing (PIntLit 2), EVar (dropIdents [("one", TVar () "a"), ("three", TVar () "a")]) "two"),
+                        (PVar Nothing "_fresh_name1", EVar (dropIdents [("one", TVar () "a"), ("two", TVar () "a")]) "three")
+                      ]
+                  )
+              ),
+              ( "function matchWithBox() -> Int64 { case True { True -> { let box = Box((100: Int64)); let Box(b) = box; b} , False -> 0 } }",
+                EMatch
+                  Nothing
+                  (dBool True)
+                  ( NE.fromList
+                      [ ( PLiteral Nothing (PBool True),
+                          EBlock
+                            Nothing
+                            ( ELet
+                                Nothing
+                                (PVar Nothing "box")
+                                ( EBox
+                                    Nothing
+                                    ( EAnn
+                                        Nothing
+                                        (TPrim Nothing TInt64)
+                                        (EPrim Nothing (PIntLit 100))
+                                    )
+                                )
+                                ( ELet
+                                    Nothing
+                                    (PBox (Just DropMe) (PVar Nothing "b"))
+                                    (EVar Nothing "box")
+                                    (EVar Nothing "b")
+                                )
+                            )
+                        ),
+                        (PLiteral Nothing (PBool False), dInt 0)
+                      ]
+                  )
               )
-              {-
-                ( "function dropAfterDestructureWithTransfer() -> Int32 { let a = ((1: Int32), (2: Int32)); let b = a; let (c,d) = b; c + d }",
-                  letAEqualsTuple
-                    ( ELet
-                        Nothing
-                        (PVar Nothing "b")
-                        (dVar "a")
-                        ( ELet
-                            (dropIdents ["a"])
-                            (PTuple Nothing (PVar Nothing "c") (NE.singleton (PVar Nothing "d")))
-                            (dVar "b")
-                            (EInfix Nothing OpAdd (dVar "c") (dVar "d"))
-                        )
-                    )
-                )-}
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -190,7 +228,8 @@ spec = do
                 case runTC (elaborateFunction parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn) `shouldBe` expr
+                    let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn))
+                     in result `shouldBe` expr
               Left e -> error (T.unpack e)
         )
         strings

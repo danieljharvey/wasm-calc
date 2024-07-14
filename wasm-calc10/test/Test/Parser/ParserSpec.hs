@@ -316,7 +316,8 @@ spec = do
       let strings =
             [ ("_", PWildcard ()),
               ("a", PVar () "a"),
-              ("Box(_)", PBox () (PWildcard ()))
+              ("Box(_)", PBox () (PWildcard ())),
+              ("1", patInt 1)
             ]
       traverse_
         ( \(str, pat) -> it (T.unpack str) $ do
@@ -376,6 +377,34 @@ spec = do
                   (bool True)
                   (EBlock () (ELet () (PVar () "a") (bool True) (bool False)))
                   (bool False)
+              ),
+              ( "case a { (1,2) -> 0, (a,b) -> a + b }",
+                EMatch
+                  ()
+                  (var "a")
+                  ( NE.fromList
+                      [ ( patTuple [patInt 1, patInt 2],
+                          int 0
+                        ),
+                        ( patTuple [patVar "a", patVar "b"],
+                          EInfix () OpAdd (var "a") (var "b")
+                        )
+                      ]
+                  )
+              ),
+              ( "case a { 1 -> 0, other -> other }",
+                EMatch
+                  ()
+                  (var "a")
+                  ( NE.fromList
+                      [ ( patInt 1,
+                          int 0
+                        ),
+                        ( patVar "other",
+                          var "other"
+                        )
+                      ]
+                  )
               )
             ]
       traverse_

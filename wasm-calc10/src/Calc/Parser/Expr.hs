@@ -47,6 +47,7 @@ exprParserInternal =
           <|> loadParser
           <|> storeParser
           <|> setParser
+          <|> patternMatchParser
           <|> try applyParser
           <|> try varParser
           <|> blockParser
@@ -190,3 +191,34 @@ setParser = label "set" $
     expr <- exprParserInternal
     stringLiteral ")"
     pure $ ESet mempty ident expr
+
+patternMatchParser :: Parser (Expr Annotation)
+patternMatchParser = addLocation $ do
+  matchExpr <- matchExprWithParser
+  stringLiteral "{"
+  patterns <-
+    try patternMatchesParser
+      <|> pure
+      <$> patternCaseParser
+  stringLiteral "}"
+  case NE.nonEmpty patterns of
+    (Just nePatterns) -> pure $ EMatch mempty matchExpr nePatterns
+    _ -> error "need at least one pattern"
+
+matchExprWithParser :: Parser (Expr Annotation)
+matchExprWithParser = do
+  stringLiteral "case"
+  exprParserInternal
+
+patternMatchesParser :: Parser [(Pattern Annotation, Expr Annotation)]
+patternMatchesParser =
+  sepBy
+    patternCaseParser
+    (stringLiteral ",")
+
+patternCaseParser :: Parser (Pattern Annotation, Expr Annotation)
+patternCaseParser = do
+  pat <- orInBrackets patternParser
+  stringLiteral "->"
+  patExpr <- exprParserInternal
+  pure (pat, patExpr)
