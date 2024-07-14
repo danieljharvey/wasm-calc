@@ -25,7 +25,7 @@ import Calc.Wasm.FromExpr.Patterns (Path (..))
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
-import Control.Monad (foldM)
+import Control.Monad (foldM, void)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Foldable (foldl')
@@ -34,6 +34,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
+import Debug.Trace
 import GHC.Natural
 
 -- | for a variable, describe how to get it
@@ -100,6 +101,7 @@ addDropsToWasmExpr drops wasmExpr =
   -- drop identifiers we will no longer need
   case drops of
     Just (DropIdentifiers idents) -> do
+      traceShowM (void <$> idents)
       nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
       foldM
         ( \restExpr (index, ty) -> do

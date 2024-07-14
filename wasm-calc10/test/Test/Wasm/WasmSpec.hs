@@ -364,7 +364,7 @@ spec = do
                     ],
                 Wasm.VI64 202
               )
-              {-,
+                {-,
               -- absolutely baffled why `allocated` is not dropped here when we
               -- generate what looks like the correct IR
               ( asTest $
@@ -372,7 +372,7 @@ spec = do
                     [ "let pair = ((1:Int64),False);",
                       "case pair { ",
                       "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
-                      "(_,_) -> 400 ",
+                      "_ -> 400 ",
                       "}"
                     ],
                 Wasm.VI64 101

@@ -48,7 +48,7 @@ patternBindings pat patExpr index = do
       (M.toList paths)
 
   -- convert the continuation expr
-  wasmPatExpr <- fromExpr patExpr
+  wasmPatExpr <- fromExprWithDrops patExpr
 
   -- drop items in the match expr we will no longer need
   dropPaths <-

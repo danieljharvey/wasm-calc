@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-
+  {-# LANGUAGE BangPatterns #-}
 module Test.Linearity.LinearitySpec (spec) where
 
 import Calc
@@ -188,6 +188,33 @@ spec = do
                         (PVar Nothing "_fresh_name1", EVar (dropIdents [("one", TVar () "a"), ("two", TVar () "a")]) "three")
                       ]
                   )
+              ),
+              ( "function matchWithBox() -> Int64 { case True { True -> { let box = Box((100: Int64)); let Box(b) = box; b} , False -> 0 } }",
+                EMatch
+                  Nothing
+                  (dBool True)
+                  ( NE.fromList
+                      [ ( PLiteral Nothing (PBool True),
+                          EBlock
+                            Nothing
+                            ( ELet
+                                Nothing
+                                (PVar Nothing "box")
+                                ( EBox
+                                    Nothing
+                                    ( EAnn
+                                        Nothing
+                                        (TPrim Nothing TInt64)
+                                        (EPrim Nothing (PIntLit 100))
+                                    )
+                                )
+                                (ELet Nothing (PBox (Just DropMe) (PVar Nothing "b")) 
+                                        (EVar Nothing "box") (EVar Nothing "b"))
+                            )
+                        ),
+                        (PLiteral Nothing (PBool False), dInt 0)
+                      ]
+                  )
               )
             ]
       traverse_
@@ -197,7 +224,8 @@ spec = do
                 case runTC (elaborateFunction parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn) `shouldBe` expr
+                    let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn)) 
+                     in result `shouldBe` expr
               Left e -> error (T.unpack e)
         )
         strings

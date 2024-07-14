@@ -4,12 +4,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-
+  {-# LANGUAGE LambdaCase #-}
 module Calc.Linearity.Decorate
   ( decorate,
   )
 where
 
+import Data.Maybe (mapMaybe)
+import qualified Data.Set as S
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -110,6 +112,14 @@ decoratePattern (PTuple ty p ps) = do
 dropForType :: Type ann -> Maybe (Drops an)
 dropForType ty = if isPrimitive ty then Nothing else Just DropMe
 
+
+getVarsInScope :: MonadState (LinearState ann) m => m (S.Set Identifier)
+getVarsInScope = gets (S.fromList . mapMaybe userDefined . M.keys . lsVars)
+  where
+    userDefined = \case
+      UserDefined i -> Just i
+      _ -> Nothing
+
 decorate ::
   (Show ann) =>
   ( MonadState (LinearState ann) m,
@@ -135,12 +145,19 @@ decorate (EPrim ty prim) =
 decorate (EMatch ty expr pats) = do
   decoratedExpr <- decorate expr
 
+  -- we're only interested in adding drops
+  -- for vars currently in scope outside the pattern arms
+  existingVars <- getVarsInScope
+
   -- need to work out a way of scoping variables created in patterns
   -- as they only exist in `patExpr`
   let decoratePair (pat, patExpr) = do
         (decoratedPat, _idents) <- decoratePattern pat
         (decoratedPatExpr, patIdents) <- runWriterT (decorate patExpr)
-        pure (patIdents, (decoratedPat, decoratedPatExpr))
+        -- we only care about idents that exist in the current scope
+        let usefulIdents =
+                M.filterWithKey (\k _ -> S.member k existingVars ) patIdents
+        pure (usefulIdents, (decoratedPat, decoratedPatExpr))
 
   decoratedPatterns <- traverse decoratePair pats
 
