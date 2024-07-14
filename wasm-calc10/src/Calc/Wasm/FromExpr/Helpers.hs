@@ -209,7 +209,6 @@ scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
   pure Pointer
-scalarFromType (TConstructor {}) = error "scalarFromType"
 
 genericArgName :: TypeVar -> Identifier
 genericArgName generic =
@@ -228,8 +227,7 @@ monomorphiseTypes typeVars fnArgTys argTys =
         TypecheckEnv
           { tceVars = mempty,
             tceGenerics = mempty,
-            tceMemoryLimit = 0,
-            tceDataTypes = mempty
+            tceMemoryLimit = 0
           }
    in case runTypecheckM tcEnv (calculateMonomorphisedTypes typeVars fnArgTys argTys mempty) of
         Right tvs -> tvs

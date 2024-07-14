@@ -64,7 +64,6 @@ common shared
     Calc.Linearity.Validate
     Calc.Module
     Calc.Parser
-    Calc.Parser.Data
     Calc.Parser.Expr
     Calc.Parser.Function
     Calc.Parser.Identifier
@@ -91,9 +90,6 @@ common shared
     Calc.Types
     Calc.Types.Ability
     Calc.Types.Annotation
-    Calc.Types.Constructor
-    Calc.Types.Data
-    Calc.Types.DataName
     Calc.Types.Expr
     Calc.Types.Function
     Calc.Types.FunctionName

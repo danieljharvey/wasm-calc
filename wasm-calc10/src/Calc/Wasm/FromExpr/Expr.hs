@@ -126,7 +126,6 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
-fromExpr (EConstructor {}) = error "fromExpr EConstructor"
 fromExpr (EBlock _ expr) =
   -- ignore block. todo: will we lose drops here
   fromExpr expr

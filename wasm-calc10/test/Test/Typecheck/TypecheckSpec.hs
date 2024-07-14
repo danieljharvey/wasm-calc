@@ -27,8 +27,7 @@ runTC =
     ( TypecheckEnv
         { tceVars = mempty,
           tceGenerics = mempty,
-          tceMemoryLimit = 0,
-          tceDataTypes = mempty
+          tceMemoryLimit = 0
         }
     )
 
@@ -217,30 +216,6 @@ spec = do
                     "test itsTrue = True"
                   ],
                 tyInt32
-              ),
-              ( joinLines
-                  [ "type Colour = Red | Green",
-                    "function main() -> Colour { let a = Red; a }"
-                  ],
-                tyConstructor "Colour" []
-              ),
-              ( joinLines
-                  [ "type Maybe<a> = Just(a) | Nothing",
-                    "function main() -> Maybe(Int32) { Just(100) }"
-                  ],
-                tyConstructor "Maybe" [tyInt32]
-              ),
-              ( joinLines
-                  [ "type Either<e,a> = Left(e) | Right(a)",
-                    "function main() -> Either(Boolean,Int32) { Right(100) }"
-                  ],
-                tyConstructor "Either" [tyBool, tyInt32]
-              ),
-              ( joinLines
-                  [ "type These<a,b> = This(a) | That(b) | These(a,b)",
-                    "function main() -> These(Boolean,Int32) { These(True,100) }"
-                  ],
-                tyConstructor "These" [tyBool, tyInt32]
               )
             ]
       describe "Successfully typechecking modules" $ do

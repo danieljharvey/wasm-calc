@@ -24,8 +24,7 @@ resolveModule parts =
             mdImports = mempty,
             mdMemory = Nothing,
             mdGlobals = mempty,
-            mdTests = mempty,
-            mdDataTypes = mempty
+            mdTests = mempty
           }
       withPart newModule item = case item of
         ModuleFunction func ->
@@ -40,9 +39,6 @@ resolveModule parts =
         ModuleTest test ->
           pure $
             newModule {mdTests = mdTests newModule <> [test]}
-        ModuleData dt ->
-          pure $
-            newModule {mdDataTypes = mdDataTypes newModule <> [dt]}
         ModuleMemory mem -> do
           case mdMemory newModule of
             Nothing -> pure $ newModule {mdMemory = Just mem}

@@ -4,7 +4,6 @@
 
 module Calc.Types.Type (Type (..), TypePrim (..)) where
 
-import Calc.Types.DataName
 import Calc.Types.TypeVar
 import qualified Data.List.NonEmpty as NE
 import GHC.Natural
@@ -36,7 +35,6 @@ data Type ann
   = TPrim ann TypePrim
   | TFunction ann [Type ann] (Type ann)
   | TContainer ann (NE.NonEmpty (Type ann))
-  | TConstructor ann DataName [Type ann]
   | TVar ann TypeVar
   | TUnificationVar ann Natural
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -54,5 +52,3 @@ instance PP.Pretty (Type ann) where
         "Box(" <> PP.pretty (NE.head as) <> ")"
   pretty (TContainer _ as) =
     "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> NE.toList as)) <> ")"
-  pretty (TConstructor _ dataName vars) =
-    PP.pretty dataName <> "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> vars)) <> ")"
