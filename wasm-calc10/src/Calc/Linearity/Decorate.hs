@@ -1,17 +1,14 @@
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-  {-# LANGUAGE LambdaCase #-}
+
 module Calc.Linearity.Decorate
   ( decorate,
   )
 where
 
-import Data.Maybe (mapMaybe)
-import qualified Data.Set as S
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -25,6 +22,8 @@ import Control.Monad.Writer
 import Data.Bifunctor (second)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
+import Data.Maybe (mapMaybe)
+import qualified Data.Set as S
 import qualified Data.Text as T
 import GHC.Natural
 
@@ -112,8 +111,7 @@ decoratePattern (PTuple ty p ps) = do
 dropForType :: Type ann -> Maybe (Drops an)
 dropForType ty = if isPrimitive ty then Nothing else Just DropMe
 
-
-getVarsInScope :: MonadState (LinearState ann) m => m (S.Set Identifier)
+getVarsInScope :: (MonadState (LinearState ann) m) => m (S.Set Identifier)
 getVarsInScope = gets (S.fromList . mapMaybe userDefined . M.keys . lsVars)
   where
     userDefined = \case
@@ -156,7 +154,7 @@ decorate (EMatch ty expr pats) = do
         (decoratedPatExpr, patIdents) <- runWriterT (decorate patExpr)
         -- we only care about idents that exist in the current scope
         let usefulIdents =
-                M.filterWithKey (\k _ -> S.member k existingVars ) patIdents
+              M.filterWithKey (\k _ -> S.member k existingVars) patIdents
         pure (usefulIdents, (decoratedPat, decoratedPatExpr))
 
   decoratedPatterns <- traverse decoratePair pats

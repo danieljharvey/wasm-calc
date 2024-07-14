@@ -459,7 +459,7 @@ spec = do
                 EMatch
                   ()
                   (var "a")
-                  ( NE.fromList $
+                  ( NE.fromList
                       [ ( patTuple [patInt 1, patInt 2],
                           int 0
                         ),
@@ -473,7 +473,7 @@ spec = do
                 EMatch
                   ()
                   (var "a")
-                  ( NE.fromList $
+                  ( NE.fromList
                       [ ( patInt 1,
                           int 0
                         ),

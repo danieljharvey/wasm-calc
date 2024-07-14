@@ -155,7 +155,7 @@ fromMatch expr pats = do
       if needsLet
         then -- `let i = <expr>; let a = i.1; let b = i.2; <rest>....`
           pure $ WLet Nothing index wasmExpr wasmPatExpr
-        else pure $ wasmPatExpr
+        else pure wasmPatExpr
 
 andExprs :: NE.NonEmpty WasmExpr -> WasmExpr
 andExprs neExprs =

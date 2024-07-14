@@ -1,6 +1,7 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-  {-# LANGUAGE BangPatterns #-}
+
 module Test.Linearity.LinearitySpec (spec) where
 
 import Calc
@@ -208,8 +209,12 @@ spec = do
                                         (EPrim Nothing (PIntLit 100))
                                     )
                                 )
-                                (ELet Nothing (PBox (Just DropMe) (PVar Nothing "b")) 
-                                        (EVar Nothing "box") (EVar Nothing "b"))
+                                ( ELet
+                                    Nothing
+                                    (PBox (Just DropMe) (PVar Nothing "b"))
+                                    (EVar Nothing "box")
+                                    (EVar Nothing "b")
+                                )
                             )
                         ),
                         (PLiteral Nothing (PBool False), dInt 0)
@@ -224,7 +229,7 @@ spec = do
                 case runTC (elaborateFunction parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn)) 
+                    let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn))
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
         )

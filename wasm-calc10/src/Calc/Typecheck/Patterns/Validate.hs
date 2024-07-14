@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Patterns.Validate
   ( validatePatterns,
@@ -47,7 +44,7 @@ missingPatterns ::
   [Pattern ()]
 missingPatterns patterns =
   let generated = mconcat $ generate <$> patterns
-   in nub $ foldr annihilatePattern (S.toList generated) (void <$> patterns)
+   in nub $ foldr (annihilatePattern . void) (S.toList generated) patterns
 
 ----- what about redundent stuff?
 

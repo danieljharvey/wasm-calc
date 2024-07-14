@@ -364,7 +364,7 @@ spec = do
                     ],
                 Wasm.VI64 202
               )
-                {-,
+              {-,
               -- absolutely baffled why `allocated` is not dropped here when we
               -- generate what looks like the correct IR
               ( asTest $

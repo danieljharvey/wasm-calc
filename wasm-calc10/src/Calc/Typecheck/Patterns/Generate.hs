@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Patterns.Generate
   ( generate,
