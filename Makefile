@@ -37,11 +37,19 @@ run-build-malloc-10:
 	cabal run wasm-calc10 -- build wasm-calc10/static/malloc.calc > wasm-calc10/static/malloc.wasm
 	wasm2wat wasm-calc10/static/malloc.wasm > wasm-calc10/static/malloc-new.wat
 
+# calculator 11
+
+.PHONY: run-build-malloc-11
+run-build-malloc-11:
+	cabal build wasm-calc11
+	cabal run wasm-calc11 -- build wasm-calc11/static/malloc.calc > wasm-calc11/static/malloc.wasm
+	wasm2wat wasm-calc11/static/malloc.wasm > wasm-calc11/static/malloc-new.wat
+
 # end of calcs
 
 # run with `make watch version=9` to run tests / ghci for wasm-calc9
 .PHONY: watch
-version = 10
+version = 11
 watch:
 	ghciwatch --watch wasm-calc$(version) \
 		--command "cabal repl wasm-calc$(version)-tests" \
@@ -49,19 +57,19 @@ watch:
 
 # run with `make run version=8` to run wasm-calc8
 .PHONY: run
-version = 10
+version = 11
 run:
 	cabal run wasm-calc$(version) -- repl
 
 # run with `make test version=7` to run wasm-calc7 tests
 .PHONY: test
-version = 10
+version = 11
 test:
 	cabal run wasm-calc$(version):tests
 
 # run with `make format-all-files version=7` to format all static `.calc` files for wasm-calc7
 .PHONY: format-all-files
-version = 10
+version = 11
 STATIC_FILES = "./wasm-calc$(version)/test/static/"
 format-all-files:
 	find $(STATIC_FILES) -maxdepth 1 -type f -exec cabal run wasm-calc$(version) -- format {} \;
