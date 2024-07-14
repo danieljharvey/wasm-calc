@@ -91,7 +91,7 @@ testParser = myLexeme
 
 moduleItemParser :: Parser (ModuleItem Annotation)
 moduleItemParser =
-      ModuleFunction
+  ModuleFunction
     <$> functionParser
       <|> ModuleGlobal
     <$> globalParser

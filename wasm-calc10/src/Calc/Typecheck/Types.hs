@@ -6,7 +6,7 @@ module Calc.Typecheck.Types
     TypecheckState (..),
     TypecheckEnv (..),
     TypecheckGlobal (..),
-    TypeScheme (..)
+    TypeScheme (..),
   )
 where
 

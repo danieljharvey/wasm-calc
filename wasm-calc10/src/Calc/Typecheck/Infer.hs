@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Calc.Typecheck.Infer
   ( infer,
     check,
