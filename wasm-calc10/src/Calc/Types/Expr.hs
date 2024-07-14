@@ -4,7 +4,6 @@
 
 module Calc.Types.Expr (Expr (..)) where
 
-import Calc.Types.Constructor
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
 import Calc.Types.Op
@@ -25,7 +24,6 @@ data Expr ann
   | EApply ann FunctionName [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
-  | EConstructor ann Constructor [Expr ann]
   | EAnn ann (Type ann) (Expr ann)
   | ELoad ann (Expr ann) -- index
   | EStore ann (Expr ann) (Expr ann) -- index, value
@@ -72,13 +70,6 @@ instance PP.Pretty (Expr ann) where
       <+> PP.pretty expr
       <+> "{"
       <> "}"
-  pretty (EConstructor _ constructor []) =
-    PP.pretty constructor
-  pretty (EConstructor _ constructor args) =
-    PP.pretty constructor
-      <> "("
-      <> PP.cat (PP.punctuate "," (PP.pretty <$> args))
-      <> ")"
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
   pretty (EIf _ predExpr thenExpr elseExpr) =

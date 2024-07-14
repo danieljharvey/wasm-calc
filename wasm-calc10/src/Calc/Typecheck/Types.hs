@@ -7,7 +7,6 @@ module Calc.Typecheck.Types
     TypecheckEnv (..),
     TypecheckGlobal (..),
     TypeScheme (..),
-    TCDataType (..),
   )
 where
 
@@ -17,24 +16,14 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import GHC.Natural
-
--- | data type information for a single constructor
-data TCDataType ann = TCDataType
-  { tcdtName :: DataName,
-    tcdtGenerics :: [TypeVar],
-    tcdtArgs :: [Type ann]
-  }
-  deriving stock (Eq, Ord, Show)
 
 -- | temporary read-only state
 data TypecheckEnv ann = TypecheckEnv
   { tceVars :: HM.HashMap Identifier (Type ann),
     tceGenerics :: S.Set TypeVar,
-    tceMemoryLimit :: Natural,
-    tceDataTypes :: M.Map Constructor (TCDataType ann)
+    tceMemoryLimit :: Natural
   }
   deriving stock (Eq, Ord, Show)
 

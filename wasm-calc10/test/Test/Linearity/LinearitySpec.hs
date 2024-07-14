@@ -21,8 +21,7 @@ runTC =
     ( TypecheckEnv
         { tceVars = mempty,
           tceGenerics = mempty,
-          tceMemoryLimit = 0,
-          tceDataTypes = mempty
+          tceMemoryLimit = 0
         }
     )
 

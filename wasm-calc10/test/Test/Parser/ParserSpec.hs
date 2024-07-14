@@ -7,7 +7,6 @@ import Calc.Module
 import Data.Foldable (traverse_)
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Test.Helpers
@@ -37,9 +36,7 @@ spec = do
               ("(Boolean, Boolean, Int64)", tyContainer [tyBool, tyBool, tyInt64]),
               ("a", tyVar "a"),
               ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
-              ("Box(a)", tyContainer [tyVar "a"]),
-              ("Colour", tyConstructor "Colour" mempty),
-              ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"])
+              ("Box(a)", tyContainer [tyVar "a"])
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -56,8 +53,7 @@ spec = do
                 mdImports = mempty,
                 mdMemory = Nothing,
                 mdGlobals = mempty,
-                mdTests = mempty,
-                mdDataTypes = mempty
+                mdTests = mempty
               }
       let strings =
             [ ( "export function increment(a: Int64) -> Int64 { a + 1 }",
@@ -218,21 +214,6 @@ spec = do
                           }
                       ]
                   }
-              ),
-              ( joinLines ["type Maybe<a> = Just(a) | Nothing"],
-                emptyModule
-                  { mdDataTypes =
-                      [ Data
-                          { dtName = DataName "Maybe",
-                            dtVars = ["a"],
-                            dtConstructors =
-                              M.fromList
-                                [ ("Just", [TVar mempty "a"]),
-                                  ("Nothing", mempty)
-                                ]
-                          }
-                      ]
-                  }
               )
             ]
 
@@ -245,62 +226,6 @@ spec = do
                   Left e -> error (show e)
                   Right parsedMod ->
                     parsedMod $> () `shouldBe` module'
-        )
-        strings
-
-    describe "Data" $ do
-      let strings =
-            [ ( "type Colour = Red | Green | Blue",
-                Data
-                  { dtName = DataName "Colour",
-                    dtVars = mempty,
-                    dtConstructors =
-                      M.fromList
-                        [ ("Red", mempty),
-                          ("Green", mempty),
-                          ("Blue", mempty)
-                        ]
-                  }
-              ),
-              ( "type Void",
-                Data {dtName = DataName "Void", dtVars = mempty, dtConstructors = mempty}
-              ),
-              ( "type Proxy<a> = Proxy",
-                Data
-                  { dtName = DataName "Proxy",
-                    dtVars = ["a"],
-                    dtConstructors = M.singleton "Proxy" mempty
-                  }
-              ),
-              ( "type Either<e,a> = Left(e) | Right(a)",
-                Data
-                  { dtName = DataName "Either",
-                    dtVars = ["e", "a"],
-                    dtConstructors =
-                      M.fromList
-                        [ ("Left", [TVar mempty "e"]),
-                          ("Right", [TVar mempty "a"])
-                        ]
-                  }
-              ),
-              ( "type These<a,b> = This(a) | That(b) | These(a,b)",
-                Data
-                  { dtName = DataName "These",
-                    dtVars = ["a", "b"],
-                    dtConstructors =
-                      M.fromList
-                        [ ("This", [TVar mempty "a"]),
-                          ("That", [TVar mempty "b"]),
-                          ("These", [TVar mempty "a", TVar mempty "b"])
-                        ]
-                  }
-              )
-            ]
-      traverse_
-        ( \(str, dt) -> it (T.unpack str) $ do
-            case parseDataAndFormatError str of
-              Right parsedData -> parsedData $> () `shouldBe` dt
-              Left e -> error (T.unpack e)
         )
         strings
 
@@ -453,8 +378,6 @@ spec = do
                   (EBlock () (ELet () (PVar () "a") (bool True) (bool False)))
                   (bool False)
               ),
-              ("Red", EConstructor () "Red" []),
-              ("Some(1)", EConstructor () "Some" [int 1]),
               ( "case a { (1,2) -> 0, (a,b) -> a + b }",
                 EMatch
                   ()

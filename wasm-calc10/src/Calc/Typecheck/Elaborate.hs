@@ -35,8 +35,7 @@ elaborateModule
         mdImports,
         mdGlobals,
         mdMemory,
-        mdFunctions,
-        mdDataTypes
+        mdFunctions
       }
     ) = do
     let typecheckEnv =
@@ -46,8 +45,7 @@ elaborateModule
               tceMemoryLimit = case mdMemory of
                 Nothing -> 0
                 Just (LocalMemory {lmLimit}) -> lmLimit
-                Just (ImportedMemory {imLimit}) -> imLimit,
-              tceDataTypes = arrangeDataTypes mdDataTypes
+                Just (ImportedMemory {imLimit}) -> imLimit
             }
 
     runTypecheckM typecheckEnv $ do
@@ -89,8 +87,7 @@ elaborateModule
             mdImports = imports,
             mdMemory = elaborateMemory <$> mdMemory,
             mdGlobals = globals,
-            mdTests = tests,
-            mdDataTypes = mempty
+            mdTests = tests
           }
 
 -- check a test expression has type `Bool`

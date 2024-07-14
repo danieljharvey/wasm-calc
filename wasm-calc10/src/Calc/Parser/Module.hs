@@ -3,7 +3,6 @@
 
 module Calc.Parser.Module (moduleItemParser) where
 
-import Calc.Parser.Data
 import Calc.Parser.Expr
 import Calc.Parser.Function
 import Calc.Parser.Identifier
@@ -92,9 +91,7 @@ testParser = myLexeme
 
 moduleItemParser :: Parser (ModuleItem Annotation)
 moduleItemParser =
-  ModuleData
-    <$> dataParser
-      <|> ModuleFunction
+  ModuleFunction
     <$> functionParser
       <|> ModuleGlobal
     <$> globalParser

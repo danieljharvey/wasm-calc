@@ -10,7 +10,6 @@ module Calc.Typecheck.Helpers
     storeFunction,
     storeGlobal,
     lookupGlobal,
-    arrangeDataTypes,
     calculateMonomorphisedTypes,
   )
 where
@@ -48,15 +47,6 @@ runTypecheckM env action =
         ( runReaderT (getTypecheckM action) env
         )
         typecheckState
-
-arrangeDataTypes :: [Data ann] -> M.Map Constructor (TCDataType ann)
-arrangeDataTypes =
-  foldMap
-    ( \(Data {dtName, dtVars, dtConstructors}) ->
-        let f (constructor, args) =
-              M.singleton constructor (TCDataType dtName dtVars args)
-         in foldMap f (M.toList dtConstructors)
-    )
 
 storeFunction ::
   FunctionName ->

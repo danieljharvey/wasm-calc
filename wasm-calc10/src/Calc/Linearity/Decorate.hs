@@ -128,8 +128,6 @@ decorate ::
 decorate (EVar ty ident) = do
   recordUse ident ty
   pure (EVar (ty, Nothing) ident)
-decorate (EConstructor ty constructor args) = do
-  EConstructor (ty, Nothing) constructor <$> traverse decorate args
 decorate (ELet ty pat expr rest) = do
   -- get all idents mentioned in `expr`
   decoratedExpr <- decorate expr

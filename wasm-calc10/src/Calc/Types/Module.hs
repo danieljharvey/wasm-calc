@@ -4,7 +4,6 @@
 
 module Calc.Types.Module (Module (..), ModuleItem (..)) where
 
-import Calc.Types.Data
 import Calc.Types.Function
 import Calc.Types.Global
 import Calc.Types.Import
@@ -22,7 +21,6 @@ data ModuleItem ann
   | ModuleMemory (Memory ann)
   | ModuleGlobal (Global ann)
   | ModuleTest (Test ann)
-  | ModuleData (Data ann)
   deriving stock (Eq, Ord, Show, Functor)
 
 instance PP.Pretty (ModuleItem ann) where
@@ -33,15 +31,13 @@ instance PP.Pretty (ModuleItem ann) where
   pretty (ModuleMemory mem) = PP.pretty mem
   pretty (ModuleGlobal glob) = PP.pretty glob
   pretty (ModuleTest test) = PP.pretty test
-  pretty (ModuleData dt) = PP.pretty dt
 
 data Module ann = Module
   { mdFunctions :: [Function ann],
     mdImports :: [Import ann],
     mdMemory :: Maybe (Memory ann),
     mdGlobals :: [Global ann],
-    mdTests :: [Test ann],
-    mdDataTypes :: [Data ann]
+    mdTests :: [Test ann]
   }
   deriving stock (Eq, Ord, Show, Functor)
 
