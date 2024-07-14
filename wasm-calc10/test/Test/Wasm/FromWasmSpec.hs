@@ -11,6 +11,7 @@ import Calc.Wasm.FromExpr.Drops
     typeToDropPaths,
   )
 import Calc.Wasm.FromExpr.Helpers (monomorphiseTypes)
+import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Data.Foldable (traverse_)
@@ -128,3 +129,46 @@ spec = do
               typeToDropPaths (unsafeTy tyString) id `shouldBe` paths
         )
         testVals
+
+    describe "Predicates" $ do
+      describe "predicateToWasm" $ do
+        let testVals =
+              [ ( Equals [] tyBool (PBool True),
+                  WVar 100,
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPBool True))
+                    (WVar 100)
+                ),
+                ( Equals [] tyInt32 (PIntLit 42),
+                  WVar 100,
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPInt32 42))
+                    (WVar 100)
+                ),
+                ( Equals [(tyInt32, 0)] tyInt32 (PIntLit 42),
+                  WVar 100,
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPInt32 42))
+                    (WTupleAccess I32 (WVar 100) 0)
+                ),
+                ( Equals [(tyInt32, 0), (tyInt64, 1)] tyInt32 (PIntLit 42),
+                  WVar 100,
+                  WInfix
+                    I32
+                    OpEquals
+                    (WPrim (WPInt32 42))
+                    (WTupleAccess I64 (WTupleAccess I32 (WVar 100) 0) 1)
+                )
+              ]
+        traverse_
+          ( \(predicate, val, expected) ->
+              it (show predicate) $ do
+                predicateToWasm @_ @() val predicate `shouldBe` Right expected
+          )
+          testVals

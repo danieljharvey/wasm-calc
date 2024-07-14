@@ -59,6 +59,7 @@ common shared
     Calc.Dependencies
     Calc.ExprUtils
     Calc.Linearity
+    Calc.Linearity.Decorate
     Calc.Linearity.Error
     Calc.Linearity.Types
     Calc.Linearity.Validate
@@ -82,9 +83,15 @@ common shared
     Calc.Typecheck
     Calc.Typecheck.Elaborate
     Calc.Typecheck.Error
+    Calc.Typecheck.Error.PatternMatchError
+    Calc.Typecheck.Error.TypeError
     Calc.Typecheck.Generalise
     Calc.Typecheck.Helpers
     Calc.Typecheck.Infer
+    Calc.Typecheck.Patterns
+    Calc.Typecheck.Patterns.Annihilate
+    Calc.Typecheck.Patterns.Generate
+    Calc.Typecheck.Patterns.Validate
     Calc.Typecheck.Substitute
     Calc.Typecheck.Types
     Calc.Typecheck.Unify
@@ -119,6 +126,8 @@ common shared
     Calc.Wasm.FromExpr.Helpers
     Calc.Wasm.FromExpr.Module
     Calc.Wasm.FromExpr.Patterns
+    Calc.Wasm.FromExpr.Patterns.Paths
+    Calc.Wasm.FromExpr.Patterns.Predicates
     Calc.Wasm.FromExpr.Types
     Calc.Wasm.Run
     Calc.Wasm.ToWasm
@@ -160,6 +169,7 @@ test-suite wasm-calc10-tests
     Test.Parser.ParserSpec
     Test.PrettyPrint.PrettyPrintSpec
     Test.RunNode
+    Test.Typecheck.PatternsSpec
     Test.Typecheck.TypecheckSpec
     Test.Wasm.FromWasmSpec
     Test.Wasm.WasmSpec

@@ -111,7 +111,7 @@ exprToWasm (WPrim (WPBool True)) =
 exprToWasm (WPrim (WPBool False)) =
   tell [Wasm.I32Const 0]
 exprToWasm WReturnVoid = pure ()
-exprToWasm (WLet index expr body) = do
+exprToWasm (WLet _ index expr body) = do
   exprToWasm expr
   tell [Wasm.SetLocal index]
   exprToWasm body
@@ -190,6 +190,7 @@ exprToWasm (WGlobalSet index expr) = do
   exprToWasm expr
   offset <- globalOffset
   tell [Wasm.SetGlobal (index + offset)]
+exprToWasm WUnreachable = tell [Wasm.Unreachable]
 
 loadInstruction :: WasmType -> Natural -> Wasm.Instruction Natural
 loadInstruction ty offset = case ty of

@@ -18,6 +18,7 @@ import qualified Prettyprinter as PP
 data Expr ann
   = EPrim ann Prim
   | ELet ann (Pattern ann) (Expr ann) (Expr ann)
+  | EMatch ann (Expr ann) (NE.NonEmpty (Pattern ann, Expr ann))
   | EInfix ann Op (Expr ann) (Expr ann)
   | EIf ann (Expr ann) (Expr ann) (Expr ann)
   | EVar ann Identifier
@@ -66,6 +67,11 @@ instance PP.Pretty (Expr ann) where
       <> ";"
       <+> PP.line
       <> PP.pretty rest
+  pretty (EMatch _ expr _pats) =
+    "case"
+      <+> PP.pretty expr
+      <+> "{"
+      <> "}"
   pretty (EConstructor _ constructor []) =
     PP.pretty constructor
   pretty (EConstructor _ constructor args) =

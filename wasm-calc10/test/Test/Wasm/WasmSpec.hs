@@ -27,105 +27,6 @@ import Test.Helpers
 import Test.Hspec
 import Test.RunNode
 
--- these are saved in a file that is included in compilation
-testJSSource :: LB.ByteString
-testJSSource =
-  LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
-
--- | compile module or spit out error
-compile :: T.Text -> Wasm.Module
-compile input =
-  case parseModuleAndFormatError input of
-    Left e -> error (show e)
-    Right parsedModuleItems ->
-      case resolveModule parsedModuleItems of
-        Left resolveError -> error (show resolveError)
-        Right parsedMod -> case treeShakeModule <$> elaborateModule parsedMod of
-          Left typeErr -> error (show typeErr)
-          Right typedMod ->
-            case validateModule typedMod of
-              Left e -> error (show e)
-              Right _ ->
-                case FromExpr.fromModule typedMod of
-                  Left e -> error (show e)
-                  Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount wasmMod)
-
--- add a `alloccount` function that returns state of allocator
-addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
-addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
-  let testFuncIndex =
-        ToWasm.WasmFunctionRef (fromIntegral $ length wmFunctions - 1)
-      testFuncReturnType =
-        ToWasm.wfReturnType (last wmFunctions)
-      expr = case ToWasm.moduleUsesAllocator wasmMod of
-        ToWasm.UsesAllocator ->
-          ToWasm.WSequence
-            testFuncReturnType
-            (ToWasm.WApply testFuncIndex mempty)
-            ToWasm.WAllocCount
-        ToWasm.DoesNotUseAllocator ->
-          ToWasm.WPrim (ToWasm.WPInt32 0)
-
-      runAllocFunction =
-        ToWasm.WasmFunction
-          { ToWasm.wfName = "alloccount",
-            ToWasm.wfExpr = expr,
-            ToWasm.wfPublic = True,
-            ToWasm.wfArgs = mempty,
-            ToWasm.wfReturnType = ToWasm.I32,
-            ToWasm.wfLocals = mempty,
-            ToWasm.wfAbilities = mempty
-          }
-   in wasmMod {ToWasm.wmFunctions = wmFunctions <> [runAllocFunction]}
-
--- | test using the built-in `wasm` package interpreter
-testWithInterpreter :: (T.Text, Wasm.Value) -> Spec
-testWithInterpreter (input, result) = it (show input) $ do
-  let actualWasmModule = compile input
-  resp <- runWasm "test" actualWasmModule
-  resp `shouldBe` Just [result]
-  -- do we deallocate everything?
-  allocResp <- runWasm "alloccount" actualWasmModule
-  allocResp `shouldBe` Just [Wasm.VI32 0]
-
--- | in fear of getting incredibly meta, run the tests from this module
--- using the built-in `wasm` interpreter
-runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
-runTestsWithInterpreter (input, result) = it (show input) $ do
-  case parseModuleAndFormatError input of
-    Left e -> error (show e)
-    Right parsedModuleItems ->
-      case resolveModule parsedModuleItems of
-        Left e -> error (show e)
-        Right parsedModule -> case elaborateModule parsedModule of
-          Left typeErr -> error (show typeErr)
-          Right typedMod -> do
-            resp <- testModule typedMod
-            resp `shouldBe` result
-
--- | output actual WASM files for testing
--- test them with node
-testWithNode :: (T.Text, T.Text) -> Spec
-testWithNode (input, result) = it (show input) $ do
-  withSystemTempDirectory "wasmnode" $ \directory -> do
-    let actualWasmModule = compile input
-        inputHash = hash input
-        wasmFilename = directory <> "/" <> show inputHash <> ".wasm"
-        jsFilename = directory <> "/test.mjs"
-
-    -- write test.js to a file
-    liftIO (LB.writeFile jsFilename testJSSource)
-
-    -- write module to a file so we can run it with `wasmtime` etc
-    liftIO (writeModule wasmFilename actualWasmModule)
-
-    -- run node js, get output
-    (success, output) <- runScriptFromFile wasmFilename jsFilename
-    output `shouldBe` T.unpack result
-    -- check it succeeded
-    success `shouldBe` True
-
 spec :: Spec
 spec = do
   describe "WasmSpec" $ do
@@ -177,6 +78,7 @@ spec = do
                 Wasm.VF64 101.0
               ),
               (asTest "if False then 1 else (2: Int64)", Wasm.VI64 2),
+              (asTest "if True then if True then 1 else 2 else 3", Wasm.VI64 1),
               ("export function test() -> Int32 { if (1 : Int64) == 1 then 7 else 10 }", Wasm.VI32 7),
               ( "export function test() -> Boolean { if 2 == (1 : Int32) then True else False }",
                 Wasm.VI32 0
@@ -405,11 +307,83 @@ spec = do
                     asTest "let value = Box(Box((1: Int64))); useDrop(value)"
                   ],
                 Wasm.VI64 100
+              ),
+              (asTest "case (100: Int64) { a -> a }", Wasm.VI64 100),
+              ( asTest "case True { True -> 1, False -> 2 }",
+                Wasm.VI64 1
+              ),
+              ( asTest "case False { True -> 1, False -> 2 }",
+                Wasm.VI64 2
+              ),
+              ( asTest "case (6: Int64) { 1 -> 1, _ -> 0 }",
+                Wasm.VI64 0
+              ),
+              (asTest "case ((1:Int64),(2: Int64)) { (a,b) -> a + b }", Wasm.VI64 3),
+              ( asTest "case ((1: Int32),(2:Int32)) { (1,2) -> 1, (2,2) -> 2, (_,_) -> 0 }",
+                Wasm.VI64 1
+              ),
+              ( asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
+                Wasm.VI64 1
+              ),
+              (asTest "case Box((42:Int64)) { Box(2) -> 0, Box(a) -> a }", Wasm.VI64 42),
+              (asTest "case Box(Box((42:Int64))) { Box(Box(2)) -> 0, Box(Box(a)) -> a }", Wasm.VI64 42),
+              ( asTest $
+                  joinLines
+                    [ "if True then ",
+                      "{ let box: Box(Int64) = Box(100); let Box(b) = box; 1 + b}",
+                      "else 400"
+                    ],
+                Wasm.VI64 101
+              ),
+              ( asTest $
+                  joinLines
+                    [ "let struct: (Box(Int64), Box(Int64)) = (Box(1), Box(2));",
+                      "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
+                    ],
+                Wasm.VI64 1
+              ),
+              ( asTest $
+                  joinLines
+                    [ "let box = Box((100: Int64)); let Box(b) = box; 1 + b"
+                    ],
+                Wasm.VI64 101
+              ),
+              ( asTest $
+                  joinLines
+                    [ "case (1:Int64) { 1 -> { let Box(b) = Box((100: Int64)); 1 + b}, _ -> 400 }"
+                    ],
+                Wasm.VI64 101
+              ),
+              ( asTest $
+                  joinLines
+                    [ "let pair = ((1:Int64),(2:Int64));",
+                      "case pair { ",
+                      "(1,2) -> 202,",
+                      "(a,_) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}",
+                      "}"
+                    ],
+                Wasm.VI64 202
               )
+              {-,
+              -- absolutely baffled why `allocated` is not dropped here when we
+              -- generate what looks like the correct IR
+              ( asTest $
+                  joinLines
+                    [ "let pair = ((1:Int64),False);",
+                      "case pair { ",
+                      "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
+                      "_ -> 400 ",
+                      "}"
+                    ],
+                Wasm.VI64 101
+              )-}
             ]
 
       describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
+
+      describe "Deallocations for expressions" $ do
+        traverse_ testDeallocation testVals
 
     describe "Run tests" $ do
       let testVals =
@@ -450,3 +424,107 @@ spec = do
 
       describe "From tests" $ do
         traverse_ runTestsWithInterpreter testVals
+
+-- these are saved in a file that is included in compilation
+testJSSource :: LB.ByteString
+testJSSource =
+  LB.fromStrict $(makeRelativeToProject "test/js/test.mjs" >>= embedFile)
+
+-- | compile module or spit out error
+compile :: T.Text -> Wasm.Module
+compile input =
+  case parseModuleAndFormatError input of
+    Left e -> error (show e)
+    Right parsedModuleItems ->
+      case resolveModule parsedModuleItems of
+        Left resolveError -> error (show resolveError)
+        Right parsedMod -> case treeShakeModule <$> elaborateModule parsedMod of
+          Left typeErr -> error (show typeErr)
+          Right typedMod ->
+            case validateModule typedMod of
+              Left e -> error (show e)
+              Right _ ->
+                case FromExpr.fromModule typedMod of
+                  Left e -> error (show e)
+                  Right wasmMod ->
+                    ToWasm.moduleToWasm (addAllocCount wasmMod)
+
+-- add a `alloccount` function that returns state of allocator
+addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
+addAllocCount wasmMod@(ToWasm.WasmModule {ToWasm.wmFunctions}) =
+  let testFuncIndex =
+        ToWasm.WasmFunctionRef (fromIntegral $ length wmFunctions - 1)
+      testFuncReturnType =
+        ToWasm.wfReturnType (last wmFunctions)
+      expr = case ToWasm.moduleUsesAllocator wasmMod of
+        ToWasm.UsesAllocator ->
+          ToWasm.WSequence
+            testFuncReturnType
+            (ToWasm.WApply testFuncIndex mempty)
+            ToWasm.WAllocCount
+        ToWasm.DoesNotUseAllocator ->
+          ToWasm.WPrim (ToWasm.WPInt32 0)
+
+      runAllocFunction =
+        ToWasm.WasmFunction
+          { ToWasm.wfName = "alloccount",
+            ToWasm.wfExpr = expr,
+            ToWasm.wfPublic = True,
+            ToWasm.wfArgs = mempty,
+            ToWasm.wfReturnType = ToWasm.I32,
+            ToWasm.wfLocals = mempty,
+            ToWasm.wfAbilities = mempty
+          }
+   in wasmMod {ToWasm.wmFunctions = wmFunctions <> [runAllocFunction]}
+
+-- | test using the built-in `wasm` package interpreter
+testWithInterpreter :: (T.Text, Wasm.Value) -> Spec
+testWithInterpreter (input, result) = it (show input) $ do
+  let actualWasmModule = compile input
+  resp <- runWasm "test" actualWasmModule
+  resp `shouldBe` Just [result]
+
+-- | test everything is deallocated using the built-in `wasm` package interpreter
+testDeallocation :: (T.Text, Wasm.Value) -> Spec
+testDeallocation (input, _) = it (show input) $ do
+  let actualWasmModule = compile input
+  -- do we deallocate everything?
+  allocResp <- runWasm "alloccount" actualWasmModule
+  allocResp `shouldBe` Just [Wasm.VI32 0]
+
+-- | in fear of getting incredibly meta, run the tests from this module
+-- using the built-in `wasm` interpreter
+runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
+runTestsWithInterpreter (input, result) = it (show input) $ do
+  case parseModuleAndFormatError input of
+    Left e -> error (show e)
+    Right parsedModuleItems ->
+      case resolveModule parsedModuleItems of
+        Left e -> error (show e)
+        Right parsedModule -> case elaborateModule parsedModule of
+          Left typeErr -> error (show typeErr)
+          Right typedMod -> do
+            resp <- testModule typedMod
+            resp `shouldBe` result
+
+-- | output actual WASM files for testing
+-- test them with node
+testWithNode :: (T.Text, T.Text) -> Spec
+testWithNode (input, result) = it (show input) $ do
+  withSystemTempDirectory "wasmnode" $ \directory -> do
+    let actualWasmModule = compile input
+        inputHash = hash input
+        wasmFilename = directory <> "/" <> show inputHash <> ".wasm"
+        jsFilename = directory <> "/test.mjs"
+
+    -- write test.js to a file
+    liftIO (LB.writeFile jsFilename testJSSource)
+
+    -- write module to a file so we can run it with `wasmtime` etc
+    liftIO (writeModule wasmFilename actualWasmModule)
+
+    -- run node js, get output
+    (success, output) <- runScriptFromFile wasmFilename jsFilename
+    output `shouldBe` T.unpack result
+    -- check it succeeded
+    success `shouldBe` True

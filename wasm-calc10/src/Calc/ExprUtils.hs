@@ -19,6 +19,7 @@ getOuterAnnotation (EAnn ann _ _) = ann
 getOuterAnnotation (EInfix ann _ _ _) = ann
 getOuterAnnotation (EPrim ann _) = ann
 getOuterAnnotation (ELet ann _ _ _) = ann
+getOuterAnnotation (EMatch ann _ _) = ann
 getOuterAnnotation (EIf ann _ _ _) = ann
 getOuterAnnotation (EVar ann _) = ann
 getOuterAnnotation (EConstructor ann _ _) = ann
@@ -39,6 +40,7 @@ mapOuterExprAnnotation f expr' =
     EInfix ann a b c -> EInfix (f ann) a b c
     EPrim ann a -> EPrim (f ann) a
     ELet ann a b c -> ELet (f ann) a b c
+    EMatch ann a b -> EMatch (f ann) a b
     EConstructor ann a args -> EConstructor (f ann) a args
     EIf ann a b c -> EIf (f ann) a b c
     EVar ann a -> EVar (f ann) a
@@ -65,6 +67,8 @@ bindExpr f (ELet ann ident a b) =
   ELet ann ident <$> f a <*> f b
 bindExpr _ (EVar ann a) =
   pure $ EVar ann a
+bindExpr f (EMatch ann expr pats) =
+  EMatch ann <$> f expr <*> traverse (\(pat, patExpr) -> (,) pat <$> f patExpr) pats
 bindExpr f (EApply ann fn args) =
   EApply ann fn <$> traverse f args
 bindExpr f (EIf ann predExpr thenExpr elseExpr) =
@@ -84,4 +88,5 @@ getOuterPatternAnnotation :: Pattern ann -> ann
 getOuterPatternAnnotation (PWildcard ann) = ann
 getOuterPatternAnnotation (PVar ann _) = ann
 getOuterPatternAnnotation (PTuple ann _ _) = ann
+getOuterPatternAnnotation (PLiteral ann _) = ann
 getOuterPatternAnnotation (PBox ann _) = ann
