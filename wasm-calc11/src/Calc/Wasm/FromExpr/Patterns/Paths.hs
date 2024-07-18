@@ -59,6 +59,7 @@ patternToDropPaths (PTuple (ty, drops) a as) addPath =
               <$> zip [1 ..] (NE.toList as)
           )
         <> dropContainer
+patternToDropPaths (PConstructor {}) _ = error "patternToDropPaths: PConstructor"
 
 patternToPaths ::
   Pattern (Type ann) ->
@@ -80,6 +81,7 @@ patternToPaths (PTuple ty p ps) addPath =
             )
               <$> zip [1 ..] (NE.toList ps)
           )
+patternToPaths (PConstructor {}) _ = error "patternToPaths: PConstructor"
 
 -- | given a path, create AST for fetching it
 fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr

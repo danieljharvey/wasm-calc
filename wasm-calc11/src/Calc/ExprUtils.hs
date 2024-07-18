@@ -90,3 +90,4 @@ getOuterPatternAnnotation (PVar ann _) = ann
 getOuterPatternAnnotation (PTuple ann _ _) = ann
 getOuterPatternAnnotation (PLiteral ann _) = ann
 getOuterPatternAnnotation (PBox ann _) = ann
+getOuterPatternAnnotation (PConstructor ann _ _) = ann

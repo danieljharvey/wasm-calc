@@ -36,6 +36,8 @@ predicatesFromPattern (PTuple ty p ps) path =
               (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
         )
         allPs
+predicatesFromPattern (PConstructor _ constructor _) _ =
+  error $ "predicatesFromPattern for " <> show constructor
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean

@@ -392,7 +392,8 @@ spec = do
             [ ("_", PWildcard ()),
               ("a", PVar () "a"),
               ("Box(_)", PBox () (PWildcard ())),
-              ("1", patInt 1)
+              ("1", patInt 1),
+              ("Just(True)", PConstructor () "Just" [patBool True])
             ]
       traverse_
         ( \(str, pat) -> it (T.unpack str) $ do

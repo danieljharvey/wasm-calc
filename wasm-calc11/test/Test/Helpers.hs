@@ -19,6 +19,7 @@ module Test.Helpers
     tyVar,
     patTuple,
     patInt,
+  patBool,
     patVar,
   )
 where
@@ -83,6 +84,10 @@ patTuple :: (Monoid ann) => [Pattern ann] -> Pattern ann
 patTuple = \case
   (a : rest) -> PTuple mempty a (NE.fromList rest)
   _ -> error "not enough items for patTuple"
+
+patBool :: (Monoid ann) => Bool -> Pattern ann
+patBool = PLiteral mempty . PBool
+
 
 patInt :: (Monoid ann) => Word64 -> Pattern ann
 patInt = PLiteral mempty . PIntLit
