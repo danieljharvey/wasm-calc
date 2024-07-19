@@ -30,7 +30,7 @@ data ToWasmEnv = ToWasmEnv
     tweFunctionsOffset :: Natural,
     tweGeneratedFunctionOffset :: Natural
   }
-  deriving stock (Eq,Ord,Show)
+  deriving stock (Eq, Ord, Show)
 
 data WasmType
   = I8

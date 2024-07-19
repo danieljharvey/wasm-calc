@@ -25,7 +25,7 @@ import Calc.Wasm.FromExpr.Patterns (Path (..))
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
-import Control.Monad (foldM )
+import Control.Monad (foldM)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Foldable (foldl')
