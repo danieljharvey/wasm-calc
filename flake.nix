@@ -114,6 +114,9 @@
               pkgs.nodejs
               pkgs.watchexec
               pkgs.nodePackages_latest.serve
+
+              # wasm tooling
+              pkgs.wabt
             ];
 
             inputsFrom = builtins.attrValues self.packages.${system};

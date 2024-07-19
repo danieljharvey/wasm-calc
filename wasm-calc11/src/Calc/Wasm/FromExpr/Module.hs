@@ -180,7 +180,7 @@ fromModule ::
 fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
   let moduleAbilities = getAbilitiesForModule wholeMod
   importMap <- getImportMap mdImports
-  funcMap <- getFunctionMap (fromIntegral (length importMap)) mdFunctions
+  funcMap <- getFunctionMap mdFunctions
   globalMap <- getGlobalMap mdGlobals
 
   wasmGlobals <- traverse fromGlobal mdGlobals

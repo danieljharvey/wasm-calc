@@ -45,6 +45,10 @@ run-build-malloc-11:
 	cabal run wasm-calc11 -- build wasm-calc11/static/malloc.calc > wasm-calc11/static/malloc.wasm
 	wasm2wat wasm-calc11/static/malloc.wasm > wasm-calc11/static/malloc-new.wat
 
+.PHONY: run-build-drawing-demo-11
+run-build-drawing-demo-11:
+	cabal run wasm-calc11 -- build wasm-calc11/demo/draw.calc > wasm-calc11/demo/draw.wasm
+
 # end of calcs
 
 # run with `make watch version=9` to run tests / ghci for wasm-calc9
