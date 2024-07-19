@@ -154,12 +154,11 @@ getAbilitiesForFunction functionAbilities fnName =
 
 -- take only the function info we need
 getFunctionMap ::
-  Natural ->
   [Function (Type ann)] ->
   Either
     FromWasmError
     (M.Map FunctionName FromExprFunc)
-getFunctionMap offset mdFunctions =
+getFunctionMap mdFunctions =
   M.fromList
     <$> traverse
       ( \(i, Function {fnFunctionName, fnGenerics, fnArgs, fnBody}) -> do
@@ -176,7 +175,7 @@ getFunctionMap offset mdFunctions =
                 }
             )
       )
-      (zip [offset ..] mdFunctions)
+      (zip [0 ..] mdFunctions)
 
 -- take only the function info we need
 getImportMap ::

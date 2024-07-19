@@ -51,6 +51,13 @@ spec = do
                 joinLines ["42n", "42n"]
               ),
               ( joinLines
+                  [ "import console.log as consoleLog(number: Int64) -> Void",
+                    "function max(one: Int64, two: Int64) -> Int64 { if one > two then one else two }",
+                    "export function test() -> Int64 { let a = max(0,25); let _ = consoleLog(a); let _ = consoleLog(a + 1); 100 }"
+                  ],
+                joinLines ["25n", "26n"]
+              ),
+              ( joinLines
                   [ "import env.memory as memory 1000",
                     "import console.log as consoleLog(number: Int64) -> Void",
                     "export function test() -> Int64 { let (a,b) = ((1: Int64), (2: Int64)); let _ = consoleLog(a + b); 100 }"
