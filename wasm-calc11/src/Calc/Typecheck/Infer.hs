@@ -345,6 +345,24 @@ checkPattern ty@(TContainer _ tyItems) pat@(PTuple _ p ps) = do
   pHead <- checkPattern (NE.head tyItems) p
   pTail <- zipWithM checkPattern (NE.tail tyItems) (NE.toList ps)
   pure (PTuple ty pHead (NE.fromList pTail))
+checkPattern (TConstructor _ tyDataName tyArgs) (PConstructor ann constructor patArgs) = do
+  (dataTypeName, dataTypeVars, dataTypeArgs) <-
+    lookupConstructor ann constructor
+
+  unless (tyDataName == dataTypeName) $
+      error "wrong"
+
+  let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+
+  typedArgs <- zipWithM checkPattern filtered patArgs
+
+  let fallbackTypes = M.fromList (zip dataTypeVars tyArgs)
+
+  monomorphisedArgs <-
+    calculateMonomorphisedTypes dataTypeVars dataTypeArgs (getOuterPatternAnnotation <$> typedArgs) fallbackTypes
+
+  let ty = TConstructor ann dataTypeName (snd <$> monomorphisedArgs)
+  pure (PConstructor ty constructor typedArgs)
 checkPattern ty pat = throwError $ PatternMismatch ty pat
 
 checkTuple ::
@@ -377,19 +395,6 @@ checkTuple Nothing ann fstExpr restExpr = do
               (getOuterAnnotation <$> typedRest)
           )
   pure $ ETuple typ typedFst typedRest
-
-matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
-matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
-  let pairs = M.fromList (zip dataTypeVars tyArgs)
-      filteredTyArgs =
-        ( \case
-            TVar _ var -> case M.lookup var pairs of
-              Just ty -> ty
-              Nothing -> error "cannot find"
-            otherTy -> otherTy
-        )
-          <$> dataTypeArgs
-   in filteredTyArgs
 
 checkConstructor :: Maybe (DataName, [Type ann]) -> ann -> Constructor -> [Expr ann] -> TypecheckM ann (Expr (Type ann))
 checkConstructor maybeTy ann constructor args = do
@@ -434,18 +439,6 @@ checkLet maybeReturnTy ann pat expr rest = do
     Right _ -> pure ()
     Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
-
-lookupConstructor ::
-  ann ->
-  Constructor ->
-  TypecheckM ann (DataName, [TypeVar], [Type ann])
-lookupConstructor ann constructor = do
-  result <- asks (M.lookup constructor . tceDataTypes)
-  case result of
-    (Just (TCDataType dataType vars args)) ->
-      pure (dataType, vars, args)
-    Nothing ->
-      throwError $ ConstructorNotFound ann constructor
 
 checkMatch :: Maybe (Type ann) -> ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
 checkMatch maybeTy ann matchExpr pats = do

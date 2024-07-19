@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NamedFieldPuns #-}
-
+  {-# LANGUAGE LambdaCase #-}
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
     lookupVar,
@@ -12,6 +12,8 @@ module Calc.Typecheck.Helpers
     lookupGlobal,
     arrangeDataTypes,
     calculateMonomorphisedTypes,
+  lookupConstructor,
+  matchConstructorTypesToArgs
   )
 where
 
@@ -138,6 +140,14 @@ identifiersFromPattern pat@(PTuple _ p ps) ty@(TContainer _ tyItems) = do
     (throwError $ PatternMismatch ty pat)
   allIdents <- zipWithM identifiersFromPattern (p : NE.toList ps) (NE.toList tyItems)
   pure $ mconcat allIdents
+identifiersFromPattern (PConstructor ann constructor ps) (TConstructor _ _ tyArgs) = do
+  (_dataTypeName, dataTypeVars, dataTypeArgs) <-
+    lookupConstructor ann constructor
+
+  let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+
+  allIdents <- zipWithM identifiersFromPattern ps filtered
+  pure $ mconcat allIdents
 identifiersFromPattern pat ty =
   throwError $ PatternMismatch ty pat
 
@@ -203,3 +213,32 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
 
 flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
 flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
+
+
+lookupConstructor ::
+  ann ->
+  Constructor ->
+  TypecheckM ann (DataName, [TypeVar], [Type ann])
+lookupConstructor ann constructor = do
+  result <- asks (M.lookup constructor . tceDataTypes)
+  case result of
+    (Just (TCDataType dataType vars args)) ->
+      pure (dataType, vars, args)
+    Nothing ->
+      throwError $ ConstructorNotFound ann constructor
+
+
+
+matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
+matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
+  let pairs = M.fromList (zip dataTypeVars tyArgs)
+      filteredTyArgs =
+        ( \case
+            TVar _ var -> case M.lookup var pairs of
+              Just ty -> ty
+              Nothing -> error "cannot find"
+            otherTy -> otherTy
+        )
+          <$> dataTypeArgs
+   in filteredTyArgs
+

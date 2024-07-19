@@ -23,6 +23,7 @@ patternParser =
             <|> try patWildcardParser
             <|> try patVariableParser
             <|> patBoxParser
+            <|> patConstructorParser
             <|> patPrimParser
         )
     )
@@ -71,3 +72,24 @@ patBoxParser = label "box" $
 patPrimParser :: Parser ParserPattern
 patPrimParser =
   myLexeme $ withLocation PLiteral primParser
+
+----
+
+argsParser :: Parser [ParserPattern]
+argsParser = try someP <|> pure []
+  where
+    someP = some patternParser
+
+patConstructorParser :: Parser ParserPattern
+patConstructorParser =
+  let parser = do
+        cons <- myLexeme constructorParserInternal
+        args <- argsParser
+        pure (cons, args)
+   in withLocation
+        ( \loc (cons, args) ->
+            PConstructor loc cons args
+        )
+        parser
+
+

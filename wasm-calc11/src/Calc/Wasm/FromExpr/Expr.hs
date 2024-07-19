@@ -190,7 +190,22 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
-fromExpr (EConstructor {}) = error "fromExpr EConstructor"
+fromExpr (EConstructor (ty,_) _constructor args) = do
+  -- TODO: add the constructor number in
+  wasmType <- liftEither $ scalarFromType ty
+  index <- addLocal Nothing wasmType
+  let allItems = zip [0..] args
+      tupleLength = memorySizeForType ty
+      allocate = WAllocate (fromIntegral tupleLength)
+      offsetList = getOffsetList ty
+  WSet index allocate
+    <$> traverse
+      ( \(i, item) ->
+          (,,) (offsetList !! i)
+            <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
+            <*> fromExpr item
+      )
+      allItems
 fromExpr (EBlock (_, Just _) _) = do
   error "found drops on block"
 fromExpr (EBlock _ expr) = do

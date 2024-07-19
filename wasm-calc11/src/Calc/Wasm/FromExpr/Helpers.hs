@@ -209,7 +209,7 @@ scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
   pure Pointer
-scalarFromType (TConstructor {}) = error "scalarFromType"
+scalarFromType (TConstructor {}) = pure Pointer -- maybe enums will become I8 in future, but for now, it's all pointers
 
 genericArgName :: TypeVar -> Identifier
 genericArgName generic =
