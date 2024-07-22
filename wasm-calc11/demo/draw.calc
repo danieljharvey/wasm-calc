@@ -1,3 +1,5 @@
+global mut index: Int64 = 1
+
 import imports.draw as draw(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
 ) -> Void
@@ -15,21 +17,41 @@ function clamp(
 ) -> Int64 { min(floor, max(ceiling, value))}
 
 function drawBounded(
-  x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
-) -> Void { 
-  let maxWidth: Int64 = 400; 
-  let maxHeight: Int64 = 300; 
+  x: Int64, y: Int64, color: (Int64,Int64,Int64)
+) -> (Int64,Int64,Int64) { 
+  let maxWidth: Int64 = 600; 
+  let maxHeight: Int64 = 600; 
+  let (r,g,b) = color; 
   draw(
     clamp(0, maxWidth, x), clamp(0, maxHeight, y), r, g, b
-  )
+  ); 
+  (r,g,b)
 }
 
-export function test(index: Int64) -> Void { 
+function cycle(color: (Int64,Int64,Int64)) -> (Int64,
+Int64,
+Int64) { let (r,g,b) = color;  (g,b,r)}
+
+function initial(index: Int64) -> (Int64,Int64,Int64) { 
   let r = clamp(0, 255, index * 2); 
   let g = clamp(0, 255, 255 - r); 
   let b = clamp(0, 255, r * 3); 
-  drawBounded(index * 2, index * 3, r, g, b); 
-  drawBounded(100 - index, index * 3, b, g, r); 
-  drawBounded(10 + index * 3, 50 - index * 2, g, r, b); 
-  drawBounded(index * 4, 200 - index * 3, b, r, g)
+  (r,g,b)
+}
+
+export function test() -> Void { 
+  let color = drawBounded(
+    index * 2, index * 3, initial(index)
+  ); 
+  let color2 = drawBounded(
+    100 - index, index * 3, cycle(color)
+  ); 
+  let color3 = drawBounded(
+    10 + index * 3, 50 - index * 2, cycle(color2)
+  ); 
+  drawBounded(index * 4, 200 - index * 3, cycle(color3)); 
+  if index < 200 then
+    set(index, index + 1)
+  else
+    set(index, 0)
 }
