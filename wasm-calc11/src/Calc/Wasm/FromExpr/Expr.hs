@@ -133,6 +133,8 @@ fromMatch expr pats = do
       -- return type of exprs
       wasmReturnType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation headExpr
 
+      dataTypes <- gets fesDataTypes
+
       -- fold through patterns
       wasmPatExpr <-
         foldr
@@ -140,7 +142,7 @@ fromMatch expr pats = do
               predExprs <-
                 traverse
                   (predicateToWasm (WVar index))
-                  (predicatesFromPattern (fst <$> pat) mempty)
+                  (predicatesFromPattern dataTypes (fst <$> pat) mempty)
               wasmPatExpr <- patternBindings pat patExpr index
               case NE.nonEmpty predExprs of
                 Nothing -> pure wasmPatExpr

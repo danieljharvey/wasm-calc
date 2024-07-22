@@ -3,6 +3,10 @@
 
 module Calc.Wasm.FromExpr.Patterns.Predicates where
 
+import Calc.TypeUtils
+import Calc.Types.Constructor
+import qualified Data.Map.Strict as M
+import Calc.Types.DataName
 import Calc.ExprUtils
 import Calc.Types.Op
 import Calc.Types.Pattern
@@ -20,24 +24,30 @@ data Predicate ann = Equals [(Type ann, Natural)] (Type ann) Prim
   deriving stock (Eq, Ord, Show)
 
 -- | Return a list of things that would need to be true for a pattern to match
-predicatesFromPattern :: Pattern (Type ann) -> [(Type ann, Natural)] -> [Predicate ann]
-predicatesFromPattern (PWildcard {}) _ = mempty
-predicatesFromPattern (PLiteral ty prim) path = [Equals path ty prim]
-predicatesFromPattern (PVar {}) _ = mempty
-predicatesFromPattern (PBox _ inner) path =
-  predicatesFromPattern inner (path <> [(getOuterPatternAnnotation inner, 0)])
-predicatesFromPattern (PTuple ty p ps) path =
+predicatesFromPattern :: M.Map DataName [Constructor] -> Pattern (Type ann) -> [(Type ann, Natural)] -> [Predicate ann]
+predicatesFromPattern _ (PWildcard {}) _ = mempty
+predicatesFromPattern _ (PLiteral ty prim) path = [Equals path ty prim]
+predicatesFromPattern _ (PVar {}) _ = mempty
+predicatesFromPattern dataTypes (PBox _ inner) path =
+  predicatesFromPattern dataTypes inner (path <> [(getOuterPatternAnnotation inner, 0)])
+predicatesFromPattern dataTypes (PTuple ty p ps) path =
   let allPs = zip (p : NE.toList ps) [0 ..]
       offsetList = getOffsetList ty
    in foldMap
         ( \(pat, index) ->
-            predicatesFromPattern
+            predicatesFromPattern dataTypes
               pat
               (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
         )
         allPs
-predicatesFromPattern (PConstructor _ constructor _) _ =
-  error $ "predicatesFromPattern for " <> show constructor
+predicatesFromPattern _dataTypes (PConstructor ty _constructor _) path =
+  -- what
+  let _typeName = case ty of
+                TConstructor _ tn _ -> tn
+                _ -> error "should be type"
+      -- wrong but yolo
+      constructorValue = 1
+   in [Equals path (TPrim (getOuterTypeAnnotation ty) TInt32) (PIntLit constructorValue)]
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean

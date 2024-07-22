@@ -63,7 +63,8 @@ fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
             fesGlobals = globalMap,
             fesImports = mempty,
             fesFunctions = funcMap,
-            fesGenerated = mempty
+            fesGenerated = mempty,
+            fesDataTypes = mempty
           }
       )
 
@@ -81,10 +82,11 @@ fromFunction ::
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
   M.Map Identifier FromExprGlobal ->
+  M.Map DataName [Constructor] ->
   [WasmFunction] ->
   Function (Type ann) ->
   Either FromWasmError ([WasmFunction], WasmFunction)
-fromFunction functionAbilities funcMap importMap globalMap generatedFns fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName, fnGenerics} = do
+fromFunction functionAbilities funcMap importMap globalMap dataTypeMap generatedFns fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName, fnGenerics} = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -113,7 +115,8 @@ fromFunction functionAbilities funcMap importMap globalMap generatedFns fn@Funct
             fesGlobals = globalMap,
             fesImports = importMap,
             fesFunctions = funcMap,
-            fesGenerated = generatedFns
+            fesGenerated = generatedFns,
+            fesDataTypes = dataTypeMap
           }
       )
 
@@ -162,7 +165,8 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
             fesGlobals = mempty,
             fesImports = mempty,
             fesFunctions = mempty,
-            fesGenerated = mempty
+            fesGenerated = mempty,
+            fesDataTypes = mempty
           }
       )
 
@@ -173,15 +177,21 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
+getDataTypeMap :: [Data ann] -> M.Map DataName [Constructor]
+getDataTypeMap =
+  foldMap (\(Data {dtName,dtConstructors}) ->
+      M.singleton dtName (M.keys dtConstructors))
+
 fromModule ::
   (Show ann, Ord ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
+fromModule wholeMod@(Module {mdDataTypes,mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
   let moduleAbilities = getAbilitiesForModule wholeMod
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap mdFunctions
   globalMap <- getGlobalMap mdGlobals
+  let dataTypeMap = getDataTypeMap mdDataTypes
 
   wasmGlobals <- traverse fromGlobal mdGlobals
 
@@ -189,7 +199,7 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
     foldM
       ( \(generatedFns, fns) input -> do
           (generated, newFn) <-
-            fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap generatedFns input
+            fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap dataTypeMap generatedFns input
           pure (generated, [newFn] <> fns)
       )
       ([], [])
