@@ -31,13 +31,8 @@
       ).then(bytes =>
         WebAssembly.instantiate(bytes, importObject)
       ).then(result => {
-        let i = 0;
-        const maximum = 150;
         setInterval(() => {
-          const newI = i < maximum ? i + 1 : 0;
-          const bigI = BigInt(newI);
-          result.instance.exports.test(bigI);
-          i = newI
+          result.instance.exports.test();
         },1);
       });
     </script>
