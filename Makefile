@@ -57,6 +57,22 @@ watch:
 		--command "cabal repl wasm-calc$(version)-tests" \
 		--test-ghci 'main'
 
+# run with `make watch version=9` to run tests / ghci for wasm-calc9
+.PHONY: watch-app
+version = 11
+watch-app:
+	ghciwatch --watch wasm-calc$(version) \
+		--command "cabal repl exe:wasm-calc$(version)" \
+		--test-shell 'cabal install wasm-calc11 --overwrite-policy=always'
+
+# run with `make watch version=9` to run tests / ghci for wasm-calc9
+.PHONY: lsp
+version = 11
+lsp:
+	ghciwatch --watch wasm-calc$(version) \
+		--command "cabal repl calc-language-server$(version)" \
+		--test-ghci 'main'
+
 # run with `make run version=8` to run wasm-calc8
 .PHONY: run
 version = 11
