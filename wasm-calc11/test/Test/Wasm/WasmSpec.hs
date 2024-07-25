@@ -390,7 +390,7 @@ spec = do
               )-}
             ]
 
-      fdescribe "From expressions" $ do
+      describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
       describe "Deallocations for expressions" $ do

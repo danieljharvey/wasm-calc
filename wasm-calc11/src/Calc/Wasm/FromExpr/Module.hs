@@ -82,7 +82,7 @@ fromFunction ::
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
   M.Map Identifier FromExprGlobal ->
-  M.Map DataName [Constructor] ->
+  M.Map DataName [FromExprConstructor] ->
   [WasmFunction] ->
   Function (Type ann) ->
   Either FromWasmError ([WasmFunction], WasmFunction)
@@ -177,10 +177,12 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
-getDataTypeMap :: [Data ann] -> M.Map DataName [Constructor]
+getDataTypeMap :: [Data ann] -> M.Map DataName [FromExprConstructor]
 getDataTypeMap =
   foldMap (\(Data {dtName,dtConstructors}) ->
-      M.singleton dtName (M.keys dtConstructors))
+    let withConstructor (dtCon,dtConTypes) =
+          FromExprConstructor { fecConstructor = dtCon, fecTypes = dtConTypes }
+     in M.singleton dtName (withConstructor <$> M.toList dtConstructors))
 
 fromModule ::
   (Show ann, Ord ann) =>

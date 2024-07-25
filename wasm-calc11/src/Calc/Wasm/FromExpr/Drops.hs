@@ -16,14 +16,13 @@ import Calc.Linearity (Drops (..))
 import Calc.TypeUtils (monoidType)
 import Calc.Types
 import Calc.Wasm.FromExpr.Helpers
-  ( addGeneratedFunction,
+  ( getOffsetList,addGeneratedFunction,
     genericArgName,
     lookupIdent,
     scalarFromType,
   )
 import Calc.Wasm.FromExpr.Patterns (Path (..))
 import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (foldM)
 import Control.Monad.Except

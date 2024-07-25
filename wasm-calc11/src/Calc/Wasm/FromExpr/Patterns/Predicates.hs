@@ -4,7 +4,6 @@
 module Calc.Wasm.FromExpr.Patterns.Predicates where
 
 import Calc.TypeUtils
-import Calc.Types.Constructor
 import qualified Data.Map.Strict as M
 import Calc.Types.DataName
 import Calc.ExprUtils
@@ -14,7 +13,6 @@ import Calc.Types.Prim
 import Calc.Types.Type
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Control.Monad.Except
 import qualified Data.List.NonEmpty as NE
@@ -24,7 +22,7 @@ data Predicate ann = Equals [(Type ann, Natural)] (Type ann) Prim
   deriving stock (Eq, Ord, Show)
 
 -- | Return a list of things that would need to be true for a pattern to match
-predicatesFromPattern :: M.Map DataName [Constructor] -> Pattern (Type ann) -> [(Type ann, Natural)] -> [Predicate ann]
+predicatesFromPattern :: M.Map DataName [FromExprConstructor] -> Pattern (Type ann) -> [(Type ann, Natural)] -> [Predicate ann]
 predicatesFromPattern _ (PWildcard {}) _ = mempty
 predicatesFromPattern _ (PLiteral ty prim) path = [Equals path ty prim]
 predicatesFromPattern _ (PVar {}) _ = mempty

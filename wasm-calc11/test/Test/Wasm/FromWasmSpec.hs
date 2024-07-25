@@ -10,7 +10,7 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Helpers (monomorphiseTypes)
+import Calc.Wasm.FromExpr.Helpers (monomorphiseTypes,getOffsetList)
 import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
@@ -28,6 +28,23 @@ unsafeTy tyString =
 spec :: Spec
 spec = do
   describe "FromWasmSpec" $ do
+    describe "getOffsetList" $ do
+      it "Tuple of ints" $ do
+        getOffsetList (unsafeTy "(Int32,Int32,Int64)")
+          `shouldBe` [0,4,8,16]
+
+      it "Tuple of smaller ints" $ do
+        getOffsetList (unsafeTy "(Int8,Int8,Int64)")
+          `shouldBe` [0,1,2,10]
+
+      it "Construct with single item" $ do
+        getOffsetList (unsafeTy "Maybe(Int8)")
+          `shouldBe` [1,2]
+
+      it "Construct with two items" $ do
+        getOffsetList (unsafeTy "These(Int8,Int64)")
+          `shouldBe` [1,2,10]
+
     describe "calculateMonomorphisedTypes" $ do
       it "Ints" $ do
         monomorphiseTypes @() ["a", "b"] [tyVar "a", tyVar "b"] [tyInt32, tyInt64]

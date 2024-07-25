@@ -13,7 +13,6 @@ import Calc.Wasm.FromExpr.Drops
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Patterns
 import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Control.Monad.Except
