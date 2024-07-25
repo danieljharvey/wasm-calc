@@ -40,6 +40,7 @@ common shared
     , file-embed
     , hashable
     , haskeline
+    , lsp
     , megaparsec
     , mtl
     , parser-combinators
@@ -67,6 +68,7 @@ common shared
     Calc.Linearity.Error
     Calc.Linearity.Types
     Calc.Linearity.Validate
+    Calc.Lsp
     Calc.Module
     Calc.Parser
     Calc.Parser.Data
@@ -192,6 +194,7 @@ executable wasm-calc11
     , file-embed
     , hashable
     , haskeline
+    , lsp
     , megaparsec
     , mtl
     , optparse-applicative
