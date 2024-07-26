@@ -1,8 +1,8 @@
 module Main where
 
-import Control.Monad (void)
 import qualified Calc
 import Control.Applicative
+import Control.Monad (void)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Options.Applicative as Opt
@@ -22,13 +22,13 @@ parseAppAction =
         ( Opt.info
             (pure Repl)
             (Opt.progDesc "Start new calc repl")
-        ) <> Opt.command
-        "lsp"
-        ( Opt.info
-            (pure Lsp)
-            (Opt.progDesc "Start calc lsp")
         )
-
+        <> Opt.command
+          "lsp"
+          ( Opt.info
+              (pure Lsp)
+              (Opt.progDesc "Start calc lsp")
+          )
         <> Opt.command
           "build"
           ( Opt.info

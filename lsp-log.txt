@@ -1,0 +1,19 @@
+
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders [WorkspaceFolder {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}, _name = "/Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}]
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders [WorkspaceFolder {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}, _name = "/Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}]
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders [WorkspaceFolder {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}, _name = "/Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}]
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders [WorkspaceFolder {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}, _name = "/Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}]
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders [WorkspaceFolder {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}, _name = "/Users/danielharvey/Git/wasm-calc/wasm-calc11/demo"}]
