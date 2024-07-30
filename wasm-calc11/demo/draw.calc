@@ -55,3 +55,4 @@ export function test() -> Void {
   else
     set(index, 0)
 }
+
