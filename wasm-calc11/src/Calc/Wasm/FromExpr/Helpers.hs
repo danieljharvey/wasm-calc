@@ -255,11 +255,16 @@ fromPrim (TPrim _ TInt64) (PIntLit i) =
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
 
-getOffsetList :: Type ann -> [Natural]
+getOffsetList :: (MonadError FromWasmError m, MonadState FromExprState m) => Type ann -> m [Natural]
 getOffsetList (TContainer _ items) =
-  scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
-getOffsetList _ = []
-
+  pure $ scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
+getOffsetList (TConstructor _ constructor _items) = do
+  maybeDataType <- gets (M.lookup constructor . fesDataTypes)
+  dt <- case maybeDataType of
+    Just dt -> pure dt
+    Nothing -> error "oh fuck"
+  error (show dt)
+getOffsetList _ = pure []
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural

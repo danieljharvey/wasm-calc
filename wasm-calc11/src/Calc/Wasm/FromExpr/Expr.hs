@@ -28,7 +28,7 @@ patternBindings ::
   Natural ->
   m WasmExpr
 patternBindings pat patExpr index = do
-  let paths = patternToPaths (fst <$> pat) id
+  paths <- patternToPaths (fst <$> pat) id
 
   -- turn patterns into indexes and expressions
   indexes <-
@@ -49,12 +49,14 @@ patternBindings pat patExpr index = do
   -- convert the continuation expr
   wasmPatExpr <- fromExprWithDrops patExpr
 
+  dropPaths <- patternToDropPaths pat id
+
   -- drop items in the match expr we will no longer need
-  dropPaths <-
-    traverse (addDropsFromPath index) (patternToDropPaths pat id)
+  dropPathExprs <-
+    traverse (addDropsFromPath index) dropPaths
 
   -- take care of stuff we've pattern matched into oblivion
-  let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPaths
+  let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPathExprs
 
   pure $
     foldr
@@ -75,7 +77,7 @@ fromLet ::
   Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
 fromLet pat expr rest = do
-  let paths = patternToPaths (fst <$> pat) id
+  paths <- patternToPaths (fst <$> pat) id
   if null paths
     then do
       wasmTy <- liftEither $ scalarFromType $ fst $ getOuterPatternAnnotation pat
@@ -138,10 +140,10 @@ fromMatch expr pats = do
       wasmPatExpr <-
         foldr
           ( \(pat, patExpr) wholeExpr -> do
+              preds <-
+                  predicatesFromPattern dataTypes (fst <$> pat) mempty
               predExprs <-
-                traverse
-                  (predicateToWasm (WVar index))
-                  (predicatesFromPattern dataTypes (fst <$> pat) mempty)
+                traverse (predicateToWasm (WVar index)) preds
               wasmPatExpr <- patternBindings pat patExpr index
               case NE.nonEmpty predExprs of
                 Nothing -> pure wasmPatExpr
@@ -198,7 +200,7 @@ fromExpr (EConstructor (ty,_) _constructor args) = do
   let allItems = zip [0..] args
       tupleLength = memorySizeForType ty
       allocate = WAllocate (fromIntegral tupleLength)
-      offsetList = getOffsetList ty
+  offsetList <- getOffsetList ty
   WSet index allocate
     <$> traverse
       ( \(i, item) ->
@@ -247,7 +249,7 @@ fromExpr (ETuple (ty, _) a as) = do
   let allItems = zip [0 ..] (a : NE.toList as)
       tupleLength = memorySizeForType ty
       allocate = WAllocate (fromIntegral tupleLength)
-      offsetList = getOffsetList ty
+  offsetList <-  getOffsetList ty
   WSet index allocate
     <$> traverse
       ( \(i, item) ->

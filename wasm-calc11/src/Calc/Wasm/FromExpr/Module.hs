@@ -177,12 +177,14 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
-getDataTypeMap :: [Data ann] -> M.Map DataName [FromExprConstructor]
+getDataTypeMap :: [Data ann] -> Either FromWasmError (M.Map DataName [FromExprConstructor])
 getDataTypeMap =
-  foldMap (\(Data {dtName,dtConstructors}) ->
-    let withConstructor (dtCon,dtConTypes) =
-          FromExprConstructor { fecConstructor = dtCon, fecTypes = dtConTypes }
-     in M.singleton dtName (withConstructor <$> M.toList dtConstructors))
+  fmap mconcat  . traverse (\(Data {dtName,dtConstructors}) ->
+    let withConstructor (dtCon,dtConTypes) = do
+          wasmTypes <- traverse scalarFromType dtConTypes
+          pure $ FromExprConstructor { fecConstructor = dtCon,
+                    fecTypes = wasmTypes }
+     in M.singleton dtName <$> (traverse withConstructor $ M.toList dtConstructors))
 
 fromModule ::
   (Show ann, Ord ann) =>
@@ -193,7 +195,7 @@ fromModule wholeMod@(Module {mdDataTypes,mdMemory, mdTests, mdGlobals, mdImports
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap mdFunctions
   globalMap <- getGlobalMap mdGlobals
-  let dataTypeMap = getDataTypeMap mdDataTypes
+  dataTypeMap <- getDataTypeMap mdDataTypes
 
   wasmGlobals <- traverse fromGlobal mdGlobals
 
