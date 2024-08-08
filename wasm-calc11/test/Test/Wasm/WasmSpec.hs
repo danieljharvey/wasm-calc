@@ -371,8 +371,10 @@ spec = do
                     ],
                 Wasm.VI64 202
               ),
-              ( joinLines ["type Maybe<a> = Just(a) | Nothing",
-                asTest "case Just((100: Int64)) { Just(a) -> a + 1, Nothing -> 0 }"],
+              ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    asTest "case Just((100: Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
+                  ],
                 Wasm.VI64 101
               )
               {-,

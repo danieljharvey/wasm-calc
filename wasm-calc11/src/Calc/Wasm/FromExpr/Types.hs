@@ -7,7 +7,8 @@ module Calc.Wasm.FromExpr.Types
     FromExprFunc (..),
     FromExprImport (..),
     FromWasmError (..),
-  FromExprConstructor(..))
+    FromExprConstructor (..),
+  )
 where
 
 import Calc.Types
@@ -28,10 +29,10 @@ data FromExprState = FromExprState
   }
   deriving stock (Eq, Ord, Show)
 
-data FromExprConstructor = FromExprConstructor {
-  fecConstructor :: Constructor,
-  fecTypes :: [WasmType]
-                                               }
+data FromExprConstructor = FromExprConstructor
+  { fecConstructor :: Constructor,
+    fecTypes :: [WasmType]
+  }
   deriving stock (Eq, Ord, Show)
 
 newtype FromExprGlobal = FromExprGlobal

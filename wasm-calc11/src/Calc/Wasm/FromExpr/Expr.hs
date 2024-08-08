@@ -141,7 +141,7 @@ fromMatch expr pats = do
         foldr
           ( \(pat, patExpr) wholeExpr -> do
               preds <-
-                  predicatesFromPattern dataTypes (fst <$> pat) mempty
+                predicatesFromPattern dataTypes (fst <$> pat) mempty
               predExprs <-
                 traverse (predicateToWasm (WVar index)) preds
               wasmPatExpr <- patternBindings pat patExpr index
@@ -193,14 +193,14 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
-fromExpr (EConstructor (ty,_) _constructor args) = do
+fromExpr (EConstructor (ty, _) _constructor args) = do
   -- TODO: add the constructor number in
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
-  let allItems = zip [0..] args
+  let allItems = zip [0 ..] args
       tupleLength = memorySizeForType ty
       allocate = WAllocate (fromIntegral tupleLength)
-  offsetList <- getOffsetList ty
+  let offsetList = getOffsetList ty
   WSet index allocate
     <$> traverse
       ( \(i, item) ->
@@ -249,7 +249,7 @@ fromExpr (ETuple (ty, _) a as) = do
   let allItems = zip [0 ..] (a : NE.toList as)
       tupleLength = memorySizeForType ty
       allocate = WAllocate (fromIntegral tupleLength)
-  offsetList <-  getOffsetList ty
+  let offsetList = getOffsetList ty
   WSet index allocate
     <$> traverse
       ( \(i, item) ->

@@ -16,8 +16,9 @@ import Calc.Linearity (Drops (..))
 import Calc.TypeUtils (monoidType)
 import Calc.Types
 import Calc.Wasm.FromExpr.Helpers
-  ( getOffsetList,addGeneratedFunction,
+  ( addGeneratedFunction,
     genericArgName,
+    getOffsetList,
     lookupIdent,
     scalarFromType,
   )
@@ -111,23 +112,27 @@ addDropsToWasmExpr drops wasmExpr =
     Nothing -> pure wasmExpr
 
 typeToDropPaths ::
-  (MonadState FromExprState m, MonadError FromWasmError m) => Type ann ->
+  (MonadState FromExprState m, MonadError FromWasmError m) =>
+  Type ann ->
   (DropPath ann -> DropPath ann) ->
   m [DropPath ann]
 typeToDropPaths ty@(TContainer _ tyItems) addPath = do
-  offsetList <- getOffsetList ty
-  innerPaths <- traverse
-         ( \(index, innerTy) ->
-              typeToDropPaths
-                innerTy
-                ( DropPathSelect innerTy (offsetList !! index)
-                    . addPath
-                )
-          )
-            (zip [0 ..] (NE.toList tyItems))
+  let offsetList = getOffsetList ty
+  innerPaths <-
+    traverse
+      ( \(index, innerTy) ->
+          typeToDropPaths
+            innerTy
+            ( DropPathSelect innerTy (offsetList !! index)
+                . addPath
+            )
+      )
+      (zip [0 ..] (NE.toList tyItems))
 
-  pure (mconcat innerPaths
-        <> [addPath (DropPathFetch Nothing)])
+  pure
+    ( mconcat innerPaths
+        <> [addPath (DropPathFetch Nothing)]
+    )
 typeToDropPaths (TVar _ tyVar) addPath =
   pure [addPath (DropPathFetch (Just tyVar))]
 typeToDropPaths _ _ = pure mempty
@@ -154,8 +159,13 @@ dropFunctionForType ty =
       dropFunc <- createDropFunction 1 ty
       WFunctionPointer <$> addGeneratedFunction dropFunc
 
-createDropFunction :: (MonadError FromWasmError m,
-                          MonadState FromExprState m) => Natural -> Type ann -> m WasmFunction
+createDropFunction ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m
+  ) =>
+  Natural ->
+  Type ann ->
+  m WasmFunction
 createDropFunction natIndex ty = do
   dropPaths <- typeToDropPaths ty id
   let typeVarList = S.toList (typeVars ty)

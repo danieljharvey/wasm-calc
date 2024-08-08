@@ -179,18 +179,24 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
 
 getDataTypeMap :: [Data ann] -> Either FromWasmError (M.Map DataName [FromExprConstructor])
 getDataTypeMap =
-  fmap mconcat  . traverse (\(Data {dtName,dtConstructors}) ->
-    let withConstructor (dtCon,dtConTypes) = do
-          wasmTypes <- traverse scalarFromType dtConTypes
-          pure $ FromExprConstructor { fecConstructor = dtCon,
-                    fecTypes = wasmTypes }
-     in M.singleton dtName <$> (traverse withConstructor $ M.toList dtConstructors))
+  fmap mconcat
+    . traverse
+      ( \(Data {dtName, dtConstructors}) ->
+          let withConstructor (dtCon, dtConTypes) = do
+                wasmTypes <- traverse scalarFromType dtConTypes
+                pure $
+                  FromExprConstructor
+                    { fecConstructor = dtCon,
+                      fecTypes = wasmTypes
+                    }
+           in M.singleton dtName <$> (traverse withConstructor $ M.toList dtConstructors)
+      )
 
 fromModule ::
   (Show ann, Ord ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule wholeMod@(Module {mdDataTypes,mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
+fromModule wholeMod@(Module {mdDataTypes, mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
   let moduleAbilities = getAbilitiesForModule wholeMod
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap mdFunctions

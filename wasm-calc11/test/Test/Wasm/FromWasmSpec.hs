@@ -1,9 +1,9 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Wasm.FromWasmSpec (spec) where
 
-import Control.Monad.State
 import Calc.Parser
 import Calc.Types
 import Calc.Wasm.FromExpr.Drops
@@ -11,12 +11,14 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.FromExpr.Helpers (monomorphiseTypes,getOffsetList)
+import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
 import Calc.Wasm.FromExpr.Patterns.Predicates
+import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
+import Control.Monad.State
 import Data.Foldable (traverse_)
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Test.Helpers
 import Test.Hspec
@@ -28,27 +30,52 @@ unsafeTy tyString =
     Right ty -> void ty
 
 exprState :: FromExprState
-exprState = FromExprState {}
+exprState =
+  FromExprState
+    { fesFunctions = mempty,
+      fesImports = mempty,
+      fesGlobals = mempty,
+      fesVars = mempty,
+      fesArgs = mempty,
+      fesGenerated = mempty,
+      fesDataTypes
+    }
+  where
+    fesDataTypes =
+      M.fromList
+        [ ( DataName "Maybe",
+            [ FromExprConstructor "Just" [Pointer],
+              FromExprConstructor "Nothing" []
+            ]
+          ),
+          ( DataName "These",
+            [ FromExprConstructor "This" [Pointer],
+              FromExprConstructor "That" [Pointer],
+              FromExprConstructor "These" [Pointer, Pointer]
+            ]
+          )
+        ]
 
 spec :: Spec
 spec = do
   describe "FromWasmSpec" $ do
     describe "getOffsetList" $ do
       it "Tuple of ints" $ do
-        flip evalStateT exprState (getOffsetList (unsafeTy "(Int32,Int32,Int64)"))
-          `shouldBe` Right [0,4,8,16]
+        getOffsetList (unsafeTy "(Int32,Int32,Int64)")
+          `shouldBe` [0, 4, 8, 16]
 
       it "Tuple of smaller ints" $ do
-        flip evalStateT exprState (getOffsetList (unsafeTy "(Int8,Int8,Int64)"))
-          `shouldBe` Right [0,1,2,10]
+        getOffsetList (unsafeTy "(Int8,Int8,Int64)")
+          `shouldBe` [0, 1, 2, 10]
 
+    describe "getOffsetListForConstructor" $ do
       it "Construct with single item" $ do
-        flip evalStateT exprState (getOffsetList (unsafeTy "Maybe(Int8)"))
-          `shouldBe` Right [1,2]
+        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "Maybe(Int8)") "Just")
+          `shouldBe` Right [1, 5]
 
       it "Construct with two items" $ do
-        flip evalStateT exprState (getOffsetList (unsafeTy "These(Int8,Int64)"))
-          `shouldBe` Right [1,2,10]
+        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These")
+          `shouldBe` Right [1, 5, 9]
 
     describe "calculateMonomorphisedTypes" $ do
       it "Ints" $ do
@@ -120,8 +147,11 @@ spec = do
       traverse_
         ( \(tyString, wasmFunc) -> do
             it (show tyString) $ do
-              flip evalStateT exprState
-                (createDropFunction 1 (unsafeTy tyString))`shouldBe` Right wasmFunc
+              flip
+                evalStateT
+                exprState
+                (createDropFunction 1 (unsafeTy tyString))
+                `shouldBe` Right wasmFunc
         )
         testVals
 
@@ -149,8 +179,11 @@ spec = do
       traverse_
         ( \(tyString, paths) -> do
             it (show tyString) $ do
-              flip evalStateT exprState
-                  (typeToDropPaths (unsafeTy tyString) id) `shouldBe` Right paths
+              flip
+                evalStateT
+                exprState
+                (typeToDropPaths (unsafeTy tyString) id)
+                `shouldBe` Right paths
         )
         testVals
 
@@ -194,6 +227,6 @@ spec = do
           ( \(predicate, val, expected) ->
               it (show predicate) $ do
                 flip evalStateT exprState (predicateToWasm @_ @() val predicate)
-                    `shouldBe` Right expected
+                  `shouldBe` Right expected
           )
           testVals

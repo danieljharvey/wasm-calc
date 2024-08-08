@@ -11,7 +11,6 @@ module Calc.Wasm.FromExpr.Patterns.Paths
   )
 where
 
-import Control.Monad.State
 import Calc.ExprUtils
 import Calc.Linearity (Drops (..))
 import Calc.Types
@@ -19,6 +18,7 @@ import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
 import Control.Monad.Except
+import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import GHC.Natural
@@ -33,8 +33,10 @@ data Path ann
 
 -- | return a path to every item in Expr marked with `DropMe`.
 patternToDropPaths ::
-  (Eq ann, MonadState FromExprState m,
-    MonadError FromWasmError m) =>
+  ( Eq ann,
+    MonadState FromExprState m,
+    MonadError FromWasmError m
+  ) =>
   Pattern (Type ann, Maybe (Drops ann)) ->
   (Path ann -> Path ann) ->
   m [Path ann]
@@ -50,18 +52,19 @@ patternToDropPaths (PBox (ty, drops) a) addPath = do
 patternToDropPaths (PLiteral {}) _ =
   pure mempty
 patternToDropPaths (PTuple (ty, drops) a as) addPath = do
-  offsetList <- getOffsetList ty
+  let offsetList = getOffsetList ty
   let dropContainer =
         ([addPath (PathFetch ty) | drops == Just DropMe])
   pathsHead <-
-      patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) (head offsetList) . addPath)
+    patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) (head offsetList) . addPath)
   pathsTail <-
-          traverse ( \(index, innerPat) ->
-                let innerTy = fst (getOuterPatternAnnotation innerPat)
-                 in patternToDropPaths innerPat (PathSelect innerTy (offsetList !! index) . addPath)
-            )
-              (zip [1 ..] (NE.toList as)
-          )
+    traverse
+      ( \(index, innerPat) ->
+          let innerTy = fst (getOuterPatternAnnotation innerPat)
+           in patternToDropPaths innerPat (PathSelect innerTy (offsetList !! index) . addPath)
+      )
+      ( zip [1 ..] (NE.toList as)
+      )
   pure (pathsHead <> mconcat pathsTail <> dropContainer)
 patternToDropPaths (PConstructor {}) _ = error "patternToDropPaths: PConstructor"
 
@@ -77,19 +80,32 @@ patternToPaths (PVar ty ident) addPath =
 patternToPaths (PBox _ pat) addPath =
   patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) 0 . addPath)
 patternToPaths (PTuple ty p ps) addPath = do
-  offsetList <-  getOffsetList ty
+  let offsetList = getOffsetList ty
 
   pathsHead <- patternToPaths p (PathSelect (getOuterPatternAnnotation p) (head offsetList) . addPath)
 
-  pathsTail <- traverse
-           ( \(index, pat) ->
-                let innerTy = getOuterPatternAnnotation pat
-                 in patternToPaths pat (PathSelect innerTy (offsetList !! index) . addPath)
-            )
-              (zip [1 ..] (NE.toList ps))
+  pathsTail <-
+    traverse
+      ( \(index, pat) ->
+          let innerTy = getOuterPatternAnnotation pat
+           in patternToPaths pat (PathSelect innerTy (offsetList !! index) . addPath)
+      )
+      (zip [1 ..] (NE.toList ps))
 
   pure (pathsHead <> mconcat pathsTail)
-patternToPaths (PConstructor {}) _ = error "patternToPaths: PConstructor"
+patternToPaths (PConstructor ty constructor ps) addPath = do
+  offsetList <- getOffsetListForConstructor ty constructor
+  paths <-
+    traverse
+      ( \(index, pat) ->
+          let innerTy = getOuterPatternAnnotation pat
+           in patternToPaths pat (PathSelect innerTy (offsetList !! index) . addPath)
+      )
+      (zip [1 ..] ps)
+
+  pure (mconcat paths)
+
+
 
 -- | given a path, create AST for fetching it
 fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr

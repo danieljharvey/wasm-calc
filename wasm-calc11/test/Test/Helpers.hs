@@ -19,7 +19,7 @@ module Test.Helpers
     tyVar,
     patTuple,
     patInt,
-  patBool,
+    patBool,
     patVar,
   )
 where
@@ -87,7 +87,6 @@ patTuple = \case
 
 patBool :: (Monoid ann) => Bool -> Pattern ann
 patBool = PLiteral mempty . PBool
-
 
 patInt :: (Monoid ann) => Word64 -> Pattern ann
 patInt = PLiteral mempty . PIntLit

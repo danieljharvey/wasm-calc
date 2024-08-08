@@ -350,7 +350,7 @@ checkPattern (TConstructor _ tyDataName tyArgs) (PConstructor ann constructor pa
     lookupConstructor ann constructor
 
   unless (tyDataName == dataTypeName) $
-      error "wrong"
+    error "wrong"
 
   let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
 

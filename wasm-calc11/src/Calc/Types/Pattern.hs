@@ -4,11 +4,11 @@
 
 module Calc.Types.Pattern where
 
+import Calc.Types.Constructor
 import Calc.Types.Identifier
 import Calc.Types.Prim
 import qualified Data.List.NonEmpty as NE
 import qualified Prettyprinter as PP
-import Calc.Types.Constructor
 
 data Pattern ann
   = PVar ann Identifier

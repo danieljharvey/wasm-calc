@@ -91,5 +91,3 @@ patConstructorParser =
             PConstructor loc cons args
         )
         parser
-
-

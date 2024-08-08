@@ -15,12 +15,14 @@ module Calc.Wasm.FromExpr.Helpers
     lookupFunction,
     genericArgName,
     monomorphiseTypes,
-    fromPrim,getOffsetList, boxed,memorySizeForType
+    fromPrim,
+    getOffsetList,
+  getOffsetListForConstructor,
+    boxed,
+    memorySizeForType,
   )
 where
 
-import Data.Monoid
-import qualified Data.List.NonEmpty as NE
 import Calc.ExprUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
@@ -34,7 +36,9 @@ import Control.Monad (void)
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import Data.Monoid
 import qualified Data.Set as S
 import qualified Data.Text as T
 import GHC.Natural
@@ -255,16 +259,28 @@ fromPrim (TPrim _ TInt64) (PIntLit i) =
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
 
-getOffsetList :: (MonadError FromWasmError m, MonadState FromExprState m) => Type ann -> m [Natural]
+getOffsetList :: Type ann -> [Natural]
 getOffsetList (TContainer _ items) =
-  pure $ scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
-getOffsetList (TConstructor _ constructor _items) = do
-  maybeDataType <- gets (M.lookup constructor . fesDataTypes)
+  scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
+getOffsetList _ = []
+
+-- right now, we assume that each polymorphic value inside a type is a Pointer
+-- type
+getOffsetListForConstructor :: (MonadError FromWasmError m, MonadState FromExprState m) => 
+  Type ann -> Constructor -> m [Natural]
+getOffsetListForConstructor (TConstructor _ dataTypeName _items) constructor = do
+  maybeDataType <- gets (M.lookup dataTypeName . fesDataTypes)
   dt <- case maybeDataType of
     Just dt -> pure dt
-    Nothing -> error "oh fuck"
-  error (show dt)
-getOffsetList _ = pure []
+    Nothing -> error $ "oh fuck couldn't find " <> show constructor
+  let tys = lookupConstructor dt constructor
+  pure $ scanl (\offset item -> offset + memorySize item) (memorySize I8) tys 
+getOffsetListForConstructor _ _ = pure []
+
+lookupConstructor :: [FromExprConstructor] -> Constructor -> [WasmType]
+lookupConstructor (FromExprConstructor constructorA tys : rest) constructor
+  = if constructor == constructorA then tys else lookupConstructor rest constructor
+lookupConstructor [] _ = error "sdfsdf"
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
@@ -337,4 +353,3 @@ memorySizeForType (TVar _ _) =
   memorySize Pointer
 memorySizeForType (TUnificationVar _ _) =
   error "memorySizeForType TUnificationVar"
-

@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-  {-# LANGUAGE LambdaCase #-}
+
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
     lookupVar,
@@ -12,8 +13,8 @@ module Calc.Typecheck.Helpers
     lookupGlobal,
     arrangeDataTypes,
     calculateMonomorphisedTypes,
-  lookupConstructor,
-  matchConstructorTypesToArgs
+    lookupConstructor,
+    matchConstructorTypesToArgs,
   )
 where
 
@@ -214,7 +215,6 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
 flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
 flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
 
-
 lookupConstructor ::
   ann ->
   Constructor ->
@@ -226,8 +226,6 @@ lookupConstructor ann constructor = do
       pure (dataType, vars, args)
     Nothing ->
       throwError $ ConstructorNotFound ann constructor
-
-
 
 matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
 matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
@@ -241,4 +239,3 @@ matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
         )
           <$> dataTypeArgs
    in filteredTyArgs
-
