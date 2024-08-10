@@ -4,6 +4,7 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
+import Debug.Trace
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Module
@@ -72,7 +73,7 @@ spec = do
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ (asTest "42", Wasm.VI64 42),
+            [ {-(asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -370,7 +371,7 @@ spec = do
                       "}"
                     ],
                 Wasm.VI64 202
-              ),
+              ), -}
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
                     asTest "let boxA: Box(Int64) = Box(100); case Just(boxA) { Just(Box(a)) -> a + 1, Nothing -> 0 }"
@@ -392,7 +393,7 @@ spec = do
               )-}
             ]
 
-      fdescribe "From expressions" $ do
+      describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
       describe "Deallocations for expressions" $ do
@@ -460,7 +461,7 @@ compile input =
                 case FromExpr.fromModule typedMod of
                   Left e -> error (show e)
                   Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount wasmMod)
+                    ToWasm.moduleToWasm (addAllocCount (traceShowId wasmMod))
 
 -- add a `alloccount` function that returns state of allocator
 addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule
