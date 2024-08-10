@@ -193,22 +193,25 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
-fromExpr (EConstructor (ty, _) _constructor args) = do
+fromExpr (EConstructor (ty, _) constructor args) = do
+  let constructorNumber = WPrim (WPInt32 0)
   -- TODO: add the constructor number in
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
-  let allItems = zip [0 ..] args
-      tupleLength = memorySizeForType ty
-      allocate = WAllocate (fromIntegral tupleLength)
-  let offsetList = getOffsetList ty
-  WSet index allocate
-    <$> traverse
+  let allItems = zip [1 ..] args
+  tupleLength <- memorySizeForType ty
+  let allocate = WAllocate (fromIntegral tupleLength)
+  offsetList <-  getOffsetListForConstructor ty constructor
+
+  wasmItems <- traverse
       ( \(i, item) ->
           (,,) (offsetList !! i)
             <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
             <*> fromExpr item
       )
       allItems
+  pure $ WSet index allocate ((0,I8,constructorNumber) : wasmItems)
+
 fromExpr (EBlock (_, Just _) _) = do
   error "found drops on block"
 fromExpr (EBlock _ expr) = do
@@ -247,9 +250,9 @@ fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
   let allItems = zip [0 ..] (a : NE.toList as)
-      tupleLength = memorySizeForType ty
-      allocate = WAllocate (fromIntegral tupleLength)
-  let offsetList = getOffsetList ty
+  tupleLength <- memorySizeForType ty
+  let allocate = WAllocate (fromIntegral tupleLength)
+      offsetList = getOffsetList ty
   WSet index allocate
     <$> traverse
       ( \(i, item) ->

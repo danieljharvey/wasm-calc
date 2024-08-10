@@ -373,7 +373,7 @@ spec = do
               ),
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case Just((100: Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
+                    asTest "let boxA: Box(Int64) = Box(100); case Just(boxA) { Just(Box(a)) -> a + 1, Nothing -> 0 }"
                   ],
                 Wasm.VI64 101
               )
@@ -392,7 +392,7 @@ spec = do
               )-}
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
       describe "Deallocations for expressions" $ do

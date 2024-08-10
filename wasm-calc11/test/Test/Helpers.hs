@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-
+  {-# LANGUAGE NamedFieldPuns #-}
 module Test.Helpers
   ( joinLines,
     int,
@@ -20,10 +20,13 @@ module Test.Helpers
     patTuple,
     patInt,
     patBool,
-    patVar,
+    patVar,exprState
   )
 where
 
+import qualified Data.Map.Strict as M
+import Calc.Wasm.FromExpr.Types
+import Calc.Wasm.ToWasm.Types
 import Calc
 import qualified Data.List.NonEmpty as NE
 import Data.String
@@ -93,3 +96,31 @@ patInt = PLiteral mempty . PIntLit
 
 patVar :: (Monoid ann) => String -> Pattern ann
 patVar = PVar mempty . fromString
+
+exprState :: FromExprState
+exprState =
+  FromExprState
+    { fesFunctions = mempty,
+      fesImports = mempty,
+      fesGlobals = mempty,
+      fesVars = mempty,
+      fesArgs = mempty,
+      fesGenerated = mempty,
+      fesDataTypes
+    }
+  where
+    fesDataTypes =
+      M.fromList
+        [ ( DataName "Maybe",
+            [ FromExprConstructor "Just" [Pointer],
+              FromExprConstructor "Nothing" []
+            ]
+          ),
+          ( DataName "These",
+            [ FromExprConstructor "This" [Pointer],
+              FromExprConstructor "That" [Pointer],
+              FromExprConstructor "These" [Pointer, Pointer]
+            ]
+          )
+        ]
+

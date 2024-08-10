@@ -328,28 +328,38 @@ offsetForType (TUnificationVar _ _) =
   error "offsetForType TUnificationVar"
 
 -- | the actual size of the item in memory
-memorySizeForType :: Type ann -> Natural
-memorySizeForType (TPrim _ TInt8) = memorySize I8
+-- | for sum types this will be the biggest possible amount
+memorySizeForType :: (MonadState FromExprState m) => Type ann -> m Natural
+memorySizeForType (TPrim _ TInt8) = pure $ memorySize I8
 memorySizeForType (TPrim _ TInt16) =
-  memorySize I16
+  pure $ memorySize I16
 memorySizeForType (TPrim _ TInt32) =
-  memorySize I32
+  pure $ memorySize I32
 memorySizeForType (TPrim _ TInt64) =
-  memorySize I64
+  pure $ memorySize I64
 memorySizeForType (TPrim _ TFloat32) =
-  memorySize F32
+  pure $ memorySize F32
 memorySizeForType (TPrim _ TFloat64) =
-  memorySize F64
+  pure $ memorySize F64
 memorySizeForType (TPrim _ TBool) =
-  memorySize I32
+  pure $ memorySize I32
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
-memorySizeForType (TConstructor {}) = error "memorySizeForType TConstructor"
+memorySizeForType (TConstructor _ constructor _) = do
+  dt <- gets (M.lookup constructor . fesDataTypes)
+  let discriminator = memorySize I8
+  case dt of
+    Just constructors ->  do
+      let sizeOfConstructor (FromExprConstructor _ tys) = 
+            getSum $ foldMap (Sum . memorySize) tys 
+      let sizes = sizeOfConstructor <$> constructors
+      pure $ discriminator + maximum sizes
+    Nothing -> error "fuck"
 memorySizeForType (TContainer _ as) =
-  getSum (foldMap (Sum . memorySizeForType) as)
+  getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeForType) (NE.toList as))
 memorySizeForType (TFunction {}) =
-  memorySize Pointer
+  pure $ memorySize Pointer
 memorySizeForType (TVar _ _) =
-  memorySize Pointer
+  pure $ memorySize Pointer
 memorySizeForType (TUnificationVar _ _) =
   error "memorySizeForType TUnificationVar"

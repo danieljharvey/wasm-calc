@@ -13,12 +13,10 @@ import Calc.Wasm.FromExpr.Drops
   )
 import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
 import Calc.Wasm.FromExpr.Patterns.Predicates
-import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Control.Monad.State
 import Data.Foldable (traverse_)
-import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Test.Helpers
 import Test.Hspec
@@ -28,33 +26,6 @@ unsafeTy tyString =
   case parseTypeAndFormatError tyString of
     Left e -> error (show e)
     Right ty -> void ty
-
-exprState :: FromExprState
-exprState =
-  FromExprState
-    { fesFunctions = mempty,
-      fesImports = mempty,
-      fesGlobals = mempty,
-      fesVars = mempty,
-      fesArgs = mempty,
-      fesGenerated = mempty,
-      fesDataTypes
-    }
-  where
-    fesDataTypes =
-      M.fromList
-        [ ( DataName "Maybe",
-            [ FromExprConstructor "Just" [Pointer],
-              FromExprConstructor "Nothing" []
-            ]
-          ),
-          ( DataName "These",
-            [ FromExprConstructor "This" [Pointer],
-              FromExprConstructor "That" [Pointer],
-              FromExprConstructor "These" [Pointer, Pointer]
-            ]
-          )
-        ]
 
 spec :: Spec
 spec = do

@@ -66,7 +66,21 @@ patternToDropPaths (PTuple (ty, drops) a as) addPath = do
       ( zip [1 ..] (NE.toList as)
       )
   pure (pathsHead <> mconcat pathsTail <> dropContainer)
-patternToDropPaths (PConstructor {}) _ = error "patternToDropPaths: PConstructor"
+patternToDropPaths (PConstructor (ty,drops) constructor ps) addPath = do
+  offsetList <- getOffsetListForConstructor ty constructor
+  let dropContainer =
+        ([addPath (PathFetch ty) | drops == Just DropMe])
+  paths <-
+    traverse
+      ( \(index, innerPat) ->
+          let innerTy = fst (getOuterPatternAnnotation innerPat)
+           in patternToDropPaths innerPat (PathSelect innerTy (offsetList !! index) . addPath)
+      )
+      (zip [1 ..] ps)
+
+  pure (mconcat paths <> dropContainer)
+
+
 
 patternToPaths ::
   (MonadError FromWasmError m, MonadState FromExprState m) =>
