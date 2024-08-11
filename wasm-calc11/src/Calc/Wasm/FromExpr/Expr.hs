@@ -134,14 +134,12 @@ fromMatch expr pats = do
       -- return type of exprs
       wasmReturnType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation headExpr
 
-      dataTypes <- gets fesDataTypes
-
       -- fold through patterns
       wasmPatExpr <-
         foldr
           ( \(pat, patExpr) wholeExpr -> do
               preds <-
-                predicatesFromPattern dataTypes (fst <$> pat) mempty
+                predicatesFromPattern (fst <$> pat) mempty
               predExprs <-
                 traverse (predicateToWasm (WVar index)) preds
               wasmPatExpr <- patternBindings pat patExpr index
@@ -201,17 +199,17 @@ fromExpr (EConstructor (ty, _) constructor args) = do
   let allItems = zip [1 ..] args
   tupleLength <- memorySizeForType ty
   let allocate = WAllocate (fromIntegral tupleLength)
-  offsetList <-  getOffsetListForConstructor ty constructor
+  offsetList <- getOffsetListForConstructor ty constructor
 
-  wasmItems <- traverse
+  wasmItems <-
+    traverse
       ( \(i, item) ->
           (,,) (offsetList !! i)
             <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
             <*> fromExpr item
       )
       allItems
-  pure $ WSet index allocate ((0,I8,constructorNumber) : wasmItems)
-
+  pure $ WSet index allocate ((0, I8, constructorNumber) : wasmItems)
 fromExpr (EBlock (_, Just _) _) = do
   error "found drops on block"
 fromExpr (EBlock _ expr) = do

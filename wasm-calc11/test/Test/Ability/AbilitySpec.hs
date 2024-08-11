@@ -58,7 +58,7 @@ spec = do
                   emptyModuleAbilities {maTests = M.singleton "box" (S.singleton (AllocateMemory ()))}
                 ),
                 ( "function main() -> Int32 { let _ = Just(1); 100 }",
-                  emptyModuleAbilities { maFunctions = M.singleton "main" (S.singleton (AllocateMemory ())) }
+                  emptyModuleAbilities {maFunctions = M.singleton "main" (S.singleton (AllocateMemory ()))}
                 ),
                 ( "import console.log as consoleLog(number: Int64) -> Void",
                   emptyModuleAbilities {maFunctions = mempty}

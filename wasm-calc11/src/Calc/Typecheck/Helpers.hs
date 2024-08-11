@@ -18,6 +18,7 @@ module Calc.Typecheck.Helpers
   )
 where
 
+import Data.Maybe (mapMaybe)
 import Calc.Typecheck.Error
 import Calc.Typecheck.Generalise
 import Calc.Typecheck.Types
@@ -206,11 +207,11 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
           (HM.toList unified)
       fromTv tv =
         case M.lookup tv mapped of
-          Just a -> (tv, a)
+          Just a -> Just (tv, a)
           Nothing -> case M.lookup tv fallbacks of
-            Just a -> (tv, a)
-            Nothing -> error "could not find"
-  pure $ fromTv <$> typeVars
+            Just a -> Just (tv, a)
+            Nothing -> Nothing
+  pure $ mapMaybe fromTv typeVars
 
 flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
 flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList

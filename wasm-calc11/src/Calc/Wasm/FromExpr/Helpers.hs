@@ -5,6 +5,7 @@
 module Calc.Wasm.FromExpr.Helpers
   ( getAbilitiesForFunction,
     scalarFromType,
+    lookupDataType,
     addLocal,
     lookupGlobal,
     lookupIdent,
@@ -17,12 +18,13 @@ module Calc.Wasm.FromExpr.Helpers
     monomorphiseTypes,
     fromPrim,
     getOffsetList,
-  getOffsetListForConstructor,
+    getOffsetListForConstructor,
     boxed,
     memorySizeForType,
   )
 where
 
+import Debug.Trace
 import Calc.ExprUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
@@ -264,23 +266,34 @@ getOffsetList (TContainer _ items) =
   scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
 getOffsetList _ = []
 
--- right now, we assume that each polymorphic value inside a type is a Pointer
--- type
-getOffsetListForConstructor :: (MonadError FromWasmError m, MonadState FromExprState m) => 
-  Type ann -> Constructor -> m [Natural]
-getOffsetListForConstructor (TConstructor _ dataTypeName _items) constructor = do
+lookupDataType :: (MonadState FromExprState m) => DataName -> m (Data ())
+lookupDataType dataTypeName = do
   maybeDataType <- gets (M.lookup dataTypeName . fesDataTypes)
-  dt <- case maybeDataType of
+  case maybeDataType of
     Just dt -> pure dt
-    Nothing -> error $ "oh fuck couldn't find " <> show constructor
-  let tys = lookupConstructor dt constructor
-  pure $ scanl (\offset item -> offset + memorySize item) (memorySize I8) tys 
-getOffsetListForConstructor _ _ = pure []
+    Nothing -> error $ "oh fuck couldn't find " <> show dataTypeName
 
-lookupConstructor :: [FromExprConstructor] -> Constructor -> [WasmType]
-lookupConstructor (FromExprConstructor constructorA tys : rest) constructor
-  = if constructor == constructorA then tys else lookupConstructor rest constructor
-lookupConstructor [] _ = error "sdfsdf"
+getOffsetListForConstructor ::
+  (MonadError FromWasmError m, MonadState FromExprState m) =>
+  Type ann ->
+  Constructor ->
+  m [Natural]
+getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = do
+  (Data _ dtVars constructors) <- lookupDataType dataTypeName
+  wasmTys <- case M.lookup constructor constructors of
+    Just constructorTys -> do
+      -- for `Just(I32)`, replace `a` in Maybe<a> with I32 
+      let replacements = monomorphiseTypes dtVars constructorTys (void <$> tyItems )
+      
+      -- now go through `tyItems`, swapping out TVar with `replacements`
+      -- then finally, run `memorySizeForType` on everything
+      traceShowM replacements
+     
+      _ <- error "Fix me now please"
+      traverse (liftEither . scalarFromType) constructorTys
+    Nothing -> error $ "did not find constructor " <> show constructor
+  pure $ scanl (\offset item -> offset + memorySize item) (memorySize I8) wasmTys
+getOffsetListForConstructor _ _ = pure []
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
@@ -315,7 +328,8 @@ offsetForType (TPrim _ TFloat64) =
   memorySize F64
 offsetForType (TPrim _ TBool) =
   memorySize I32
-offsetForType (TConstructor {}) = error "offsetForType TConstructor"
+offsetForType (TConstructor {}) =
+  memorySize Pointer
 offsetForType (TPrim _ TVoid) =
   error "offsetForType TVoid"
 offsetForType (TContainer _ _) =
@@ -345,16 +359,13 @@ memorySizeForType (TPrim _ TBool) =
   pure $ memorySize I32
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
-memorySizeForType (TConstructor _ constructor _) = do
-  dt <- gets (M.lookup constructor . fesDataTypes)
+memorySizeForType (TConstructor _ dataTypeName _) = do
+  (Data _ _ constructors) <- lookupDataType dataTypeName
   let discriminator = memorySize I8
-  case dt of
-    Just constructors ->  do
-      let sizeOfConstructor (FromExprConstructor _ tys) = 
-            getSum $ foldMap (Sum . memorySize) tys 
-      let sizes = sizeOfConstructor <$> constructors
-      pure $ discriminator + maximum sizes
-    Nothing -> error "fuck"
+      sizeOfConstructor tys =
+        getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeForType) tys)
+  sizes <- traverse sizeOfConstructor (M.elems constructors)
+  pure $ discriminator + maximum sizes
 memorySizeForType (TContainer _ as) =
   getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeForType) (NE.toList as))
 memorySizeForType (TFunction {}) =

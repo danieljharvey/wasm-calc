@@ -25,7 +25,7 @@ data FromExprState = FromExprState
     fesVars :: [(Maybe Identifier, WasmType)],
     fesArgs :: [(Identifier, WasmType)],
     fesGenerated :: [WasmFunction],
-    fesDataTypes :: M.Map DataName [FromExprConstructor]
+    fesDataTypes :: M.Map DataName (Data ())
   }
   deriving stock (Eq, Ord, Show)
 

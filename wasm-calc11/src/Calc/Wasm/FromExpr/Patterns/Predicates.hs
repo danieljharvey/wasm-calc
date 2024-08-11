@@ -5,7 +5,6 @@ module Calc.Wasm.FromExpr.Patterns.Predicates where
 
 import Calc.ExprUtils
 import Calc.TypeUtils
-import Calc.Types.DataName
 import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
@@ -16,7 +15,6 @@ import Calc.Wasm.ToWasm.Types
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
 import GHC.Natural
 
 data Predicate ann = Equals [(Type ann, Natural)] (Type ann) Prim
@@ -27,35 +25,33 @@ predicatesFromPattern ::
   ( MonadState FromExprState m,
     MonadError FromWasmError m
   ) =>
-  M.Map DataName [FromExprConstructor] ->
   Pattern (Type ann) ->
   [(Type ann, Natural)] ->
   m [Predicate ann]
-predicatesFromPattern _ (PWildcard {}) _ = pure mempty
-predicatesFromPattern _ (PLiteral ty prim) path = pure [Equals path ty prim]
-predicatesFromPattern _ (PVar {}) _ = pure mempty
-predicatesFromPattern dataTypes (PBox _ inner) path =
-  predicatesFromPattern dataTypes inner (path <> [(getOuterPatternAnnotation inner, 0)])
-predicatesFromPattern dataTypes (PTuple ty p ps) path = do
+predicatesFromPattern (PWildcard {}) _ = pure mempty
+predicatesFromPattern (PLiteral ty prim) path = pure [Equals path ty prim]
+predicatesFromPattern (PVar {}) _ = pure mempty
+predicatesFromPattern (PBox _ inner) path =
+  predicatesFromPattern inner (path <> [(getOuterPatternAnnotation inner, 0)])
+predicatesFromPattern (PTuple ty p ps) path = do
   let allPs = zip (p : NE.toList ps) [0 ..]
   let offsetList = getOffsetList ty
   mconcat
     <$> traverse
       ( \(pat, index) ->
           predicatesFromPattern
-            dataTypes
             pat
             (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
       )
       allPs
-predicatesFromPattern _dataTypes (PConstructor ty _constructor _) path =
+predicatesFromPattern (PConstructor ty _constructor _) path = do
   -- what
-  let _typeName = case ty of
-        TConstructor _ tn _ -> tn
-        _ -> error "should be type"
-      -- wrong but yolo
-      constructorValue = 1
-   in pure $ [Equals path (TPrim (getOuterTypeAnnotation ty) TInt32) (PIntLit constructorValue)]
+  _dt <- case ty of
+    TConstructor _ dataTypeName _ -> lookupDataType dataTypeName
+    _ -> error "should be type"
+  -- wrong but yolo
+  let constructorValue = 0
+  pure $ [Equals path (TPrim (getOuterTypeAnnotation ty) TInt32) (PIntLit constructorValue)]
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean

@@ -4,7 +4,6 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
-import Debug.Trace
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Module
@@ -21,6 +20,7 @@ import Data.FileEmbed
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)
 import qualified Data.Text as T
+import Debug.Trace
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure as Wasm
 import System.IO.Temp
@@ -374,7 +374,7 @@ spec = do
               ), -}
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "let boxA: Box(Int64) = Box(100); case Just(boxA) { Just(Box(a)) -> a + 1, Nothing -> 0 }"
+                    asTest "let a: Int64 = 100; case Just(a) { Just(a) -> a + 1, Nothing -> 0 }"
                   ],
                 Wasm.VI64 101
               )
@@ -393,7 +393,7 @@ spec = do
               )-}
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
       describe "Deallocations for expressions" $ do

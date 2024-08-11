@@ -66,7 +66,7 @@ patternToDropPaths (PTuple (ty, drops) a as) addPath = do
       ( zip [1 ..] (NE.toList as)
       )
   pure (pathsHead <> mconcat pathsTail <> dropContainer)
-patternToDropPaths (PConstructor (ty,drops) constructor ps) addPath = do
+patternToDropPaths (PConstructor (ty, drops) constructor ps) addPath = do
   offsetList <- getOffsetListForConstructor ty constructor
   let dropContainer =
         ([addPath (PathFetch ty) | drops == Just DropMe])
@@ -79,8 +79,6 @@ patternToDropPaths (PConstructor (ty,drops) constructor ps) addPath = do
       (zip [1 ..] ps)
 
   pure (mconcat paths <> dropContainer)
-
-
 
 patternToPaths ::
   (MonadError FromWasmError m, MonadState FromExprState m) =>
@@ -118,8 +116,6 @@ patternToPaths (PConstructor ty constructor ps) addPath = do
       (zip [1 ..] ps)
 
   pure (mconcat paths)
-
-
 
 -- | given a path, create AST for fetching it
 fromPath :: (MonadError FromWasmError m) => Natural -> Path ann -> m WasmExpr

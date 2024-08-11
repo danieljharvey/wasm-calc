@@ -7,13 +7,13 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import Calc.Types.Data
 import Calc.ExprUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Infer
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
+import Calc.Types.Data
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Global
