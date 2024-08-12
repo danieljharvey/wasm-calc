@@ -6,7 +6,7 @@ module Calc.Typecheck.Infer
     checkPattern,
   )
 where
-
+import Debug.Trace
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -406,6 +406,10 @@ checkConstructor maybeTy ann constructor args = do
       unless (tyCons == dataTypeName) $ error "wrong"
 
       filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
+
+      traceShowM ("filtered" :: String, void <$> filtered)
+      traceShowM ("args" ::String, void <$> args)
+
       typedArgs <- zipWithM check filtered args
       pure
         ( typedArgs,

@@ -1,7 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-
+  {-# LANGUAGE FlexibleContexts #-}
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
     lookupVar,
@@ -18,6 +18,7 @@ module Calc.Typecheck.Helpers
   )
 where
 
+import Calc.TypeUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Generalise
 import Calc.Typecheck.Types
@@ -234,11 +235,10 @@ lookupConstructor ann constructor = do
 matchConstructorTypesToArgs :: Constructor -> [TypeVar] -> [Type ann] -> [Type ann] -> TypecheckM ann [Type ann]
 matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs =
   let pairs = M.fromList (zip dataTypeVars tyArgs)
-   in traverse
-        ( \case
-            TVar ann var -> case M.lookup var pairs of
-              Just ty -> pure ty
-              Nothing -> throwError (UnknownGenericInConstructor ann constructor var)
-            otherTy -> pure otherTy
-        )
-        dataTypeArgs
+      replaceTy outerTy = case outerTy of
+                            TVar ann var -> case M.lookup var pairs of
+                              Just ty -> pure ty
+                              Nothing -> throwError (UnknownGenericInConstructor ann constructor var)
+                            otherTy -> bindType replaceTy otherTy
+
+   in traverse replaceTy dataTypeArgs

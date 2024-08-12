@@ -406,13 +406,13 @@ spec = do
                     "export function test() -> Boolean { case These(True,False) { This(a) -> a , That(b) -> b , These(a,b) -> a && b } }"
                   ],
                 Wasm.VI32 0
-              ) {-,
+              ) ,
                                ( joinLines
                                   [ "type List<a> = Cons(a, List(a)) | Nil",
                                     asTest "let value: List(Int64) = Cons((1:Int64),Cons((2:Int64),Nil)); case value { Cons(a,Cons(b,Nil)) -> a + b, _ -> 0 }"
                                   ],
                                 Wasm.VI64 3
-                              ),
+                              ){-,
 
                               ( joinLines
                                   [ "type Maybe<a> = Just(a) | Nothing",
@@ -420,8 +420,7 @@ spec = do
                                     asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
                                   ],
                                 Wasm.VI64 100
-                              )-
-                -}
+                              )-}
 
                 {-,
                 -- absolutely baffled why `allocated` is not dropped here when we

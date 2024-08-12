@@ -183,6 +183,16 @@ spec = do
                   ],
                 tyInt32
               ),
+               (joinLines
+                ["type List<a> = Cons(a, List(a)) | Nil",
+                "function main() -> Int32 { let _: List(Boolean) = Cons(True, Cons(False, Nil)); 100 }"],
+                tyInt32),
+               (joinLines
+                ["type List<a> = Cons(a, List(a)) | Nil",
+                "function main() -> Int32 { let _ = Cons(True, Cons(False, Nil)); 100 }"],
+                tyInt32),
+
+
               ( "function main() -> Int32 { case True { True -> 1, False -> 2 } }",
                 tyInt32
               )
