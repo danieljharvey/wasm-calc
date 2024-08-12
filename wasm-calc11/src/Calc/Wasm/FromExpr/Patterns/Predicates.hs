@@ -44,14 +44,31 @@ predicatesFromPattern (PTuple ty p ps) path = do
             (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
       )
       allPs
-predicatesFromPattern (PConstructor ty _constructor _) path = do
-  -- what
-  _dt <- case ty of
-    TConstructor _ dataTypeName _ -> lookupDataType dataTypeName
-    _ -> error "should be type"
-  -- wrong but yolo
-  let constructorValue = 0
-  pure $ [Equals path (TPrim (getOuterTypeAnnotation ty) TInt32) (PIntLit constructorValue)]
+predicatesFromPattern (PConstructor ty constructor ps) path = do
+  constructorValue <- getConstructorNumber ty constructor
+  -- make sure we've got the correct constructor
+  let discriminatorType = TPrim (getOuterTypeAnnotation ty) TInt8
+  let discriminatorPath = path <> [(discriminatorType, 0)]
+  let discriminatorMatch =
+        Equals
+          discriminatorPath
+          discriminatorType
+          (PIntLit (fromIntegral constructorValue))
+
+  offsetList <- getOffsetListForConstructor ty constructor
+
+  -- make sure any nested patterns work too
+  let indexedPs = zip ps [0 ..]
+  predicates <-
+    mconcat
+      <$> traverse
+        ( \(pat, index) ->
+            predicatesFromPattern
+              pat
+              (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
+        )
+        indexedPs
+  pure $ discriminatorMatch : predicates
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean

@@ -455,6 +455,7 @@ spec = do
                   (bool False)
               ),
               ("Red", EConstructor () "Red" []),
+              ("Nothing ", EConstructor () "Nothing" []),
               ("Some(1)", EConstructor () "Some" [int 1]),
               ( "case a { (1,2) -> 0, (a,b) -> a + b }",
                 EMatch

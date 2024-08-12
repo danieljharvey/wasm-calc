@@ -40,6 +40,7 @@ data TypeError ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
   | CantSetConstant ann Identifier
   | ConstructorNotFound ann Constructor
+  | UnknownGenericInConstructor ann Constructor TypeVar
   | PatternMatchError (PatternMatchError ann)
   deriving stock (Eq, Ord, Show)
 
@@ -106,6 +107,27 @@ typeErrorDiagnostic input e =
                         ( Diag.This
                             ( prettyPrint $
                                 "Instead got " <> PP.pretty tyPrim
+                            )
+                        )
+                  ]
+              )
+              []
+        (UnknownGenericInConstructor ann constructor var) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint $ "Constructor " <> PP.pretty constructor <> " does not provide a type for var" <> PP.pretty var
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint
+                                "Perhaps add a type annotation so that we know what should go here?"
                             )
                         )
                   ]

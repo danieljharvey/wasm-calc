@@ -20,7 +20,6 @@ import Data.FileEmbed
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)
 import qualified Data.Text as T
-import Debug.Trace
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure as Wasm
 import System.IO.Temp
@@ -73,7 +72,7 @@ spec = do
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ {-(asTest "42", Wasm.VI64 42),
+            [ (asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -371,13 +370,28 @@ spec = do
                       "}"
                     ],
                 Wasm.VI64 202
-              ), -}
+              ),
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "let a: Int64 = 100; case Just(a) { Just(a) -> a + 1, Nothing -> 0 }"
+                    asTest "case (Nothing:Maybe(Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
+                  ],
+                Wasm.VI64 0 -- quite disappointing we can't infer this from use, really we need to go all-in on HM to make all of this a bit friendlier
+              ),
+              ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    asTest "case Just((100: Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
                   ],
                 Wasm.VI64 101
+              ),
+              ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    "function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { case maybe { Just(a) -> a, Nothing -> default } }",
+                    asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
+                  ],
+                Wasm.VI64 100
               )
+
+
               {-,
               -- absolutely baffled why `allocated` is not dropped here when we
               -- generate what looks like the correct IR
@@ -393,7 +407,7 @@ spec = do
               )-}
             ]
 
-      fdescribe "From expressions" $ do
+      describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
       describe "Deallocations for expressions" $ do
@@ -461,7 +475,7 @@ compile input =
                 case FromExpr.fromModule typedMod of
                   Left e -> error (show e)
                   Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount (traceShowId wasmMod))
+                    ToWasm.moduleToWasm (addAllocCount wasmMod)
 
 -- add a `alloccount` function that returns state of allocator
 addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule

@@ -76,7 +76,7 @@ patternToDropPaths (PConstructor (ty, drops) constructor ps) addPath = do
           let innerTy = fst (getOuterPatternAnnotation innerPat)
            in patternToDropPaths innerPat (PathSelect innerTy (offsetList !! index) . addPath)
       )
-      (zip [1 ..] ps)
+      (zip [0 ..] ps)
 
   pure (mconcat paths <> dropContainer)
 
@@ -113,7 +113,7 @@ patternToPaths (PConstructor ty constructor ps) addPath = do
           let innerTy = getOuterPatternAnnotation pat
            in patternToPaths pat (PathSelect innerTy (offsetList !! index) . addPath)
       )
-      (zip [1 ..] ps)
+      (zip [0 ..] ps)
 
   pure (mconcat paths)
 

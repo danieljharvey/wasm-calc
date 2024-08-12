@@ -192,11 +192,12 @@ fromExpr (EPrim (ty, _) prim) =
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
 fromExpr (EConstructor (ty, _) constructor args) = do
-  let constructorNumber = WPrim (WPInt32 0)
-  -- TODO: add the constructor number in
+  -- what is the underlying discriminator value?
+  constructorNumber <- WPrim . WPInt32 . fromIntegral <$> getConstructorNumber ty constructor
+
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
-  let allItems = zip [1 ..] args
+  let allItems = zip [0 ..] args
   tupleLength <- memorySizeForType ty
   let allocate = WAllocate (fromIntegral tupleLength)
   offsetList <- getOffsetListForConstructor ty constructor

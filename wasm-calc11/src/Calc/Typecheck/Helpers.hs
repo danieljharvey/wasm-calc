@@ -18,7 +18,6 @@ module Calc.Typecheck.Helpers
   )
 where
 
-import Data.Maybe (mapMaybe)
 import Calc.Typecheck.Error
 import Calc.Typecheck.Generalise
 import Calc.Typecheck.Types
@@ -33,6 +32,7 @@ import qualified Data.HashMap.Strict as HM
 import Data.Hashable
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import Data.Maybe (mapMaybe)
 import qualified Data.Set as S
 
 -- | run a typechecking computation, discarding any Writer output
@@ -146,7 +146,7 @@ identifiersFromPattern (PConstructor ann constructor ps) (TConstructor _ _ tyArg
   (_dataTypeName, dataTypeVars, dataTypeArgs) <-
     lookupConstructor ann constructor
 
-  let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+  filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
 
   allIdents <- zipWithM identifiersFromPattern ps filtered
   pure $ mconcat allIdents
@@ -228,15 +228,17 @@ lookupConstructor ann constructor = do
     Nothing ->
       throwError $ ConstructorNotFound ann constructor
 
-matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
-matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
+-- given the arguments to a constructor, match them to the data types's vars
+-- if we cannot find one (ie, because user has typed `Nothing` so we don't know
+-- the `a` in `Maybe<a>`, explode, expecting a type annotation
+matchConstructorTypesToArgs :: Constructor -> [TypeVar] -> [Type ann] -> [Type ann] -> TypecheckM ann [Type ann]
+matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs =
   let pairs = M.fromList (zip dataTypeVars tyArgs)
-      filteredTyArgs =
+   in traverse
         ( \case
-            TVar _ var -> case M.lookup var pairs of
-              Just ty -> ty
-              Nothing -> error "cannot find"
-            otherTy -> otherTy
+            TVar ann var -> case M.lookup var pairs of
+              Just ty -> pure ty
+              Nothing -> throwError (UnknownGenericInConstructor ann constructor var)
+            otherTy -> pure otherTy
         )
-          <$> dataTypeArgs
-   in filteredTyArgs
+        dataTypeArgs

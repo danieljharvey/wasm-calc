@@ -352,7 +352,7 @@ checkPattern (TConstructor _ tyDataName tyArgs) (PConstructor ann constructor pa
   unless (tyDataName == dataTypeName) $
     error "wrong"
 
-  let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+  filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
 
   typedArgs <- zipWithM checkPattern filtered patArgs
 
@@ -405,7 +405,7 @@ checkConstructor maybeTy ann constructor args = do
     Just (tyCons, tyArgs) -> do
       unless (tyCons == dataTypeName) $ error "wrong"
 
-      let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+      filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
       typedArgs <- zipWithM check filtered args
       pure
         ( typedArgs,

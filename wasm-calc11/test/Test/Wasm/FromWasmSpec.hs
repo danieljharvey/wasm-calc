@@ -46,7 +46,11 @@ spec = do
 
       it "Construct with two items" $ do
         flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These")
-          `shouldBe` Right [1, 2, 6]
+          `shouldBe` Right [1, 2, 10]
+
+      it "Construct with two items" $ do
+        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This")
+          `shouldBe` Right [1, 2]
 
     describe "calculateMonomorphisedTypes" $ do
       it "Ints" $ do

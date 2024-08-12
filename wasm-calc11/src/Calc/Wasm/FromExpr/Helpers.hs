@@ -21,10 +21,10 @@ module Calc.Wasm.FromExpr.Helpers
     getOffsetListForConstructor,
     boxed,
     memorySizeForType,
+    getConstructorNumber,
   )
 where
 
-import Debug.Trace
 import Calc.ExprUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
@@ -282,16 +282,23 @@ getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = 
   (Data _ dtVars constructors) <- lookupDataType dataTypeName
   wasmTys <- case M.lookup constructor constructors of
     Just constructorTys -> do
-      -- for `Just(I32)`, replace `a` in Maybe<a> with I32 
-      let replacements = monomorphiseTypes dtVars constructorTys (void <$> tyItems )
-      
+      -- for `Just(I32)`, replace `a` in Maybe<a> with I32
+      let replacements = M.fromList $ monomorphiseTypes dtVars constructorTys (void <$> tyItems)
+
       -- now go through `tyItems`, swapping out TVar with `replacements`
       -- then finally, run `memorySizeForType` on everything
-      traceShowM replacements
-     
-      _ <- error "Fix me now please"
-      traverse (liftEither . scalarFromType) constructorTys
-    Nothing -> error $ "did not find constructor " <> show constructor
+
+      -- now we've learned about the types, swap the polymorphic ones for the
+      -- monomorphised ones
+      let toWasm ty = case ty of
+            TVar _ identifier -> case M.lookup identifier replacements of
+              Just a -> liftEither (scalarFromType a)
+              Nothing -> pure Pointer -- polymorphic values become "Pointer", this seems boringly safe
+            other -> liftEither (scalarFromType other)
+
+      traverse toWasm constructorTys
+    Nothing ->
+      error $ "did not find constructor " <> show constructor
   pure $ scanl (\offset item -> offset + memorySize item) (memorySize I8) wasmTys
 getOffsetListForConstructor _ _ = pure []
 
@@ -374,3 +381,13 @@ memorySizeForType (TVar _ _) =
   pure $ memorySize Pointer
 memorySizeForType (TUnificationVar _ _) =
   error "memorySizeForType TUnificationVar"
+
+getConstructorNumber :: (MonadState FromExprState m) => Type ann -> Constructor -> m Natural
+getConstructorNumber ty constructor = do
+  (Data _ _ constructors) <- case ty of
+    TConstructor _ dataTypeName _ -> lookupDataType dataTypeName
+    _ -> error $ "expected TConstructor, got " <> show (void ty)
+  let numberMap = M.fromList $ zip (M.keys constructors) [0 ..]
+  case M.lookup constructor numberMap of
+    Just nat -> pure nat
+    Nothing -> error $ "constructor not found " <> show constructor

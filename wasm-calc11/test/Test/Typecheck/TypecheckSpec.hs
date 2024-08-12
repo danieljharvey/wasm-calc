@@ -160,6 +160,12 @@ spec = do
                 tyConstructor "Maybe" [tyInt32]
               ),
               ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    "function main() -> Maybe(Int32) { Nothing }"
+                  ],
+                tyConstructor "Maybe" [tyInt32]
+              ),
+              ( joinLines
                   [ "type Either<e,a> = Left(e) | Right(a)",
                     "function main() -> Either(Boolean,Int32) { Right(100) }"
                   ],
