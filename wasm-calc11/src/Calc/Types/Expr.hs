@@ -67,17 +67,23 @@ instance PP.Pretty (Expr ann) where
       <> ";"
       <+> PP.line
       <> PP.pretty rest
-  pretty (EMatch _ expr _pats) =
+  pretty (EMatch _ expr pats) =
     "case"
-      <+> PP.pretty expr
-      <+> "{"
-      <> "}"
+      <+> PP.pretty expr <+>
+      "{" <>
+        PP.group (PP.line <>
+            indentMulti 2 (PP.cat
+                (PP.punctuate ", " (prettyPat <$> NE.toList pats)))
+      <+> PP.line') <> "}"
+    where
+      prettyPat (pat,patExpr) =
+        PP.pretty pat <+> "->" <+> PP.pretty patExpr
   pretty (EConstructor _ constructor []) =
     PP.pretty constructor
   pretty (EConstructor _ constructor args) =
     PP.pretty constructor
       <> "("
-      <> PP.cat (PP.punctuate "," (PP.pretty <$> args))
+      <> PP.cat (PP.punctuate ", " (PP.pretty <$> args))
       <> ")"
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b

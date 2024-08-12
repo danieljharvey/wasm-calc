@@ -393,7 +393,9 @@ spec = do
               ("a", PVar () "a"),
               ("Box(_)", PBox () (PWildcard ())),
               ("1", patInt 1),
-              ("Just(True)", PConstructor () "Just" [patBool True])
+              ("Just(True)", PConstructor () "Just" [patBool True]),
+              ("These(True,False)", PConstructor () "These" [patBool True, patBool False]),
+              ("These(1,2)", PConstructor () "These" [patInt 1, patInt 2])
             ]
       traverse_
         ( \(str, pat) -> it (T.unpack str) $ do
@@ -457,6 +459,7 @@ spec = do
               ("Red", EConstructor () "Red" []),
               ("Nothing ", EConstructor () "Nothing" []),
               ("Some(1)", EConstructor () "Some" [int 1]),
+              ("These(True,False)", EConstructor () "These" [bool True, bool False]),
               ( "case a { (1,2) -> 0, (a,b) -> a + b }",
                 EMatch
                   ()

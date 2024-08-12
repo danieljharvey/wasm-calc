@@ -54,5 +54,7 @@ instance PP.Pretty (Type ann) where
         "Box(" <> PP.pretty (NE.head as) <> ")"
   pretty (TContainer _ as) =
     "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> NE.toList as)) <> ")"
+  pretty (TConstructor _ dataName []) =
+    PP.pretty dataName
   pretty (TConstructor _ dataName vars) =
     PP.pretty dataName <> "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> vars)) <> ")"

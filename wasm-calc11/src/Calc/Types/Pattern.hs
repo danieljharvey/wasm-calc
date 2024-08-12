@@ -29,5 +29,6 @@ instance PP.Pretty (Pattern ann) where
     where
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs
+  pretty (PConstructor _ constructor []) = PP.pretty constructor
   pretty (PConstructor _ constructor as) =
-    PP.pretty constructor <> "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> as)) <> ")"
+    PP.pretty constructor <> "(" <> PP.cat (PP.punctuate ", " (PP.pretty <$> as)) <> ")"

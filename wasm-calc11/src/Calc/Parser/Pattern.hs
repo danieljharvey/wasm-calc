@@ -19,12 +19,12 @@ patternParser =
   label
     "pattern match"
     ( orInBrackets
-        ( try patTupleParser
-            <|> try patWildcardParser
-            <|> try patVariableParser
-            <|> patBoxParser
-            <|> patConstructorParser
+        ( try patWildcardParser
             <|> patPrimParser
+            <|> try patVariableParser
+            <|> try patBoxParser
+            <|> patConstructorParser
+            <|> patTupleParser
         )
     )
 
@@ -75,16 +75,20 @@ patPrimParser =
 
 ----
 
-argsParser :: Parser [ParserPattern]
-argsParser = try someP <|> pure []
-  where
-    someP = some patternParser
+patArgsParser :: Parser [ParserPattern]
+patArgsParser =
+  let argsWithBrackets = do
+        stringLiteral "("
+        args <- sepBy1 patternParser (stringLiteral ",")
+        stringLiteral ")"
+        pure args
+   in try argsWithBrackets <|> pure []
 
 patConstructorParser :: Parser ParserPattern
 patConstructorParser =
   let parser = do
         cons <- myLexeme constructorParserInternal
-        args <- argsParser
+        args <- patArgsParser
         pure (cons, args)
    in withLocation
         ( \loc (cons, args) ->

@@ -1,5 +1,7 @@
 global mut index: Int64 = 1
 
+type Color = Greyscale(Int64) | RGB(Int64, Int64, Int64)
+
 import imports.draw as draw(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
 ) -> Void
@@ -17,26 +19,32 @@ function clamp(
 ) -> Int64 { min(floor, max(ceiling, value))}
 
 function drawBounded(
-  x: Int64, y: Int64, color: (Int64,Int64,Int64)
-) -> (Int64,Int64,Int64) { 
+  x: Int64, y: Int64, color: Color
+) -> Color { 
   let maxWidth: Int64 = 600; 
   let maxHeight: Int64 = 600; 
-  let (r,g,b) = color; 
+  let (r,g,b) = case color {
+    RGB(r, g, b) -> (r,g,b), 
+    Greyscale(grey) -> (grey,grey,grey) 
+  }; 
   draw(
     clamp(0, maxWidth, x), clamp(0, maxHeight, y), r, g, b
   ); 
-  (r,g,b)
+  RGB(r, g, b)
 }
 
-function cycle(color: (Int64,Int64,Int64)) -> (Int64,
-Int64,
-Int64) { let (r,g,b) = color;  (g,b,r)}
+function cycle(color: Color) -> Color { 
+  case color {
+    RGB(r, g, b) -> RGB(g, b, r), 
+    Greyscale(grey) -> Greyscale(grey) 
+  }
+}
 
-function initial(index: Int64) -> (Int64,Int64,Int64) { 
+function initial(index: Int64) -> Color { 
   let r = clamp(0, 255, index * 2); 
   let g = clamp(0, 255, 255 - r); 
   let b = clamp(0, 255, r * 3); 
-  (r,g,b)
+  RGB(r, g, b)
 }
 
 export function test() -> Void { 
