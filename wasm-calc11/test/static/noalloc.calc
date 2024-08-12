@@ -7,6 +7,6 @@ function id<a>(a: a) -> a { a}
 export function test(index: Int8) -> Int8 { 
   let a: Box(Int8) = Box(1); 
   let b: Box(Int8) = Box(2); 
-  let (Box(c),Box(d)) = (id(a),id(b)); 
+  let (Box(c), Box(d)) = (id(a), id(b)); 
   add(c, d)
 }

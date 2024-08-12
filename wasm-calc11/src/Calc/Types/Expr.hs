@@ -108,7 +108,7 @@ instance PP.Pretty (Expr ann) where
     where
       pArgs = PP.punctuate ", " (PP.pretty <$> args)
   pretty (ETuple _ a as) =
-    "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> tupleItems a as)) <> ")"
+    "(" <> PP.cat (PP.punctuate ", " (PP.pretty <$> tupleItems a as)) <> ")"
     where
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs

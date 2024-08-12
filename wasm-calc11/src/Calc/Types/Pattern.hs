@@ -25,7 +25,7 @@ instance PP.Pretty (Pattern ann) where
   pretty (PLiteral _ prim) = PP.pretty prim
   pretty (PBox _ inner) = "Box(" <> PP.pretty inner <> ")"
   pretty (PTuple _ a as) =
-    "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> tupleItems a as)) <> ")"
+    "(" <> PP.cat (PP.punctuate ", " (PP.pretty <$> tupleItems a as)) <> ")"
     where
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs

@@ -23,9 +23,9 @@ function drawBounded(
 ) -> Color { 
   let maxWidth: Int64 = 600; 
   let maxHeight: Int64 = 600; 
-  let (r,g,b) = case color {
-    RGB(r, g, b) -> (r,g,b), 
-    Greyscale(grey) -> (grey,grey,grey) 
+  let (r, g, b) = case color {
+    RGB(r, g, b) -> (r, g, b), 
+    Greyscale(grey) -> (grey, grey, grey) 
   }; 
   draw(
     clamp(0, maxWidth, x), clamp(0, maxHeight, y), r, g, b
