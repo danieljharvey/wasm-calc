@@ -385,6 +385,24 @@ spec = do
               ),
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
+                    asTest "case Just(Box((100: Int64))) { Just(Box(a)) -> a + 1, Nothing -> 0 }"
+                  ],
+                Wasm.VI64 101
+              ),
+              ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    asTest "case Just(Just(Box((100: Int64)))) { Just(Just(Box(a))) -> a + 1, Nothing -> 0 }"
+                  ],
+                Wasm.VI64 101
+              ),
+
+
+              ( joinLines
+                  [ "type Colour = Red | Green | Blue",
+                  asTest "case Blue { Red -> 1, Green -> 2, Blue -> 3 }"],
+                  Wasm.VI64 3),
+              ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
                     "function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { case maybe { Just(a) -> a, Nothing -> default } }",
                     asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
                   ],
