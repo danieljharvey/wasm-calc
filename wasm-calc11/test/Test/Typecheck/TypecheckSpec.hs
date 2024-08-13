@@ -179,7 +179,15 @@ spec = do
               ),
               ( "function main() -> Int32 { case True { True -> 1, False -> 2 } }",
                 tyInt32
+              ),
+              ( joinLines
+                  [
+                    "function useInt32(i: Int32) -> Int64 { 100 }",
+                    "function main() -> Int64 { let i = 100; useInt32(i) }"
+                    ],
+                tyInt64
               )
+
             ]
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding

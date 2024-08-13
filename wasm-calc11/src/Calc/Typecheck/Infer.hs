@@ -7,6 +7,7 @@ module Calc.Typecheck.Infer
   )
 where
 
+import Calc.Typecheck.Generalise
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -476,11 +477,12 @@ infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
   pure $ EAnn (getOuterAnnotation typedExpr $> ann) (ty $> ty) typedExpr
-infer (EPrim ann prim) =
-  case prim of
-    PBool _ -> pure (EPrim (TPrim ann TBool) prim)
-    PIntLit _ -> throwError (UnknownIntegerLiteral ann)
+infer (EPrim ann prim) = do
+  ty <- case prim of
+    PBool _ -> pure (TPrim ann TBool)
+    PIntLit _ -> TUnificationVar ann <$> freshUnificationVariable
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
+  pure (EPrim ty prim)
 infer (EMatch ann matchExpr pats) =
   checkMatch Nothing ann matchExpr pats
 infer (EBox ann inner) = do
