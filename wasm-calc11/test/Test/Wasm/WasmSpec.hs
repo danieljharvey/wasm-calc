@@ -385,13 +385,13 @@ spec = do
               ),
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case Just(Box((100: Int64))) { Just(Box(a)) -> a + 1, Nothing -> 0 }"
+                    asTest "case Just(Box((100: Int64))) { Just(Box(a)) -> a + 1, _ -> 0 }"
                   ],
                 Wasm.VI64 101
               ),
               ( joinLines
                   [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case Just(Just(Box((100: Int64)))) { Just(Just(Box(a))) -> a + 1, Nothing -> 0 }"
+                    asTest "case Just(Just(Box((100: Int64)))) { Just(Just(Box(a))) -> a + 1, _ -> 0 }"
                   ],
                 Wasm.VI64 101
               ),

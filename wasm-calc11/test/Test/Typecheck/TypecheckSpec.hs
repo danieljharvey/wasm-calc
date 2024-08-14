@@ -259,7 +259,6 @@ spec = do
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
                 ]
-
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing

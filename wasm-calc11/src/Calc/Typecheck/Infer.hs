@@ -451,9 +451,13 @@ checkLet maybeReturnTy ann pat expr rest = do
     case maybeReturnTy of
       Just returnTy -> check returnTy rest
       Nothing -> infer rest
-  case validatePatterns ann [typedPat] of
+
+  env <- ask
+  case validatePatterns env ann [typedPat] of
     Right _ -> pure ()
-    Left patternMatchError -> throwError (PatternMatchError patternMatchError)
+    Left patternMatchError ->
+      throwError (PatternMatchError patternMatchError)
+
   pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
 checkMatch :: Maybe (Type ann) -> ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
@@ -469,7 +473,8 @@ checkMatch maybeTy ann matchExpr pats = do
   elabPats <- traverse withPair pats
   let allTypes = getOuterAnnotation . snd <$> elabPats
   typ <- combineMany allTypes
-  case validatePatterns ann (fst <$> NE.toList elabPats) of
+  env <- ask
+  case validatePatterns env ann (fst <$> NE.toList elabPats) of
     Right _ -> pure ()
     Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
