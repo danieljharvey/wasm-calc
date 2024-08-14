@@ -47,35 +47,36 @@ generateFromPattern env (PTuple _ty patA patAs) =
           other -> error (show other)
    in foldMap fromRow manyRows
 generateFromPattern env@(TypecheckEnv {tceDataTypes}) (PConstructor _ty constructor pats) =
-  let generatedPatsForThisConstructor = 
+  let generatedPatsForThisConstructor =
         traverse (fmap void . S.toList . safeGenerateFromPattern env) pats
-      fromRow patList = 
+      fromRow patList =
         S.singleton $ PConstructor () constructor patList
-      patternsForThisConstructors = 
+      patternsForThisConstructors =
         foldMap fromRow generatedPatsForThisConstructor
 
       otherConstructors = findMatches tceDataTypes constructor
-      otherPatterns = foldMap
-        ( \(cn,tys) ->
-            let generatedPats = traverse (fmap void . S.toList . safeGenerateFromType) tys
-                fromRow2 patList =
-                  S.singleton $ PConstructor () cn patList
-             in foldMap fromRow2 generatedPats
-        )
-        otherConstructors
-  in patternsForThisConstructors <> otherPatterns
+      otherPatterns =
+        foldMap
+          ( \(cn, tys) ->
+              let generatedPats = traverse (fmap void . S.toList . safeGenerateFromType) tys
+                  fromRow2 patList =
+                    S.singleton $ PConstructor () cn patList
+               in foldMap fromRow2 generatedPats
+          )
+          otherConstructors
+   in patternsForThisConstructors <> otherPatterns
 generateFromPattern _ pat = S.singleton (void pat)
 
 findMatches ::
   M.Map Constructor (TCDataType ann) ->
   Constructor ->
-  S.Set (Constructor,[Type ()])
+  S.Set (Constructor, [Type ()])
 findMatches tceDataTypes constructor =
   case M.lookup constructor tceDataTypes of
     Just (TCDataType {tcdtName}) ->
       let matchesDataName (TCDataType {tcdtName = thisDataType}) =
-                          tcdtName == thisDataType
-          extract (cn, TCDataType { tcdtArgs}) = (cn,void <$> tcdtArgs)
+            tcdtName == thisDataType
+          extract (cn, TCDataType {tcdtArgs}) = (cn, void <$> tcdtArgs)
        in S.fromList $ extract <$> M.toList (M.filter matchesDataName tceDataTypes)
     Nothing -> error "sdfsdf"
 

@@ -51,9 +51,8 @@ spec = do
               (["True"], "Boolean", ["False"]),
               (["True", "False"], "Boolean", []),
               (["1", "2", "3"], "Int32", ["_"]),
-              (["Just(Just(1))"], "Maybe(Maybe(Int32))",["Just(_)","Just(Just(_))","Just(Nothing)","Nothing"]),
-              (["Just(Just(_))"], "Maybe(Maybe(Int32))",["Just(_)","Just(Nothing)","Nothing"])
-
+              (["Just(Just(1))"], "Maybe(Maybe(Int32))", ["Just(_)", "Just(Just(_))", "Just(Nothing)", "Nothing"]),
+              (["Just(Just(_))"], "Maybe(Maybe(Int32))", ["Just(_)", "Just(Nothing)", "Nothing"])
             ]
 
       describe "Successfully returns missing patterns" $ do

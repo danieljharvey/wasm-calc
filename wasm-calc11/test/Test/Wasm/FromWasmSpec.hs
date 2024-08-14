@@ -1,4 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -41,19 +40,19 @@ spec = do
 
     describe "getOffsetListForConstructor" $ do
       it "Construct with single item" $ do
-        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "Maybe(Int8)") "Just")
+        evalStateT (getOffsetListForConstructor (unsafeTy "Maybe(Int8)") "Just") exprState
           `shouldBe` Right [1, 2]
 
       it "Construct with two items" $ do
-        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These")
+        evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These") exprState
           `shouldBe` Right [1, 2, 10]
 
       it "Construct with two items" $ do
-        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This")
+        evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This") exprState
           `shouldBe` Right [1, 2]
 
       it "Recursive type" $ do
-        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "List(Int64)") "Cons")
+        evalStateT (getOffsetListForConstructor (unsafeTy "List(Int64)") "Cons") exprState
           `shouldBe` Right [1, 9, 13]
 
     describe "calculateMonomorphisedTypes" $ do
@@ -125,11 +124,10 @@ spec = do
             ]
       traverse_
         ( \(tyString, wasmFunc) -> do
-            it (show tyString) $ do
-              flip
-                evalStateT
-                exprState
+            it (show tyString) $
+              evalStateT
                 (createDropFunction 1 (unsafeTy tyString))
+                exprState
                 `shouldBe` Right wasmFunc
         )
         testVals
@@ -157,11 +155,10 @@ spec = do
 
       traverse_
         ( \(tyString, paths) -> do
-            it (show tyString) $ do
-              flip
-                evalStateT
-                exprState
+            it (show tyString) $
+              evalStateT
                 (typeToDropPaths (unsafeTy tyString) id)
+                exprState
                 `shouldBe` Right paths
         )
         testVals
@@ -204,8 +201,8 @@ spec = do
               ]
         traverse_
           ( \(predicate, val, expected) ->
-              it (show predicate) $ do
-                flip evalStateT exprState (predicateToWasm @_ @() val predicate)
+              it (show predicate) $
+                evalStateT (predicateToWasm @_ @() val predicate) exprState
                   `shouldBe` Right expected
           )
           testVals

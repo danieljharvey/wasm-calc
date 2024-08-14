@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Calc.Typecheck.Infer
   ( infer,
     check,
@@ -473,6 +471,7 @@ checkMatch maybeTy ann matchExpr pats = do
   elabPats <- traverse withPair pats
   let allTypes = getOuterAnnotation . snd <$> elabPats
   typ <- combineMany allTypes
+
   env <- ask
   case validatePatterns env ann (fst <$> NE.toList elabPats) of
     Right _ -> pure ()
