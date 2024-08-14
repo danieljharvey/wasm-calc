@@ -388,7 +388,6 @@ memorySizeInsideConstructor (TContainer {}) = pure $ memorySize Pointer
 memorySizeInsideConstructor (TConstructor {}) = pure $ memorySize Pointer
 memorySizeInsideConstructor other = memorySizeForType other
 
-
 getConstructorNumber :: (MonadState FromExprState m) => Type ann -> Constructor -> m Natural
 getConstructorNumber ty constructor = do
   (Data _ _ constructors) <- case ty of

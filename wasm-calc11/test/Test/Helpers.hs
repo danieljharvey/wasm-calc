@@ -149,15 +149,16 @@ exprState =
           ( DataName "List",
             Data
               { dtName = DataName "List",
-                dtVars = ["a" ],
+                dtVars = ["a"],
                 dtConstructors =
                   M.fromList
-                    [ ("Cons", [
-                        TVar mempty "a",
-                        TConstructor mempty (DataName "List") [TVar mempty "a"]]),
+                    [ ( "Cons",
+                        [ TVar mempty "a",
+                          TConstructor mempty (DataName "List") [TVar mempty "a"]
+                        ]
+                      ),
                       ("Nil", [])
                     ]
               }
           )
-
         ]

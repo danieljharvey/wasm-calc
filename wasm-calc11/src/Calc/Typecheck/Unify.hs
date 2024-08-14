@@ -31,22 +31,22 @@ unify (TContainer ann as) (TContainer _ bs) =
             <$> zipWithM unify (NE.toList as) (NE.toList bs)
         )
 unify (TConstructor ann dataNameA argsA) (TConstructor _ dataNameB argsB)
-  | dataNameA == dataNameB && length argsA == length argsB
-  = TConstructor ann dataNameA <$> zipWithM unify argsA argsB
+  | dataNameA == dataNameB && length argsA == length argsB =
+      TConstructor ann dataNameA <$> zipWithM unify argsA argsB
 unify tyA tyB =
   if void tyA == void tyB
     then pure tyA
     else throwError (TypeMismatch tyA tyB)
 
 storeUnified :: Natural -> Type ann -> TypecheckM ann ()
-storeUnified nat ty
-  = modify
-          ( \tcs ->
-              tcs
-                { tcsUnified =
-                    HM.insert nat ty (tcsUnified tcs)
-                }
-          )
+storeUnified nat ty =
+  modify
+    ( \tcs ->
+        tcs
+          { tcsUnified =
+              HM.insert nat ty (tcsUnified tcs)
+          }
+    )
 
 -- | given a unification variable, either save it and return the type
 -- or explode because we've already unified it with something else

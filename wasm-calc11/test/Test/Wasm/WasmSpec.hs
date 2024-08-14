@@ -406,36 +406,48 @@ spec = do
                     "export function test() -> Boolean { case These(True,False) { This(a) -> a , That(b) -> b , These(a,b) -> a && b } }"
                   ],
                 Wasm.VI32 0
-              ) ,
-                              ( joinLines
-                                  [ "type Maybe<a> = Just(a) | Nothing",
-                                    "function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { case maybe { Just(a) -> a, Nothing -> default } }",
-                                    asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
-                                  ],
-                                Wasm.VI64 100
-                              ),
-                ( joinLines
-                                  [ "type List<a> = Cons(a, List(a)) | Nil",
-                                    asTest "let value: List(Int64) = Cons((1:Int64),Cons((2:Int64),Nil)); case value { Cons(a,Cons(b,Nil)) -> a + b, _ -> 0 }"
-                                  ],
-                                Wasm.VI64 3
-                              )
-
-
-
-                {-,
-                -- absolutely baffled why `allocated` is not dropped here when we
-                -- generate what looks like the correct IR
-                ( asTest $
-                    joinLines
-                      [ "let pair = ((1:Int64),False);",
-                        "case pair { ",
-                        "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
-                        "_ -> 400 ",
-                        "}"
-                      ],
-                  Wasm.VI64 101
-                )-}
+              ),
+              ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    "function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { case maybe { Just(a) -> a, Nothing -> default } }",
+                    asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
+                  ],
+                Wasm.VI64 100
+              ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    asTest "let value: List(Int64) = Cons((1:Int64),Cons((2:Int64),Nil)); case value { Cons(a,Cons(b,Nil)) -> a + b, _ -> 0 }"
+                  ],
+                Wasm.VI64 3
+              ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    "function sum(list:List(Int64)) -> Int64 { case list { Cons(a, rest) -> a + sum(rest), Nil -> 0 } }",
+                    asTest "sum(Cons(1,Cons(2,Cons(3,Cons(4,Nil)))))"
+                  ],
+                Wasm.VI64 10
+              ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    "function repeat(value: Int64, repeats: Int64 ) -> List(Int64) { if repeats < 1 then Nil else Cons(value, repeat(value, repeats - 1)) }",
+                    "function sum(accum: Int64,list:List(Int64)) -> Int64 { case list { Cons(a, rest) -> sum(accum + a, rest), Nil -> accum } }",
+                    asTest "sum(0,repeat(6,100))" -- surprisingly easy to pop the stack by increasing this value
+                  ],
+                Wasm.VI64 600
+              )
+              {-,
+              -- absolutely baffled why `allocated` is not dropped here when we
+              -- generate what looks like the correct IR
+              ( asTest $
+                  joinLines
+                    [ "let pair = ((1:Int64),False);",
+                      "case pair { ",
+                      "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
+                      "_ -> 400 ",
+                      "}"
+                    ],
+                Wasm.VI64 101
+              )-}
             ]
 
       describe "From expressions" $ do

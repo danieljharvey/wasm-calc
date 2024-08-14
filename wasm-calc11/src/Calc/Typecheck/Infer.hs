@@ -7,10 +7,10 @@ module Calc.Typecheck.Infer
   )
 where
 
-import Calc.Typecheck.Generalise
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
+import Calc.Typecheck.Generalise
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Patterns
 import Calc.Typecheck.Substitute
