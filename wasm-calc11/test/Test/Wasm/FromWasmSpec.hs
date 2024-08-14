@@ -52,6 +52,11 @@ spec = do
         flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This")
           `shouldBe` Right [1, 2]
 
+      it "Recursive type" $ do
+        flip evalStateT exprState (getOffsetListForConstructor (unsafeTy "List(Int64)") "Cons")
+          `shouldBe` Right [1, 9, 13]
+
+
     describe "calculateMonomorphisedTypes" $ do
       it "Ints" $ do
         monomorphiseTypes @() ["a", "b"] [tyVar "a", tyVar "b"] [tyInt32, tyInt64]

@@ -370,17 +370,24 @@ memorySizeForType (TConstructor _ dataTypeName _) = do
   (Data _ _ constructors) <- lookupDataType dataTypeName
   let discriminator = memorySize I8
       sizeOfConstructor tys =
-        getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeForType) tys)
+        getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) tys)
   sizes <- traverse sizeOfConstructor (M.elems constructors)
   pure $ discriminator + maximum sizes
 memorySizeForType (TContainer _ as) =
-  getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeForType) (NE.toList as))
+  getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) (NE.toList as))
 memorySizeForType (TFunction {}) =
   pure $ memorySize Pointer
 memorySizeForType (TVar _ _) =
   pure $ memorySize Pointer
 memorySizeForType (TUnificationVar _ _) =
   error "memorySizeForType TUnificationVar"
+
+-- nested data types only take up "Pointer"
+memorySizeInsideConstructor :: (MonadState FromExprState m) => Type ann -> m Natural
+memorySizeInsideConstructor (TContainer {}) = pure $ memorySize Pointer
+memorySizeInsideConstructor (TConstructor {}) = pure $ memorySize Pointer
+memorySizeInsideConstructor other = memorySizeForType other
+
 
 getConstructorNumber :: (MonadState FromExprState m) => Type ann -> Constructor -> m Natural
 getConstructorNumber ty constructor = do

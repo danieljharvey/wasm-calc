@@ -266,6 +266,8 @@ unifyPrimitives (TFunction _ argA bodyA) (TFunction _ argB bodyB) = do
   unifyPrimitives bodyA bodyB
 unifyPrimitives (TContainer _ as) (TContainer _ bs) =
   zipWithM_ unifyPrimitives (NE.toList as) (NE.toList bs)
+unifyPrimitives (TConstructor _ _ as) (TConstructor _ _ bs) =
+  zipWithM_ unifyPrimitives as bs
 unifyPrimitives tyA tyB =
   if void tyA == void tyB
     then pure ()

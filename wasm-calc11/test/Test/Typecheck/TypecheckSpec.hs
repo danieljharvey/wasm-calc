@@ -208,7 +208,7 @@ spec = do
               )
 
             ]
-      fdescribe "Successfully typechecking modules" $ do
+      describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
 
       let failing =
