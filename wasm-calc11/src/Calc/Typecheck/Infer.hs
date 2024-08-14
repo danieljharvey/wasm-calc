@@ -6,7 +6,8 @@ module Calc.Typecheck.Infer
     checkPattern,
   )
 where
-import Debug.Trace
+
+import Calc.Typecheck.Generalise
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
@@ -403,21 +404,30 @@ checkConstructor maybeTy ann constructor args = do
 
   (typedArgs, fallbackTypes) <- case maybeTy of
     Just (tyCons, tyArgs) -> do
+      -- we have a type signature to check this against
       unless (tyCons == dataTypeName) $ error "wrong"
 
       filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
 
-      traceShowM ("filtered" :: String, void <$> filtered)
-      traceShowM ("args" ::String, void <$> args)
-
       typedArgs <- zipWithM check filtered args
+
+      let fallbackTypes = M.fromList (zip dataTypeVars tyArgs)
+
       pure
         ( typedArgs,
-          M.fromList (zip dataTypeVars tyArgs)
+          fallbackTypes
         )
     Nothing -> do
+      -- we have no type signature to check this against
       typedArgs <- traverse infer args
-      pure (typedArgs, mempty)
+
+      -- create fresh unification types (ie, guess!) to fill in any
+      -- gaps. Ie, when inferring the type of `Nothing` we don't know
+      -- what the `a` is in `Maybe<a>`, but also, we don't care, so say
+      -- "it's a thing, you can decide later"
+      fallbackTypes <- M.fromList <$> traverse (\var -> (,) var <$> (TUnificationVar ann <$> freshUnificationVariable)) dataTypeVars
+
+      pure (typedArgs, fallbackTypes)
 
   monomorphisedArgs <-
     calculateMonomorphisedTypes dataTypeVars dataTypeArgs (getOuterAnnotation <$> typedArgs) fallbackTypes
