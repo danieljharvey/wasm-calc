@@ -39,7 +39,8 @@ data UserDefined a = UserDefined a | Internal a
 
 data LinearState ann = LinearState
   { lsVars :: M.Map (UserDefined Identifier) (LinearityType, ann),
-    lsUses :: [(Identifier, Linearity ann)],
+    lsUses :: NE.NonEmpty [(Identifier, Linearity ann)],
     lsFresh :: Natural
   }
   deriving stock (Eq, Ord, Show, Functor)
+

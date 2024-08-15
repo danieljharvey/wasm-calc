@@ -241,28 +241,28 @@ spec = do
                 LinearState
                   { lsVars =
                       M.fromList [(UserDefined "a", (LTPrimitive, ())), (UserDefined "b", (LTPrimitive, ()))],
-                    lsUses = [("b", Whole ()), ("a", Whole ())],
+                    lsUses = NE.singleton [("b", Whole ()), ("a", Whole ())],
                     lsFresh = 0
                   }
               ),
               ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
-                    lsUses = [("b", Whole ()), ("a", Whole ())],
+                    lsUses = NE.singleton [("b", Whole ()), ("a", Whole ())],
                     lsFresh = 0
                   }
               ),
               ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
-                    lsUses = [("b", Whole ())],
+                    lsUses = NE.singleton [("b", Whole ())],
                     lsFresh = 0
                   }
               ),
               ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ()))],
-                    lsUses = [("a", Whole ()), ("a", Whole ())],
+                    lsUses = NE.singleton [("a", Whole ()), ("a", Whole ())],
                     lsFresh = 0
                   }
               )
@@ -280,13 +280,15 @@ spec = do
         strings
 
     describe "validateFunction" $ do
-      describe "expected successes" $ do
+      fdescribe "expected successes" $ do
         let success =
               [ "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
                 "function addPair(pair: (Int64,Int64)) -> Int64 { let (a,b) = pair; a + b }",
                 "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a,_) = pair; Box(a) }",
-                "function main() -> Int64 { let _ = (1: Int64); 2 }"
+                "function main() -> Int64 { let _ = (1: Int64); 2 }",
+                "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then pair else pair }",
+                "function bothSidesOfMatch() -> (Boolean,Boolean) { let pair = (True,False); case True { True -> pair, False -> pair } }"
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do
@@ -300,7 +302,7 @@ spec = do
           )
           success
 
-      describe "expected failures" $ do
+      fdescribe "expected failures" $ do
         let failures =
               [ ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                   NotUsed () "a"
@@ -313,6 +315,9 @@ spec = do
                 ),
                 ( "function withPair<a,b>(pair: (a,b)) -> (a,a,b) { let (a,b) = pair; (a, a, b) }",
                   UsedMultipleTimes [(), ()] "a"
+                ),
+                ( "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then { let _ = pair; pair } else pair }",
+                  UsedMultipleTimes [(), ()] "pair"
                 )
               ]
         traverse_

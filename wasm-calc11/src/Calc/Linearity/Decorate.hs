@@ -9,6 +9,7 @@ module Calc.Linearity.Decorate
   )
 where
 
+import Debug.Trace
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -32,6 +33,16 @@ getFresh = do
   modify (\ls -> ls {lsFresh = lsFresh ls + 1})
   gets lsFresh
 
+-- | push a load of uses directly onto the head of the uses stack
+pushUses :: (MonadState (LinearState ann) m) =>
+  [(Identifier, Linearity ann)] -> m ()
+pushUses uses =
+  modify (\ls ->
+      let (topOfStack NE.:| restOfStack) = lsUses ls
+          newTopOfStack = topOfStack <> uses
+       in
+    ls {lsUses = newTopOfStack NE.:| restOfStack })
+
 recordUse ::
   ( MonadState (LinearState ann) m,
     MonadWriter (M.Map Identifier (Type ann)) m
@@ -40,8 +51,29 @@ recordUse ::
   Type ann ->
   m ()
 recordUse ident ty = do
-  modify (\ls -> ls {lsUses = (ident, Whole (getOuterTypeAnnotation ty)) : lsUses ls})
+  modify (\ls ->
+      let (topOfStack NE.:| restOfStack) = lsUses ls
+          newTopOfStack = (ident, Whole (getOuterTypeAnnotation ty)) : topOfStack
+       in
+    ls {lsUses = newTopOfStack NE.:| restOfStack })
   unless (isPrimitive ty) $ tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+
+-- run an action, giving it a new uses scope
+-- then chop off the new values and return them
+-- this allows us to dedupe and re-add them to the current stack as desired
+scoped :: (MonadState (LinearState ann) m) => m a -> m (a, [(Identifier, Linearity ann)])
+scoped action = do
+  -- add a new empty stack
+  modify (\ls -> ls { lsUses = mempty NE.:| (NE.toList $ lsUses ls) })
+  -- run the action, collecting uses in NE.head of uses stack
+  result <- action
+  -- grab the top level items
+  items <- gets (NE.head . lsUses)
+  -- bin them off stack
+  modify (\ls -> ls { lsUses = NE.fromList (NE.tail (lsUses ls)) })
+  -- return both things
+  pure (result, items)
+
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
@@ -179,8 +211,19 @@ decorate (EMatch ty expr pats) = do
 decorate (EInfix ty op a b) =
   EInfix (ty, Nothing) op <$> decorate a <*> decorate b
 decorate (EIf ty predExpr thenExpr elseExpr) = do
-  (decoratedThen, thenIdents) <- runWriterT (decorate thenExpr)
-  (decoratedElse, elseIdents) <- runWriterT (decorate elseExpr)
+  ((decoratedThen,thenUses), thenIdents) <- runWriterT (scoped (decorate thenExpr))
+  ((decoratedElse, elseUses), elseIdents) <- runWriterT (scoped (decorate elseExpr))
+
+  traceShowM ("thenUses" :: String, thenUses)
+  traceShowM ("elseUses" :: String, elseUses)
+
+  -- here we're gonna bin off duplicates and stuff
+  let usesToKeep = thenUses <> elseUses
+
+  traceShowM ("usesToKeep" :: String, usesToKeep)
+
+  -- push the ones we want to keep hold of
+  pushUses usesToKeep
 
   -- work out idents used in the other branch but not this one
   let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))

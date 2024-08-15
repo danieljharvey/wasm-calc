@@ -9,6 +9,7 @@ module Calc.Linearity.Validate
   )
 where
 
+import qualified Data.List.NonEmpty as NE
 import Calc.Linearity.Decorate
 import Calc.Linearity.Error
 import Calc.Linearity.Types
@@ -38,23 +39,23 @@ validateGlobal ::
   (Show ann) =>
   Global (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
-validateGlobal glob =
-  let (expr, linearState) = getGlobalUses glob
-   in validate linearState $> expr
+validateGlobal glob = do
+  let  (expr, linearState) = getGlobalUses glob
+  validate linearState $> expr
 
 validateFunction ::
   (Show ann) =>
   Function (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
-validateFunction fn =
+validateFunction fn = do
   let (expr, linearState) = getFunctionUses fn
-   in validate linearState $> expr
+  validate linearState $> expr
 
 validate :: LinearState ann -> Either (LinearityError ann) ()
 validate (LinearState {lsVars, lsUses}) =
   let validateFunctionItem (Internal _, _) = Right ()
       validateFunctionItem (UserDefined ident, (linearity, ann)) =
-        let completeUses = filterCompleteUses lsUses ident
+        let completeUses = filterCompleteUses (NE.head lsUses) ident
          in case linearity of
               LTPrimitive ->
                 if null completeUses
@@ -94,7 +95,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
     initialState =
       LinearState
         { lsVars = initialVars,
-          lsUses = mempty,
+          lsUses = NE.singleton mempty,
           lsFresh = 0
         }
 
@@ -110,7 +111,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
 getGlobalUses ::
   (Show ann) =>
   Global (Type ann) ->
-  (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
+    (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
 getGlobalUses (Global {glbExpr}) =
   fst $ runIdentity $ runWriterT $ runStateT action initialState
   where
@@ -119,6 +120,6 @@ getGlobalUses (Global {glbExpr}) =
     initialState =
       LinearState
         { lsVars = mempty,
-          lsUses = mempty,
+          lsUses = NE.singleton mempty,
           lsFresh = 0
         }
