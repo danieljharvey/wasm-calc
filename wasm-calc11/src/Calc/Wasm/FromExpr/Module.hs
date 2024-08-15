@@ -51,9 +51,10 @@ fromTest ::
   (Eq ann, Show ann) =>
   M.Map FunctionName FromExprFunc ->
   M.Map Identifier FromExprGlobal ->
+  M.Map DataName (Data ()) ->
   Test (Type ann) ->
   Either FromWasmError WasmTest
-fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
+fromTest funcMap globalMap dataTypeMap (Test {tesName = Identifier testName, tesExpr}) = do
   (expr, fes) <-
     runStateT
       (fromExpr ((,Nothing) <$> tesExpr))
@@ -63,7 +64,8 @@ fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
             fesGlobals = globalMap,
             fesImports = mempty,
             fesFunctions = funcMap,
-            fesGenerated = mempty
+            fesGenerated = mempty,
+            fesDataTypes = dataTypeMap
           }
       )
 
@@ -81,10 +83,11 @@ fromFunction ::
   M.Map FunctionName FromExprFunc ->
   M.Map FunctionName FromExprImport ->
   M.Map Identifier FromExprGlobal ->
+  M.Map DataName (Data ()) ->
   [WasmFunction] ->
   Function (Type ann) ->
   Either FromWasmError ([WasmFunction], WasmFunction)
-fromFunction functionAbilities funcMap importMap globalMap generatedFns fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName, fnGenerics} = do
+fromFunction functionAbilities funcMap importMap globalMap dataTypeMap generatedFns fn@Function {fnPublic, fnBody, fnArgs, fnFunctionName, fnGenerics} = do
   args <-
     traverse
       ( \(FunctionArg {faName = ArgumentName ident, faType}) -> do
@@ -113,7 +116,8 @@ fromFunction functionAbilities funcMap importMap globalMap generatedFns fn@Funct
             fesGlobals = globalMap,
             fesImports = importMap,
             fesFunctions = funcMap,
-            fesGenerated = generatedFns
+            fesGenerated = generatedFns,
+            fesDataTypes = dataTypeMap
           }
       )
 
@@ -162,7 +166,8 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
             fesGlobals = mempty,
             fesImports = mempty,
             fesFunctions = mempty,
-            fesGenerated = mempty
+            fesGenerated = mempty,
+            fesDataTypes = mempty
           }
       )
 
@@ -173,15 +178,23 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
   wgType <- scalarFromType (getOuterAnnotation glbExpr)
   pure $ WasmGlobal {wgExpr, wgType, wgMutable}
 
+getDataTypeMap :: [Data ann] -> M.Map DataName (Data ())
+getDataTypeMap =
+  foldMap
+    ( \(Data {dtName, dtVars, dtConstructors}) ->
+        M.singleton dtName $ Data {dtVars, dtName, dtConstructors = (fmap . fmap) void dtConstructors}
+    )
+
 fromModule ::
   (Show ann, Ord ann) =>
   Module (Type ann) ->
   Either FromWasmError WasmModule
-fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
+fromModule wholeMod@(Module {mdDataTypes, mdMemory, mdTests, mdGlobals, mdImports, mdFunctions}) = do
   let moduleAbilities = getAbilitiesForModule wholeMod
   importMap <- getImportMap mdImports
   funcMap <- getFunctionMap mdFunctions
   globalMap <- getGlobalMap mdGlobals
+  let dataTypeMap = getDataTypeMap mdDataTypes
 
   wasmGlobals <- traverse fromGlobal mdGlobals
 
@@ -189,7 +202,7 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
     foldM
       ( \(generatedFns, fns) input -> do
           (generated, newFn) <-
-            fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap generatedFns input
+            fromFunction (maFunctions moduleAbilities) funcMap importMap globalMap dataTypeMap generatedFns input
           pure (generated, [newFn] <> fns)
       )
       ([], [])
@@ -197,7 +210,7 @@ fromModule wholeMod@(Module {mdMemory, mdTests, mdGlobals, mdImports, mdFunction
 
   wasmImports <- traverse fromImport mdImports
 
-  wasmTests <- traverse (fromTest funcMap globalMap) mdTests
+  wasmTests <- traverse (fromTest funcMap globalMap dataTypeMap) mdTests
 
   pure $
     WasmModule

@@ -94,6 +94,12 @@ decoratePattern (PLiteral ty prim) =
 decoratePattern (PBox ty pat) = do
   (decoratedPat, innerIdents) <- decoratePattern pat
   pure (PBox (ty, dropForType ty) decoratedPat, innerIdents)
+decoratePattern (PConstructor ty constructor pats) = do
+  decoratedPatsAndIdents <- traverse decoratePattern pats
+
+  let allIdents = foldMap snd decoratedPatsAndIdents
+
+  pure (PConstructor (ty, dropForType ty) constructor (fst <$> decoratedPatsAndIdents), allIdents)
 decoratePattern (PTuple ty p ps) = do
   (decoratedPat, innerIdents) <- decoratePattern p
   decoratedPatsAndIdents <- traverse decoratePattern ps

@@ -13,7 +13,6 @@ import Calc.Wasm.FromExpr.Drops
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Patterns
 import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
 import Control.Monad.Except
@@ -29,7 +28,7 @@ patternBindings ::
   Natural ->
   m WasmExpr
 patternBindings pat patExpr index = do
-  let paths = patternToPaths (fst <$> pat) id
+  paths <- patternToPaths (fst <$> pat) id
 
   -- turn patterns into indexes and expressions
   indexes <-
@@ -50,12 +49,14 @@ patternBindings pat patExpr index = do
   -- convert the continuation expr
   wasmPatExpr <- fromExprWithDrops patExpr
 
+  dropPaths <- patternToDropPaths pat id
+
   -- drop items in the match expr we will no longer need
-  dropPaths <-
-    traverse (addDropsFromPath index) (patternToDropPaths pat id)
+  dropPathExprs <-
+    traverse (addDropsFromPath index) dropPaths
 
   -- take care of stuff we've pattern matched into oblivion
-  let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPaths
+  let wasmPatExprWithDrops = foldr (WSequence Void) wasmPatExpr dropPathExprs
 
   pure $
     foldr
@@ -76,7 +77,7 @@ fromLet ::
   Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
 fromLet pat expr rest = do
-  let paths = patternToPaths (fst <$> pat) id
+  paths <- patternToPaths (fst <$> pat) id
   if null paths
     then do
       wasmTy <- liftEither $ scalarFromType $ fst $ getOuterPatternAnnotation pat
@@ -137,10 +138,10 @@ fromMatch expr pats = do
       wasmPatExpr <-
         foldr
           ( \(pat, patExpr) wholeExpr -> do
+              preds <-
+                predicatesFromPattern (fst <$> pat) mempty
               predExprs <-
-                traverse
-                  (predicateToWasm (WVar index))
-                  (predicatesFromPattern (fst <$> pat) mempty)
+                traverse (predicateToWasm (WVar index)) preds
               wasmPatExpr <- patternBindings pat patExpr index
               case NE.nonEmpty predExprs of
                 Nothing -> pure wasmPatExpr
@@ -190,7 +191,26 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
-fromExpr (EConstructor {}) = error "fromExpr EConstructor"
+fromExpr (EConstructor (ty, _) constructor args) = do
+  -- what is the underlying discriminator value?
+  constructorNumber <- WPrim . WPInt32 . fromIntegral <$> getConstructorNumber ty constructor
+
+  wasmType <- liftEither $ scalarFromType ty
+  index <- addLocal Nothing wasmType
+  let allItems = zip [0 ..] args
+  tupleLength <- memorySizeForType ty
+  let allocate = WAllocate (fromIntegral tupleLength)
+  offsetList <- getOffsetListForConstructor ty constructor
+
+  wasmItems <-
+    traverse
+      ( \(i, item) ->
+          (,,) (offsetList !! i)
+            <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
+            <*> fromExpr item
+      )
+      allItems
+  pure $ WSet index allocate ((0, I8, constructorNumber) : wasmItems)
 fromExpr (EBlock (_, Just _) _) = do
   error "found drops on block"
 fromExpr (EBlock _ expr) = do
@@ -229,8 +249,8 @@ fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
   let allItems = zip [0 ..] (a : NE.toList as)
-      tupleLength = memorySizeForType ty
-      allocate = WAllocate (fromIntegral tupleLength)
+  tupleLength <- memorySizeForType ty
+  let allocate = WAllocate (fromIntegral tupleLength)
       offsetList = getOffsetList ty
   WSet index allocate
     <$> traverse

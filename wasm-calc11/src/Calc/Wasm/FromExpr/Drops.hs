@@ -18,12 +18,12 @@ import Calc.Types
 import Calc.Wasm.FromExpr.Helpers
   ( addGeneratedFunction,
     genericArgName,
+    getOffsetList,
     lookupIdent,
     scalarFromType,
   )
 import Calc.Wasm.FromExpr.Patterns (Path (..))
 import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Helpers
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (foldM)
 import Control.Monad.Except
@@ -112,25 +112,30 @@ addDropsToWasmExpr drops wasmExpr =
     Nothing -> pure wasmExpr
 
 typeToDropPaths ::
+  (MonadState FromExprState m, MonadError FromWasmError m) =>
   Type ann ->
   (DropPath ann -> DropPath ann) ->
-  [DropPath ann]
-typeToDropPaths ty@(TContainer _ tyItems) addPath =
+  m [DropPath ann]
+typeToDropPaths ty@(TContainer _ tyItems) addPath = do
   let offsetList = getOffsetList ty
-   in mconcat
-        ( ( \(index, innerTy) ->
-              typeToDropPaths
-                innerTy
-                ( DropPathSelect innerTy (offsetList !! index)
-                    . addPath
-                )
-          )
-            <$> zip [0 ..] (NE.toList tyItems)
-        )
+  innerPaths <-
+    traverse
+      ( \(index, innerTy) ->
+          typeToDropPaths
+            innerTy
+            ( DropPathSelect innerTy (offsetList !! index)
+                . addPath
+            )
+      )
+      (zip [0 ..] (NE.toList tyItems))
+
+  pure
+    ( mconcat innerPaths
         <> [addPath (DropPathFetch Nothing)]
+    )
 typeToDropPaths (TVar _ tyVar) addPath =
-  [addPath (DropPathFetch (Just tyVar))]
-typeToDropPaths _ _ = mempty
+  pure [addPath (DropPathFetch (Just tyVar))]
+typeToDropPaths _ _ = pure mempty
 
 typeVars :: Type ann -> S.Set TypeVar
 typeVars (TVar _ tv) = S.singleton tv
@@ -154,10 +159,16 @@ dropFunctionForType ty =
       dropFunc <- createDropFunction 1 ty
       WFunctionPointer <$> addGeneratedFunction dropFunc
 
-createDropFunction :: (MonadError FromWasmError m) => Natural -> Type ann -> m WasmFunction
+createDropFunction ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m
+  ) =>
+  Natural ->
+  Type ann ->
+  m WasmFunction
 createDropFunction natIndex ty = do
-  let dropPaths = typeToDropPaths ty id
-      typeVarList = S.toList (typeVars ty)
+  dropPaths <- typeToDropPaths ty id
+  let typeVarList = S.toList (typeVars ty)
       allTypeVars = M.fromList $ zip typeVarList [0 ..]
   wasmTy <- liftEither (scalarFromType ty)
   let arg = 0

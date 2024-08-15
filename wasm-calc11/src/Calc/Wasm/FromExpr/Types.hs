@@ -7,6 +7,7 @@ module Calc.Wasm.FromExpr.Types
     FromExprFunc (..),
     FromExprImport (..),
     FromWasmError (..),
+    FromExprConstructor (..),
   )
 where
 
@@ -23,7 +24,14 @@ data FromExprState = FromExprState
     fesGlobals :: M.Map Identifier FromExprGlobal,
     fesVars :: [(Maybe Identifier, WasmType)],
     fesArgs :: [(Identifier, WasmType)],
-    fesGenerated :: [WasmFunction]
+    fesGenerated :: [WasmFunction],
+    fesDataTypes :: M.Map DataName (Data ())
+  }
+  deriving stock (Eq, Ord, Show)
+
+data FromExprConstructor = FromExprConstructor
+  { fecConstructor :: Constructor,
+    fecTypes :: [WasmType]
   }
   deriving stock (Eq, Ord, Show)
 

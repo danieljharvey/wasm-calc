@@ -31,10 +31,10 @@ annihilate l r =
     (PTuple _ a as, PTuple _ b bs) ->
       let allPairs = zip ([a] <> NE.toList as) ([b] <> NE.toList bs)
        in annihilateAll allPairs
-    {-    (PConstructor _ tyConA argsA, PConstructor _ tyConB argsB) ->
-    (tyConA == tyConB)
-      && annihilateAll
-        (zip argsA argsB) -}
+    (PConstructor _ tyConA argsA, PConstructor _ tyConB argsB) ->
+      (tyConA == tyConB)
+        && annihilateAll
+          (zip argsA argsB)
     (PTuple _ a as, _) ->
       isComplete a && getAll (foldMap (All . isComplete) as)
     _ -> False

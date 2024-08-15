@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Typecheck.Helpers
@@ -12,9 +13,12 @@ module Calc.Typecheck.Helpers
     lookupGlobal,
     arrangeDataTypes,
     calculateMonomorphisedTypes,
+    lookupConstructor,
+    matchConstructorTypesToArgs,
   )
 where
 
+import Calc.TypeUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Generalise
 import Calc.Typecheck.Types
@@ -26,9 +30,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Foldable (traverse_)
 import qualified Data.HashMap.Strict as HM
-import Data.Hashable
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import Data.Maybe (mapMaybe)
 import qualified Data.Set as S
 
 -- | run a typechecking computation, discarding any Writer output
@@ -138,6 +142,14 @@ identifiersFromPattern pat@(PTuple _ p ps) ty@(TContainer _ tyItems) = do
     (throwError $ PatternMismatch ty pat)
   allIdents <- zipWithM identifiersFromPattern (p : NE.toList ps) (NE.toList tyItems)
   pure $ mconcat allIdents
+identifiersFromPattern (PConstructor ann constructor ps) (TConstructor _ _ tyArgs) = do
+  (_dataTypeName, dataTypeVars, dataTypeArgs) <-
+    lookupConstructor ann constructor
+
+  filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
+
+  allIdents <- zipWithM identifiersFromPattern ps filtered
+  pure $ mconcat allIdents
 identifiersFromPattern pat ty =
   throwError $ PatternMismatch ty pat
 
@@ -188,18 +200,43 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
   let fixedMap = flipMap fresh
       mapped =
         foldMap
-          ( \(k, a) -> case HM.lookup k fixedMap of
+          ( \(k, a) -> case M.lookup k fixedMap of
               Just tv -> M.singleton tv a
               Nothing -> mempty
           )
           (HM.toList unified)
       fromTv tv =
         case M.lookup tv mapped of
-          Just a -> (tv, a)
+          Just a -> Just (tv, a)
           Nothing -> case M.lookup tv fallbacks of
-            Just a -> (tv, a)
-            Nothing -> error "could not find"
-  pure $ fromTv <$> typeVars
+            Just a -> Just (tv, a)
+            Nothing -> Nothing
+  pure $ mapMaybe fromTv typeVars
 
-flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
-flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
+flipMap :: (Ord v) => M.Map k v -> M.Map v k
+flipMap = M.fromList . fmap (\(k, v) -> (v, k)) . M.toList
+
+lookupConstructor ::
+  ann ->
+  Constructor ->
+  TypecheckM ann (DataName, [TypeVar], [Type ann])
+lookupConstructor ann constructor = do
+  result <- asks (M.lookup constructor . tceDataTypes)
+  case result of
+    (Just (TCDataType dataType vars args)) ->
+      pure (dataType, vars, args)
+    Nothing ->
+      throwError $ ConstructorNotFound ann constructor
+
+-- given the arguments to a constructor, match them to the data types's vars
+-- if we cannot find one (ie, because user has typed `Nothing` so we don't know
+-- the `a` in `Maybe<a>`, explode, expecting a type annotation
+matchConstructorTypesToArgs :: Constructor -> [TypeVar] -> [Type ann] -> [Type ann] -> TypecheckM ann [Type ann]
+matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs =
+  let pairs = M.fromList (zip dataTypeVars tyArgs)
+      replaceTy outerTy = case outerTy of
+        TVar ann var -> case M.lookup var pairs of
+          Just ty -> pure ty
+          Nothing -> throwError (UnknownGenericInConstructor ann constructor var)
+        otherTy -> bindType replaceTy otherTy
+   in traverse replaceTy dataTypeArgs

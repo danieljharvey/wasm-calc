@@ -5,6 +5,7 @@
 module Calc.Wasm.FromExpr.Helpers
   ( getAbilitiesForFunction,
     scalarFromType,
+    lookupDataType,
     addLocal,
     lookupGlobal,
     lookupIdent,
@@ -16,6 +17,11 @@ module Calc.Wasm.FromExpr.Helpers
     genericArgName,
     monomorphiseTypes,
     fromPrim,
+    getOffsetList,
+    getOffsetListForConstructor,
+    boxed,
+    memorySizeForType,
+    getConstructorNumber,
   )
 where
 
@@ -32,7 +38,9 @@ import Control.Monad (void)
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import Data.Monoid
 import qualified Data.Set as S
 import qualified Data.Text as T
 import GHC.Natural
@@ -209,7 +217,7 @@ scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
   pure Pointer
-scalarFromType (TConstructor {}) = error "scalarFromType"
+scalarFromType (TConstructor {}) = pure Pointer -- maybe enums will become I8 in future, but for now, it's all pointers
 
 genericArgName :: TypeVar -> Identifier
 genericArgName generic =
@@ -252,3 +260,140 @@ fromPrim (TPrim _ TInt64) (PIntLit i) =
   pure (WPInt64 (fromIntegral i))
 fromPrim ty prim =
   throwError $ PrimWithNonNumberType prim (void ty)
+
+getOffsetList :: Type ann -> [Natural]
+getOffsetList (TContainer _ items) =
+  scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
+getOffsetList _ = []
+
+lookupDataType :: (MonadState FromExprState m) => DataName -> m (Data ())
+lookupDataType dataTypeName = do
+  maybeDataType <- gets (M.lookup dataTypeName . fesDataTypes)
+  case maybeDataType of
+    Just dt -> pure dt
+    Nothing -> error $ "oh fuck couldn't find " <> show dataTypeName
+
+getOffsetListForConstructor ::
+  (MonadError FromWasmError m, MonadState FromExprState m) =>
+  Type ann ->
+  Constructor ->
+  m [Natural]
+getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = do
+  (Data _ dtVars constructors) <- lookupDataType dataTypeName
+  wasmTys <- case M.lookup constructor constructors of
+    Just constructorTys -> do
+      -- for `Just(I32)`, replace `a` in Maybe<a> with I32
+      let replacements = M.fromList $ monomorphiseTypes dtVars constructorTys (void <$> tyItems)
+
+      -- now go through `tyItems`, swapping out TVar with `replacements`
+      -- then finally, run `memorySizeForType` on everything
+
+      -- now we've learned about the types, swap the polymorphic ones for the
+      -- monomorphised ones
+      let toWasm ty = case ty of
+            TVar _ identifier -> case M.lookup identifier replacements of
+              Just a -> liftEither (scalarFromType a)
+              Nothing -> pure Pointer -- polymorphic values become "Pointer", this seems boringly safe
+            other -> liftEither (scalarFromType other)
+
+      traverse toWasm constructorTys
+    Nothing ->
+      error $ "did not find constructor " <> show constructor
+  pure $ scanl (\offset item -> offset + memorySize item) (memorySize I8) wasmTys
+getOffsetListForConstructor _ _ = pure []
+
+-- 1 item is a byte, so i8, so i32 is 4 bytes
+memorySize :: WasmType -> Natural
+memorySize I8 = 1
+memorySize I16 = 2
+memorySize I32 = 4
+memorySize I64 = 8
+memorySize F32 = 4
+memorySize F64 = 8
+memorySize Pointer = memorySize I32
+memorySize Void = 0
+
+-- | wrap a `WasmExpr` in a single item struct
+boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
+boxed index ty wExpr =
+  let allocate = WAllocate (memorySize ty)
+   in WSet index allocate [(0, ty, wExpr)]
+
+-- | size of the primitive in memory (ie, struct is size of its pointer)
+offsetForType :: Type ann -> Natural
+offsetForType (TPrim _ TInt8) =
+  memorySize I8
+offsetForType (TPrim _ TInt16) =
+  memorySize I16
+offsetForType (TPrim _ TInt32) =
+  memorySize I32
+offsetForType (TPrim _ TInt64) =
+  memorySize I64
+offsetForType (TPrim _ TFloat32) =
+  memorySize F32
+offsetForType (TPrim _ TFloat64) =
+  memorySize F64
+offsetForType (TPrim _ TBool) =
+  memorySize I32
+offsetForType (TConstructor {}) =
+  memorySize Pointer
+offsetForType (TPrim _ TVoid) =
+  error "offsetForType TVoid"
+offsetForType (TContainer _ _) =
+  memorySize Pointer
+offsetForType (TFunction {}) =
+  memorySize Pointer
+offsetForType (TVar _ _) =
+  memorySize Pointer
+offsetForType (TUnificationVar _ _) =
+  error "offsetForType TUnificationVar"
+
+-- | the actual size of the item in memory
+-- | for sum types this will be the biggest possible amount
+memorySizeForType :: (MonadState FromExprState m) => Type ann -> m Natural
+memorySizeForType (TPrim _ TInt8) = pure $ memorySize I8
+memorySizeForType (TPrim _ TInt16) =
+  pure $ memorySize I16
+memorySizeForType (TPrim _ TInt32) =
+  pure $ memorySize I32
+memorySizeForType (TPrim _ TInt64) =
+  pure $ memorySize I64
+memorySizeForType (TPrim _ TFloat32) =
+  pure $ memorySize F32
+memorySizeForType (TPrim _ TFloat64) =
+  pure $ memorySize F64
+memorySizeForType (TPrim _ TBool) =
+  pure $ memorySize I32
+memorySizeForType (TPrim _ TVoid) =
+  error "memorySizeForType TVoid"
+memorySizeForType (TConstructor _ dataTypeName _) = do
+  (Data _ _ constructors) <- lookupDataType dataTypeName
+  let discriminator = memorySize I8
+      sizeOfConstructor tys =
+        getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) tys)
+  sizes <- traverse sizeOfConstructor (M.elems constructors)
+  pure $ discriminator + maximum sizes
+memorySizeForType (TContainer _ as) =
+  getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) (NE.toList as))
+memorySizeForType (TFunction {}) =
+  pure $ memorySize Pointer
+memorySizeForType (TVar _ _) =
+  pure $ memorySize Pointer
+memorySizeForType (TUnificationVar _ _) =
+  error "memorySizeForType TUnificationVar"
+
+-- nested data types only take up "Pointer"
+memorySizeInsideConstructor :: (MonadState FromExprState m) => Type ann -> m Natural
+memorySizeInsideConstructor (TContainer {}) = pure $ memorySize Pointer
+memorySizeInsideConstructor (TConstructor {}) = pure $ memorySize Pointer
+memorySizeInsideConstructor other = memorySizeForType other
+
+getConstructorNumber :: (MonadState FromExprState m) => Type ann -> Constructor -> m Natural
+getConstructorNumber ty constructor = do
+  (Data _ _ constructors) <- case ty of
+    TConstructor _ dataTypeName _ -> lookupDataType dataTypeName
+    _ -> error $ "expected TConstructor, got " <> show (void ty)
+  let numberMap = M.fromList $ zip (M.keys constructors) [0 ..]
+  case M.lookup constructor numberMap of
+    Just nat -> pure nat
+    Nothing -> error $ "constructor not found " <> show constructor

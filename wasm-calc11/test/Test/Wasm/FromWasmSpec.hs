@@ -10,10 +10,11 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Helpers (monomorphiseTypes)
+import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
 import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
+import Control.Monad.State
 import Data.Foldable (traverse_)
 import qualified Data.Text as T
 import Test.Helpers
@@ -28,6 +29,32 @@ unsafeTy tyString =
 spec :: Spec
 spec = do
   describe "FromWasmSpec" $ do
+    describe "getOffsetList" $ do
+      it "Tuple of ints" $ do
+        getOffsetList (unsafeTy "(Int32,Int32,Int64)")
+          `shouldBe` [0, 4, 8, 16]
+
+      it "Tuple of smaller ints" $ do
+        getOffsetList (unsafeTy "(Int8,Int8,Int64)")
+          `shouldBe` [0, 1, 2, 10]
+
+    describe "getOffsetListForConstructor" $ do
+      it "Construct with single item" $ do
+        evalStateT (getOffsetListForConstructor (unsafeTy "Maybe(Int8)") "Just") exprState
+          `shouldBe` Right [1, 2]
+
+      it "Construct with two items" $ do
+        evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These") exprState
+          `shouldBe` Right [1, 2, 10]
+
+      it "Construct with two items" $ do
+        evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This") exprState
+          `shouldBe` Right [1, 2]
+
+      it "Recursive type" $ do
+        evalStateT (getOffsetListForConstructor (unsafeTy "List(Int64)") "Cons") exprState
+          `shouldBe` Right [1, 9, 13]
+
     describe "calculateMonomorphisedTypes" $ do
       it "Ints" $ do
         monomorphiseTypes @() ["a", "b"] [tyVar "a", tyVar "b"] [tyInt32, tyInt64]
@@ -97,8 +124,11 @@ spec = do
             ]
       traverse_
         ( \(tyString, wasmFunc) -> do
-            it (show tyString) $ do
-              createDropFunction 1 (unsafeTy tyString) `shouldBe` Right wasmFunc
+            it (show tyString) $
+              evalStateT
+                (createDropFunction 1 (unsafeTy tyString))
+                exprState
+                `shouldBe` Right wasmFunc
         )
         testVals
 
@@ -125,8 +155,11 @@ spec = do
 
       traverse_
         ( \(tyString, paths) -> do
-            it (show tyString) $ do
-              typeToDropPaths (unsafeTy tyString) id `shouldBe` paths
+            it (show tyString) $
+              evalStateT
+                (typeToDropPaths (unsafeTy tyString) id)
+                exprState
+                `shouldBe` Right paths
         )
         testVals
 
@@ -168,7 +201,8 @@ spec = do
               ]
         traverse_
           ( \(predicate, val, expected) ->
-              it (show predicate) $ do
-                predicateToWasm @_ @() val predicate `shouldBe` Right expected
+              it (show predicate) $
+                evalStateT (predicateToWasm @_ @() val predicate) exprState
+                  `shouldBe` Right expected
           )
           testVals

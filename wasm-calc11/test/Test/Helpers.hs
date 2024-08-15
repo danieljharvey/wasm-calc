@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Helpers
@@ -19,12 +20,16 @@ module Test.Helpers
     tyVar,
     patTuple,
     patInt,
+    patBool,
     patVar,
+    exprState,
   )
 where
 
 import Calc
+import Calc.Wasm.FromExpr.Types
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
 import Data.String
 import qualified Data.Text as T
 import Data.Word
@@ -84,8 +89,76 @@ patTuple = \case
   (a : rest) -> PTuple mempty a (NE.fromList rest)
   _ -> error "not enough items for patTuple"
 
+patBool :: (Monoid ann) => Bool -> Pattern ann
+patBool = PLiteral mempty . PBool
+
 patInt :: (Monoid ann) => Word64 -> Pattern ann
 patInt = PLiteral mempty . PIntLit
 
 patVar :: (Monoid ann) => String -> Pattern ann
 patVar = PVar mempty . fromString
+
+exprState :: FromExprState
+exprState =
+  FromExprState
+    { fesFunctions = mempty,
+      fesImports = mempty,
+      fesGlobals = mempty,
+      fesVars = mempty,
+      fesArgs = mempty,
+      fesGenerated = mempty,
+      fesDataTypes
+    }
+  where
+    fesDataTypes =
+      M.fromList
+        [ ( DataName "Maybe",
+            Data
+              { dtName = DataName "Maybe",
+                dtVars = ["a"],
+                dtConstructors =
+                  M.fromList
+                    [ ("Nothing", []),
+                      ("Just", [TVar mempty "a"])
+                    ]
+              }
+          ),
+          ( DataName "Either",
+            Data
+              { dtName = DataName "Either",
+                dtVars = ["e", "a"],
+                dtConstructors =
+                  M.fromList
+                    [ ("Left", [TVar mempty "e"]),
+                      ("Right", [TVar mempty "a"])
+                    ]
+              }
+          ),
+          ( DataName "These",
+            Data
+              { dtName = DataName "These",
+                dtVars = ["a", "b"],
+                dtConstructors =
+                  M.fromList
+                    [ ("This", [TVar mempty "a"]),
+                      ("That", [TVar mempty "b"]),
+                      ("These", [TVar mempty "a", TVar mempty "b"])
+                    ]
+              }
+          ),
+          ( DataName "List",
+            Data
+              { dtName = DataName "List",
+                dtVars = ["a"],
+                dtConstructors =
+                  M.fromList
+                    [ ( "Cons",
+                        [ TVar mempty "a",
+                          TConstructor mempty (DataName "List") [TVar mempty "a"]
+                        ]
+                      ),
+                      ("Nil", [])
+                    ]
+              }
+          )
+        ]

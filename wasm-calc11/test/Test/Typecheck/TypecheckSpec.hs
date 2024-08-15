@@ -160,6 +160,12 @@ spec = do
                 tyConstructor "Maybe" [tyInt32]
               ),
               ( joinLines
+                  [ "type Maybe<a> = Just(a) | Nothing",
+                    "function main() -> Maybe(Int32) { Nothing }"
+                  ],
+                tyConstructor "Maybe" [tyInt32]
+              ),
+              ( joinLines
                   [ "type Either<e,a> = Left(e) | Right(a)",
                     "function main() -> Either(Boolean,Int32) { Right(100) }"
                   ],
@@ -177,7 +183,37 @@ spec = do
                   ],
                 tyInt32
               ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    "function main() -> Int32 { let _: List(Boolean) = Cons(True, Cons(False, Nil)); 100 }"
+                  ],
+                tyInt32
+              ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    "function main() -> Int32 { let _ = Cons(True, Cons(False, Nil)); 100 }"
+                  ],
+                tyInt32
+              ),
               ( "function main() -> Int32 { case True { True -> 1, False -> 2 } }",
+                tyInt32
+              ),
+              ( joinLines
+                  [ "type Either<e,a> = Left(e) | Right(a)",
+                    "function main() -> Int32 { case Right((42:Int32)) { Right(a) -> a, Left(_) -> 0 } }"
+                  ],
+                tyInt32
+              ),
+              ( joinLines
+                  [ "type Either<e,a> = Left(e) | Right(a)",
+                    "function main() -> Int32 { case Right((42:Int32)) { Right(a) -> a, Left(e) -> e } }"
+                  ],
+                tyInt32
+              ),
+              ( joinLines
+                  [ "type Either<e,a> = Left(e) | Right(a)",
+                    "function main() -> Int32 { let either: Either(Boolean,Int32) = Right(42); case either { Right(a) -> a, Left(_) -> 0 } }"
+                  ],
                 tyInt32
               )
             ]
@@ -214,7 +250,15 @@ spec = do
                 [ "global counter: Int32 = 0",
                   "function setsNonMutableGlobal() -> Void { set(counter, 1) }"
                 ],
-              joinLines ["test itsNotABool = (1: Int32)"]
+              joinLines ["test itsNotABool = (1: Int32)"],
+              joinLines
+                [ "type Either<e,a> = Left(e) | Right(a)",
+                  "function main() -> Int32 { case Right((42:Int32)) { Right(int) -> int, Left(bool) -> bool && True } }"
+                ],
+              joinLines
+                [ "type List<a> = Cons(a, List(a)) | Nil",
+                  "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
+                ]
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing

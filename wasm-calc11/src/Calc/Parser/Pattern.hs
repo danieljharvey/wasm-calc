@@ -19,11 +19,12 @@ patternParser =
   label
     "pattern match"
     ( orInBrackets
-        ( try patTupleParser
-            <|> try patWildcardParser
-            <|> try patVariableParser
-            <|> patBoxParser
+        ( try patWildcardParser
             <|> patPrimParser
+            <|> try patVariableParser
+            <|> try patBoxParser
+            <|> patConstructorParser
+            <|> patTupleParser
         )
     )
 
@@ -71,3 +72,26 @@ patBoxParser = label "box" $
 patPrimParser :: Parser ParserPattern
 patPrimParser =
   myLexeme $ withLocation PLiteral primParser
+
+----
+
+patArgsParser :: Parser [ParserPattern]
+patArgsParser =
+  let argsWithBrackets = do
+        stringLiteral "("
+        args <- sepBy1 patternParser (stringLiteral ",")
+        stringLiteral ")"
+        pure args
+   in try argsWithBrackets <|> pure []
+
+patConstructorParser :: Parser ParserPattern
+patConstructorParser =
+  let parser = do
+        cons <- myLexeme constructorParserInternal
+        args <- patArgsParser
+        pure (cons, args)
+   in withLocation
+        ( \loc (cons, args) ->
+            PConstructor loc cons args
+        )
+        parser

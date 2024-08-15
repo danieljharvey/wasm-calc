@@ -201,7 +201,7 @@ constructorParser =
         stringLiteral ")"
         pure args
    in label "constructor" $ addLocation $ do
-        constructor <- constructorParserInternal
+        constructor <- myLexeme constructorParserInternal
         args <- try argsParser <|> pure mempty
         pure $ EConstructor mempty constructor args
 

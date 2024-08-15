@@ -13,6 +13,7 @@ import Calc.Typecheck.Helpers
 import Calc.Typecheck.Infer
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
+import Calc.Types.Data
 import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Global
@@ -90,8 +91,12 @@ elaborateModule
             mdMemory = elaborateMemory <$> mdMemory,
             mdGlobals = globals,
             mdTests = tests,
-            mdDataTypes = mempty
+            mdDataTypes = elaborateDataType <$> mdDataTypes
           }
+
+elaborateDataType :: Data ann -> Data (Type ann)
+elaborateDataType (Data dtName vars cons) =
+  Data dtName vars ((fmap . fmap) (\ty -> ty $> ty) cons)
 
 -- check a test expression has type `Bool`
 -- later we'll also check it does not use any imports

@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Calc.Typecheck.Infer
   ( infer,
     check,
@@ -10,6 +8,7 @@ where
 import Calc.ExprUtils
 import Calc.TypeUtils
 import Calc.Typecheck.Error
+import Calc.Typecheck.Generalise
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Patterns
 import Calc.Typecheck.Substitute
@@ -23,6 +22,7 @@ import Control.Monad.State
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty (EApply ann fn args) =
@@ -71,8 +71,8 @@ check ty expr = do
   pure (mapOuterExprAnnotation (const unifiedTy) exprA)
 
 checkLoad :: Maybe (Type ann) -> ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
-checkLoad Nothing _ann _index =
-  error "Can't infer ELoad type"
+checkLoad Nothing ann _index =
+  throwError (UnknownLoadType ann)
 checkLoad (Just ty) ann index = do
   typedIndex <- check (TPrim ann TInt32) index
   _memLimit <- asks tceMemoryLimit
@@ -83,7 +83,7 @@ checkLoad (Just ty) ann index = do
   -}
   if isNumber ty
     then pure $ ELoad (ty $> ann) typedIndex
-    else error "can only load primitive values"
+    else throwError (LoadingNonPrimitiveType ann ty)
 
 -- | store always returns Void
 checkStore ::
@@ -102,7 +102,7 @@ checkStore maybeTy ann index expr = do
       ManualMemoryAccessOutsideLimit ann memLimit index
   -}
   unless (isNumber $ getOuterAnnotation typedExpr) $
-    error "can only store primitive values"
+    throwError (StoringNonPrimitiveType ann (getOuterAnnotation typedExpr))
   let tyVoid = TPrim ann TVoid
   case maybeTy of
     Just ty -> void (unify tyVoid ty)
@@ -265,6 +265,8 @@ unifyPrimitives (TFunction _ argA bodyA) (TFunction _ argB bodyB) = do
   unifyPrimitives bodyA bodyB
 unifyPrimitives (TContainer _ as) (TContainer _ bs) =
   zipWithM_ unifyPrimitives (NE.toList as) (NE.toList bs)
+unifyPrimitives (TConstructor _ _ as) (TConstructor _ _ bs) =
+  zipWithM_ unifyPrimitives as bs
 unifyPrimitives tyA tyB =
   if void tyA == void tyB
     then pure ()
@@ -345,6 +347,24 @@ checkPattern ty@(TContainer _ tyItems) pat@(PTuple _ p ps) = do
   pHead <- checkPattern (NE.head tyItems) p
   pTail <- zipWithM checkPattern (NE.tail tyItems) (NE.toList ps)
   pure (PTuple ty pHead (NE.fromList pTail))
+checkPattern (TConstructor _ tyDataName tyArgs) (PConstructor ann constructor patArgs) = do
+  (dataTypeName, dataTypeVars, dataTypeArgs) <-
+    lookupConstructor ann constructor
+
+  unless (tyDataName == dataTypeName) $
+    throwError (DataTypeMismatch ann tyDataName dataTypeName)
+
+  filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
+
+  typedArgs <- zipWithM checkPattern filtered patArgs
+
+  let fallbackTypes = M.fromList (zip dataTypeVars tyArgs)
+
+  monomorphisedArgs <-
+    calculateMonomorphisedTypes dataTypeVars dataTypeArgs (getOuterPatternAnnotation <$> typedArgs) fallbackTypes
+
+  let ty = TConstructor ann dataTypeName (snd <$> monomorphisedArgs)
+  pure (PConstructor ty constructor typedArgs)
 checkPattern ty pat = throwError $ PatternMismatch ty pat
 
 checkTuple ::
@@ -378,37 +398,40 @@ checkTuple Nothing ann fstExpr restExpr = do
           )
   pure $ ETuple typ typedFst typedRest
 
-matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
-matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
-  let pairs = M.fromList (zip dataTypeVars tyArgs)
-      filteredTyArgs =
-        ( \case
-            TVar _ var -> case M.lookup var pairs of
-              Just ty -> ty
-              Nothing -> error "cannot find"
-            otherTy -> otherTy
-        )
-          <$> dataTypeArgs
-   in filteredTyArgs
-
 checkConstructor :: Maybe (DataName, [Type ann]) -> ann -> Constructor -> [Expr ann] -> TypecheckM ann (Expr (Type ann))
 checkConstructor maybeTy ann constructor args = do
   (dataTypeName, dataTypeVars, dataTypeArgs) <-
     lookupConstructor ann constructor
 
   (typedArgs, fallbackTypes) <- case maybeTy of
-    Just (tyCons, tyArgs) -> do
-      unless (tyCons == dataTypeName) $ error "wrong"
+    Just (tyDataName, tyArgs) -> do
+      -- we have a type signature to check this against
+      unless (tyDataName == dataTypeName) $
+        throwError (DataTypeMismatch ann tyDataName dataTypeName)
 
-      let filtered = matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs
+      filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
+
       typedArgs <- zipWithM check filtered args
+
+      let fallbackTypes = M.fromList (zip dataTypeVars tyArgs)
+
       pure
         ( typedArgs,
-          M.fromList (zip dataTypeVars tyArgs)
+          fallbackTypes
         )
     Nothing -> do
-      typedArgs <- traverse infer args
-      pure (typedArgs, mempty)
+      (updates, newTys) <- generaliseMany (S.fromList dataTypeVars) dataTypeArgs
+
+      -- we have no type signature to check this against
+      typedArgs <- zipWithM check newTys args
+
+      -- create fresh unification types (ie, guess!) to fill in any
+      -- gaps. Ie, when inferring the type of `Nothing` we don't know
+      -- what the `a` is in `Maybe<a>`, but also, we don't care, so say
+      -- "it's a thing, you can decide later"
+      let fallbackTypes = TUnificationVar ann <$> updates
+
+      pure (typedArgs, fallbackTypes)
 
   monomorphisedArgs <-
     calculateMonomorphisedTypes dataTypeVars dataTypeArgs (getOuterAnnotation <$> typedArgs) fallbackTypes
@@ -430,22 +453,14 @@ checkLet maybeReturnTy ann pat expr rest = do
     case maybeReturnTy of
       Just returnTy -> check returnTy rest
       Nothing -> infer rest
-  case validatePatterns ann [typedPat] of
-    Right _ -> pure ()
-    Left patternMatchError -> throwError (PatternMatchError patternMatchError)
-  pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
-lookupConstructor ::
-  ann ->
-  Constructor ->
-  TypecheckM ann (DataName, [TypeVar], [Type ann])
-lookupConstructor ann constructor = do
-  result <- asks (M.lookup constructor . tceDataTypes)
-  case result of
-    (Just (TCDataType dataType vars args)) ->
-      pure (dataType, vars, args)
-    Nothing ->
-      throwError $ ConstructorNotFound ann constructor
+  env <- ask
+  case validatePatterns env ann [typedPat] of
+    Right _ -> pure ()
+    Left patternMatchError ->
+      throwError (PatternMatchError patternMatchError)
+
+  pure $ ELet (getOuterAnnotation typedRest $> ann) typedPat typedExpr typedRest
 
 checkMatch :: Maybe (Type ann) -> ann -> Expr ann -> NE.NonEmpty (Pattern ann, Expr ann) -> TypecheckM ann (Expr (Type ann))
 checkMatch maybeTy ann matchExpr pats = do
@@ -460,7 +475,9 @@ checkMatch maybeTy ann matchExpr pats = do
   elabPats <- traverse withPair pats
   let allTypes = getOuterAnnotation . snd <$> elabPats
   typ <- combineMany allTypes
-  case validatePatterns ann (fst <$> NE.toList elabPats) of
+
+  env <- ask
+  case validatePatterns env ann (fst <$> NE.toList elabPats) of
     Right _ -> pure ()
     Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
