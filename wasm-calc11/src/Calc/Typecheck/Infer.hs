@@ -70,8 +70,8 @@ check ty expr = do
   pure (mapOuterExprAnnotation (const unifiedTy) exprA)
 
 checkLoad :: Maybe (Type ann) -> ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
-checkLoad Nothing _ann _index =
-  error "Can't infer ELoad type"
+checkLoad Nothing ann _index =
+  throwError (UnknownLoadType ann)
 checkLoad (Just ty) ann index = do
   typedIndex <- check (TPrim ann TInt32) index
   _memLimit <- asks tceMemoryLimit
@@ -82,7 +82,7 @@ checkLoad (Just ty) ann index = do
   -}
   if isNumber ty
     then pure $ ELoad (ty $> ann) typedIndex
-    else error "can only load primitive values"
+    else throwError (LoadingNonPrimitiveType ann ty)
 
 -- | store always returns Void
 checkStore ::
@@ -101,7 +101,7 @@ checkStore maybeTy ann index expr = do
       ManualMemoryAccessOutsideLimit ann memLimit index
   -}
   unless (isNumber $ getOuterAnnotation typedExpr) $
-    error "can only store primitive values"
+    throwError (StoringNonPrimitiveType ann (getOuterAnnotation typedExpr))
   let tyVoid = TPrim ann TVoid
   case maybeTy of
     Just ty -> void (unify tyVoid ty)
@@ -351,7 +351,7 @@ checkPattern (TConstructor _ tyDataName tyArgs) (PConstructor ann constructor pa
     lookupConstructor ann constructor
 
   unless (tyDataName == dataTypeName) $
-    error "wrong"
+    throwError (DataTypeMismatch ann tyDataName dataTypeName)
 
   filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
 
@@ -403,9 +403,10 @@ checkConstructor maybeTy ann constructor args = do
     lookupConstructor ann constructor
 
   (typedArgs, fallbackTypes) <- case maybeTy of
-    Just (tyCons, tyArgs) -> do
+    Just (tyDataName, tyArgs) -> do
       -- we have a type signature to check this against
-      unless (tyCons == dataTypeName) $ error "wrong"
+      unless (tyDataName == dataTypeName) $
+        throwError (DataTypeMismatch ann tyDataName dataTypeName)
 
       filtered <- matchConstructorTypesToArgs constructor dataTypeVars tyArgs dataTypeArgs
 

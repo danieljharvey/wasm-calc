@@ -42,6 +42,10 @@ data TypeError ann
   | ConstructorNotFound ann Constructor
   | UnknownGenericInConstructor ann Constructor TypeVar
   | PatternMatchError (PatternMatchError ann)
+  | DataTypeMismatch ann DataName DataName -- expected, actual
+  | StoringNonPrimitiveType ann (Type ann)
+  | LoadingNonPrimitiveType ann (Type ann)
+  | UnknownLoadType ann
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -70,6 +74,69 @@ typeErrorDiagnostic input e =
    in case e of
         (PatternMatchError patternMatchError) ->
           patternMatchErrorDiagnostic input patternMatchError
+        (UnknownLoadType ann) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Can't load into unknown type."
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint
+                                "Consider providing a type annotation"
+                            )
+                        )
+                  ]
+              )
+              []
+        (StoringNonPrimitiveType ann ty) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Can only store primitive types"
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint $
+                                "This is trying to store " <> PP.pretty ty
+                            )
+                        )
+                  ]
+              )
+              []
+        (LoadingNonPrimitiveType ann ty) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Can only load primitive types"
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint $
+                                "This is trying to load " <> PP.pretty ty
+                            )
+                        )
+                  ]
+              )
+              []
         (ExpectedInteger ann tyPrim) ->
           Diag.addReport diag $
             Diag.Err
@@ -149,6 +216,26 @@ typeErrorDiagnostic input e =
                         ( Diag.This
                             ( prettyPrint
                                 "Perhaps declare this with 'global mut' instead?"
+                            )
+                        )
+                  ]
+              )
+              []
+        (DataTypeMismatch ann expected actual) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint $ "Unexpected data type. Found " <> PP.pretty actual
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint $ "Expected " <> PP.pretty expected
                             )
                         )
                   ]

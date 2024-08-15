@@ -78,7 +78,7 @@ findMatches tceDataTypes constructor =
             tcdtName == thisDataType
           extract (cn, TCDataType {tcdtArgs}) = (cn, void <$> tcdtArgs)
        in S.fromList $ extract <$> M.toList (M.filter matchesDataName tceDataTypes)
-    Nothing -> error "sdfsdf"
+    Nothing -> mempty
 
 -- | generate all the patterns, then remove ourselves
 generate :: TypecheckEnv ann -> Pattern (Type ann) -> S.Set (Pattern ())
