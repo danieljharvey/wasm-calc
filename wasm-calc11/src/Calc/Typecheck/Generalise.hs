@@ -10,7 +10,7 @@ import Calc.Typecheck.Types
 import Calc.Types.Type
 import Calc.Types.TypeVar
 import Control.Monad.State
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import GHC.Natural
 
@@ -20,10 +20,10 @@ freshUnificationVariable = do
   modify (\tcs -> tcs {tcsUnique = tcsUnique tcs + 1})
   gets tcsUnique
 
-allFresh :: S.Set TypeVar -> TypecheckM ann (HM.HashMap TypeVar Natural)
+allFresh :: S.Set TypeVar -> TypecheckM ann (M.Map TypeVar Natural)
 allFresh generics =
   let freshOne typeVar =
-        HM.singleton typeVar <$> freshUnificationVariable
+        M.singleton typeVar <$> freshUnificationVariable
    in mconcat <$> traverse freshOne (S.toList generics)
 
 -- given a type, replace anything that should be generic with unification
@@ -34,7 +34,7 @@ generalise generics ty =
     fresh <- allFresh generics
     pure $ generaliseInternal fresh ty
 
-generaliseMany :: S.Set TypeVar -> [Type ann] -> TypecheckM ann (HM.HashMap TypeVar Natural, [Type ann])
+generaliseMany :: S.Set TypeVar -> [Type ann] -> TypecheckM ann (M.Map TypeVar Natural, [Type ann])
 generaliseMany generics tys =
   do
     fresh <- allFresh generics
@@ -43,9 +43,9 @@ generaliseMany generics tys =
 
 -- given a type, replace anything that should be generic with unification
 -- variables so that we know to replace them with types easily
-generaliseInternal :: HM.HashMap TypeVar Natural -> Type ann -> Type ann
+generaliseInternal :: M.Map TypeVar Natural -> Type ann -> Type ann
 generaliseInternal fresh (TVar ann var) =
-  case HM.lookup var fresh of
+  case M.lookup var fresh of
     Just nat ->
       TUnificationVar ann nat
     Nothing -> error "oh no generalise error"

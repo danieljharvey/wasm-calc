@@ -30,7 +30,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Foldable (traverse_)
 import qualified Data.HashMap.Strict as HM
-import Data.Hashable
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import Data.Maybe (mapMaybe)
@@ -201,7 +200,7 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
   let fixedMap = flipMap fresh
       mapped =
         foldMap
-          ( \(k, a) -> case HM.lookup k fixedMap of
+          ( \(k, a) -> case M.lookup k fixedMap of
               Just tv -> M.singleton tv a
               Nothing -> mempty
           )
@@ -214,8 +213,8 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
             Nothing -> Nothing
   pure $ mapMaybe fromTv typeVars
 
-flipMap :: (Hashable v) => HM.HashMap k v -> HM.HashMap v k
-flipMap = HM.fromList . fmap (\(k, v) -> (v, k)) . HM.toList
+flipMap :: (Ord v) => M.Map k v -> M.Map v k
+flipMap = M.fromList . fmap (\(k, v) -> (v, k)) . M.toList
 
 lookupConstructor ::
   ann ->

@@ -51,9 +51,10 @@ fromTest ::
   (Eq ann, Show ann) =>
   M.Map FunctionName FromExprFunc ->
   M.Map Identifier FromExprGlobal ->
+  M.Map DataName (Data ()) ->
   Test (Type ann) ->
   Either FromWasmError WasmTest
-fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
+fromTest funcMap globalMap dataTypeMap (Test {tesName = Identifier testName, tesExpr}) = do
   (expr, fes) <-
     runStateT
       (fromExpr ((,Nothing) <$> tesExpr))
@@ -64,7 +65,7 @@ fromTest funcMap globalMap (Test {tesName = Identifier testName, tesExpr}) = do
             fesImports = mempty,
             fesFunctions = funcMap,
             fesGenerated = mempty,
-            fesDataTypes = mempty
+            fesDataTypes = dataTypeMap
           }
       )
 
@@ -209,7 +210,7 @@ fromModule wholeMod@(Module {mdDataTypes, mdMemory, mdTests, mdGlobals, mdImport
 
   wasmImports <- traverse fromImport mdImports
 
-  wasmTests <- traverse (fromTest funcMap globalMap) mdTests
+  wasmTests <- traverse (fromTest funcMap globalMap dataTypeMap) mdTests
 
   pure $
     WasmModule

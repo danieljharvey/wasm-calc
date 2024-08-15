@@ -22,6 +22,7 @@ import Control.Monad.State
 import Data.Functor
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty (EApply ann fn args) =
@@ -419,14 +420,16 @@ checkConstructor maybeTy ann constructor args = do
           fallbackTypes
         )
     Nothing -> do
+      (updates, newTys) <- generaliseMany (S.fromList dataTypeVars) dataTypeArgs
+
       -- we have no type signature to check this against
-      typedArgs <- traverse infer args
+      typedArgs <- zipWithM check newTys args
 
       -- create fresh unification types (ie, guess!) to fill in any
       -- gaps. Ie, when inferring the type of `Nothing` we don't know
       -- what the `a` is in `Maybe<a>`, but also, we don't care, so say
       -- "it's a thing, you can decide later"
-      fallbackTypes <- M.fromList <$> traverse (\var -> (,) var <$> (TUnificationVar ann <$> freshUnificationVariable)) dataTypeVars
+      let fallbackTypes = TUnificationVar ann <$> updates
 
       pure (typedArgs, fallbackTypes)
 
