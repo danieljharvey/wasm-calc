@@ -16,10 +16,11 @@ import qualified Data.Text as T
 import qualified Error.Diagnose as Diag
 import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
+import qualified Data.List.NonEmpty as NE
 
 data LinearityError ann
   = NotUsed ann Identifier
-  | UsedMultipleTimes [ann] Identifier
+  | UsedMultipleTimes (NE.NonEmpty ann) Identifier
   deriving stock (Eq, Ord, Show)
 
 prettyPrint :: PP.Doc doc -> T.Text
@@ -83,7 +84,7 @@ linearityErrorDiagnostic input e =
                             )
                         )
                 )
-                anns
+                (NE.toList anns)
             )
             []
    in Diag.addReport diag report

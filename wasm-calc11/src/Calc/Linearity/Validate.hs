@@ -55,33 +55,21 @@ validate :: LinearState ann -> Either (LinearityError ann) ()
 validate (LinearState {lsVars, lsUses}) =
   let validateFunctionItem (Internal _, _) = Right ()
       validateFunctionItem (UserDefined ident, (linearity, ann)) =
-        let completeUses = filterCompleteUses (NE.head lsUses) ident
+        let completeUses = maybe mempty NE.toList (M.lookup ident (NE.head lsUses))
          in case linearity of
               LTPrimitive ->
                 if null completeUses
                   then Left (NotUsed ann ident)
                   else Right ()
               LTBoxed ->
-                case length completeUses of
-                  0 -> Left (NotUsed ann ident)
-                  1 -> Right ()
-                  _more ->
-                    Left (UsedMultipleTimes (getLinearityAnnotation <$> completeUses) ident)
+                case NE.nonEmpty completeUses of
+                  Nothing -> Left (NotUsed ann ident)
+                  Just neUses ->
+                    if length neUses == 1
+                       then Right ()
+                       else
+                          Left (UsedMultipleTimes (getLinearityAnnotation <$> neUses) ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
-
--- | count uses of a given identifier
-filterCompleteUses ::
-  [(Identifier, Linearity ann)] ->
-  Identifier ->
-  [Linearity ann]
-filterCompleteUses uses ident =
-  foldr
-    ( \(thisIdent, linearity) total -> case linearity of
-        Whole _ ->
-          if thisIdent == ident then linearity : total else total
-    )
-    []
-    uses
 
 getFunctionUses ::
   (Show ann) =>

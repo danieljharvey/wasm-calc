@@ -9,6 +9,7 @@ module Calc.Linearity.Decorate
   )
 where
 
+import Data.Foldable (traverse_)
 import Debug.Trace
 import Calc.ExprUtils
 import Calc.Linearity.Types
@@ -35,13 +36,29 @@ getFresh = do
 
 -- | push a load of uses directly onto the head of the uses stack
 pushUses :: (MonadState (LinearState ann) m) =>
-  [(Identifier, Linearity ann)] -> m ()
+  M.Map Identifier (NE.NonEmpty (Linearity ann)) -> m ()
 pushUses uses =
+  let pushForIdent ident items
+          = traverse_ (\(Whole ann) -> recordUsesInState ident ann) items
+  in traverse_ (uncurry pushForIdent) (M.toList uses)
+
+mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
+mapHead f (neHead NE.:| neTail) =
+  (f neHead) NE.:| neTail
+
+recordUsesInState :: (MonadState (LinearState ann) m) =>
+  Identifier -> ann -> m()
+recordUsesInState ident ann =
   modify (\ls ->
-      let (topOfStack NE.:| restOfStack) = lsUses ls
-          newTopOfStack = topOfStack <> uses
+      let f =
+            M.alter (\existing ->
+                      let newItem = Whole ann
+                       in Just $ case existing of
+                                   Just neExisting -> newItem NE.:| (NE.toList neExisting)
+                                   Nothing -> NE.singleton newItem) ident
        in
-    ls {lsUses = newTopOfStack NE.:| restOfStack })
+    ls {lsUses = mapHead f (lsUses ls) })
+
 
 recordUse ::
   ( MonadState (LinearState ann) m,
@@ -51,17 +68,13 @@ recordUse ::
   Type ann ->
   m ()
 recordUse ident ty = do
-  modify (\ls ->
-      let (topOfStack NE.:| restOfStack) = lsUses ls
-          newTopOfStack = (ident, Whole (getOuterTypeAnnotation ty)) : topOfStack
-       in
-    ls {lsUses = newTopOfStack NE.:| restOfStack })
+  recordUsesInState ident (getOuterTypeAnnotation ty)
   unless (isPrimitive ty) $ tell (M.singleton ident ty) -- we only want to track use of non-primitive types
 
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them
 -- this allows us to dedupe and re-add them to the current stack as desired
-scoped :: (MonadState (LinearState ann) m) => m a -> m (a, [(Identifier, Linearity ann)])
+scoped :: (MonadState (LinearState ann) m) => m a -> m (a, (M.Map Identifier (NE.NonEmpty (Linearity ann))))
 scoped action = do
   -- add a new empty stack
   modify (\ls -> ls { lsUses = mempty NE.:| (NE.toList $ lsUses ls) })
@@ -217,8 +230,10 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
   traceShowM ("thenUses" :: String, thenUses)
   traceShowM ("elseUses" :: String, elseUses)
 
-  -- here we're gonna bin off duplicates and stuff
+  -- here we're gonna go through each constructor and keep the longest list of
+  -- things
   let usesToKeep = thenUses <> elseUses
+  _ <- error "here is the problem"
 
   traceShowM ("usesToKeep" :: String, usesToKeep)
 
