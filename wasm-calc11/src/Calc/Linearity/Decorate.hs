@@ -10,7 +10,6 @@ module Calc.Linearity.Decorate
 where
 
 import Data.Foldable (traverse_)
-import Debug.Trace
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -18,7 +17,7 @@ import Calc.Types.Expr
 import Calc.Types.Identifier
 import Calc.Types.Pattern
 import Calc.Types.Type
-import Control.Monad (unless)
+import Control.Monad (unless )
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor (second)
@@ -169,6 +168,9 @@ getVarsInScope = gets (S.fromList . mapMaybe userDefined . M.keys . lsVars)
       UserDefined i -> Just i
       _ -> Nothing
 
+combineWithBiggestItems :: (Ord k, Foldable t) => M.Map k (t a) -> M.Map k (t a) -> M.Map k (t a)
+combineWithBiggestItems = M.unionWith (\l r -> if length r > length l then r else l)
+
 decorate ::
   (Show ann) =>
   ( MonadState (LinearState ann) m,
@@ -198,23 +200,28 @@ decorate (EMatch ty expr pats) = do
   -- for vars currently in scope outside the pattern arms
   existingVars <- getVarsInScope
 
-  -- need to work out a way of scoping variables created in patterns
-  -- as they only exist in `patExpr`
   let decoratePair (pat, patExpr) = do
         (decoratedPat, _idents) <- decoratePattern pat
-        (decoratedPatExpr, patIdents) <- runWriterT (decorate patExpr)
+        ((decoratedPatExpr, uses), patIdents) <- runWriterT (scoped (decorate patExpr))
         -- we only care about idents that exist in the current scope
         let usefulIdents =
               M.filterWithKey (\k _ -> S.member k existingVars) patIdents
-        pure (usefulIdents, (decoratedPat, decoratedPatExpr))
+        pure ((usefulIdents, uses), (decoratedPat, decoratedPatExpr))
 
   decoratedPatterns <- traverse decoratePair pats
 
-  let allIdents = foldMap fst decoratedPatterns
+  let allIdents = foldMap (fst . fst) decoratedPatterns
+
+  let allUses = snd . fst <$> decoratedPatterns
+      combinedUses = foldr combineWithBiggestItems (NE.head allUses) (NE.tail allUses)
+
+  -- here we're gonna go through each constructor and keep the longest list of
+  -- things, then push the ones we want to keep hold of
+  pushUses combinedUses
 
   -- now we know all the idents, we can decorate each pattern with the ones
   -- it's missing
-  let decorateWithIdents (idents, (pat, patExpr)) =
+  let decorateWithIdents ((idents,_), (pat, patExpr)) =
         let dropIdents = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference allIdents idents))
          in (pat, mapOuterExprAnnotation (second (const dropIdents)) patExpr)
 
@@ -224,21 +231,14 @@ decorate (EMatch ty expr pats) = do
 decorate (EInfix ty op a b) =
   EInfix (ty, Nothing) op <$> decorate a <*> decorate b
 decorate (EIf ty predExpr thenExpr elseExpr) = do
-  ((decoratedThen,thenUses), thenIdents) <- runWriterT (scoped (decorate thenExpr))
+  ((decoratedThen, thenUses), thenIdents) <- runWriterT (scoped (decorate thenExpr))
   ((decoratedElse, elseUses), elseIdents) <- runWriterT (scoped (decorate elseExpr))
 
-  traceShowM ("thenUses" :: String, thenUses)
-  traceShowM ("elseUses" :: String, elseUses)
-
   -- here we're gonna go through each constructor and keep the longest list of
-  -- things
-  let usesToKeep = thenUses <> elseUses
-  _ <- error "here is the problem"
+  -- things, then push the ones we want to keep hold of
+  pushUses
+      (        combineWithBiggestItems thenUses elseUses)
 
-  traceShowM ("usesToKeep" :: String, usesToKeep)
-
-  -- push the ones we want to keep hold of
-  pushUses usesToKeep
 
   -- work out idents used in the other branch but not this one
   let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))
