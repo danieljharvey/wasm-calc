@@ -248,8 +248,13 @@ spec = do
               ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
-                    lsUses = NE.singleton (M.fromList [("b", NE.singleton $ Whole ()),
-                                      ("a", NE.singleton $ Whole ())]),
+                    lsUses =
+                      NE.singleton
+                        ( M.fromList
+                            [ ("b", NE.singleton $ Whole ()),
+                              ("a", NE.singleton $ Whole ())
+                            ]
+                        ),
                     lsFresh = 0
                   }
               ),
@@ -263,7 +268,7 @@ spec = do
               ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ()))],
-                    lsUses = NE.singleton (M.fromList [("a", NE.fromList [ Whole (),Whole () ])]),
+                    lsUses = NE.singleton (M.fromList [("a", NE.fromList [Whole (), Whole ()])]),
                     lsFresh = 0
                   }
               )

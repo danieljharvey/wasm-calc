@@ -11,12 +11,12 @@ where
 import Calc.SourceSpan
 import Calc.Types.Annotation
 import Calc.Types.Identifier
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe (catMaybes, mapMaybe)
 import qualified Data.Text as T
 import qualified Error.Diagnose as Diag
 import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
-import qualified Data.List.NonEmpty as NE
 
 data LinearityError ann
   = NotUsed ann Identifier

@@ -43,4 +43,3 @@ data LinearState ann = LinearState
     lsFresh :: Natural
   }
   deriving stock (Eq, Ord, Show, Functor)
-

@@ -9,7 +9,6 @@ module Calc.Linearity.Validate
   )
 where
 
-import qualified Data.List.NonEmpty as NE
 import Calc.Linearity.Decorate
 import Calc.Linearity.Error
 import Calc.Linearity.Types
@@ -25,6 +24,7 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Foldable (traverse_)
 import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 
 getLinearityAnnotation :: Linearity ann -> ann
@@ -40,7 +40,7 @@ validateGlobal ::
   Global (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
 validateGlobal glob = do
-  let  (expr, linearState) = getGlobalUses glob
+  let (expr, linearState) = getGlobalUses glob
   validate linearState $> expr
 
 validateFunction ::
@@ -66,9 +66,8 @@ validate (LinearState {lsVars, lsUses}) =
                   Nothing -> Left (NotUsed ann ident)
                   Just neUses ->
                     if length neUses == 1
-                       then Right ()
-                       else
-                          Left (UsedMultipleTimes (getLinearityAnnotation <$> neUses) ident)
+                      then Right ()
+                      else Left (UsedMultipleTimes (getLinearityAnnotation <$> neUses) ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
 
 getFunctionUses ::
@@ -99,7 +98,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
 getGlobalUses ::
   (Show ann) =>
   Global (Type ann) ->
-    (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
+  (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
 getGlobalUses (Global {glbExpr}) =
   fst $ runIdentity $ runWriterT $ runStateT action initialState
   where

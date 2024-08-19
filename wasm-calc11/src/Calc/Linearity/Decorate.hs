@@ -9,7 +9,6 @@ module Calc.Linearity.Decorate
   )
 where
 
-import Data.Foldable (traverse_)
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -17,10 +16,11 @@ import Calc.Types.Expr
 import Calc.Types.Identifier
 import Calc.Types.Pattern
 import Calc.Types.Type
-import Control.Monad (unless )
+import Control.Monad (unless)
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor (second)
+import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
@@ -34,30 +34,38 @@ getFresh = do
   gets lsFresh
 
 -- | push a load of uses directly onto the head of the uses stack
-pushUses :: (MonadState (LinearState ann) m) =>
-  M.Map Identifier (NE.NonEmpty (Linearity ann)) -> m ()
+pushUses ::
+  (MonadState (LinearState ann) m) =>
+  M.Map Identifier (NE.NonEmpty (Linearity ann)) ->
+  m ()
 pushUses uses =
-  let pushForIdent ident items
-          = traverse_ (\(Whole ann) -> recordUsesInState ident ann) items
-  in traverse_ (uncurry pushForIdent) (M.toList uses)
+  let pushForIdent ident =
+        traverse_ (\(Whole ann) -> recordUsesInState ident ann)
+   in traverse_ (uncurry pushForIdent) (M.toList uses)
 
 mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
 mapHead f (neHead NE.:| neTail) =
-  (f neHead) NE.:| neTail
+  f neHead NE.:| neTail
 
-recordUsesInState :: (MonadState (LinearState ann) m) =>
-  Identifier -> ann -> m()
+recordUsesInState ::
+  (MonadState (LinearState ann) m) =>
+  Identifier ->
+  ann ->
+  m ()
 recordUsesInState ident ann =
-  modify (\ls ->
-      let f =
-            M.alter (\existing ->
-                      let newItem = Whole ann
-                       in Just $ case existing of
-                                   Just neExisting -> newItem NE.:| (NE.toList neExisting)
-                                   Nothing -> NE.singleton newItem) ident
-       in
-    ls {lsUses = mapHead f (lsUses ls) })
-
+  modify
+    ( \ls ->
+        let f =
+              M.alter
+                ( \existing ->
+                    let newItem = Whole ann
+                     in Just $ case existing of
+                          Just neExisting -> newItem NE.:| NE.toList neExisting
+                          Nothing -> NE.singleton newItem
+                )
+                ident
+         in ls {lsUses = mapHead f (lsUses ls)}
+    )
 
 recordUse ::
   ( MonadState (LinearState ann) m,
@@ -73,19 +81,18 @@ recordUse ident ty = do
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them
 -- this allows us to dedupe and re-add them to the current stack as desired
-scoped :: (MonadState (LinearState ann) m) => m a -> m (a, (M.Map Identifier (NE.NonEmpty (Linearity ann))))
+scoped :: (MonadState (LinearState ann) m) => m a -> m (a, M.Map Identifier (NE.NonEmpty (Linearity ann)))
 scoped action = do
   -- add a new empty stack
-  modify (\ls -> ls { lsUses = mempty NE.:| (NE.toList $ lsUses ls) })
+  modify (\ls -> ls {lsUses = mempty NE.:| NE.toList (lsUses ls)})
   -- run the action, collecting uses in NE.head of uses stack
   result <- action
   -- grab the top level items
   items <- gets (NE.head . lsUses)
   -- bin them off stack
-  modify (\ls -> ls { lsUses = NE.fromList (NE.tail (lsUses ls)) })
+  modify (\ls -> ls {lsUses = NE.fromList (NE.tail (lsUses ls))})
   -- return both things
   pure (result, items)
-
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
@@ -221,7 +228,7 @@ decorate (EMatch ty expr pats) = do
 
   -- now we know all the idents, we can decorate each pattern with the ones
   -- it's missing
-  let decorateWithIdents ((idents,_), (pat, patExpr)) =
+  let decorateWithIdents ((idents, _), (pat, patExpr)) =
         let dropIdents = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference allIdents idents))
          in (pat, mapOuterExprAnnotation (second (const dropIdents)) patExpr)
 
@@ -237,8 +244,7 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
   -- here we're gonna go through each constructor and keep the longest list of
   -- things, then push the ones we want to keep hold of
   pushUses
-      (        combineWithBiggestItems thenUses elseUses)
-
+    (combineWithBiggestItems thenUses elseUses)
 
   -- work out idents used in the other branch but not this one
   let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))
