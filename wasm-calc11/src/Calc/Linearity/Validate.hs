@@ -24,6 +24,7 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Foldable (traverse_)
 import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 
 getLinearityAnnotation :: Linearity ann -> ann
@@ -38,49 +39,36 @@ validateGlobal ::
   (Show ann) =>
   Global (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
-validateGlobal glob =
+validateGlobal glob = do
   let (expr, linearState) = getGlobalUses glob
-   in validate linearState $> expr
+  validate linearState $> expr
 
 validateFunction ::
   (Show ann) =>
   Function (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
-validateFunction fn =
+validateFunction fn = do
   let (expr, linearState) = getFunctionUses fn
-   in validate linearState $> expr
+  validate linearState $> expr
 
 validate :: LinearState ann -> Either (LinearityError ann) ()
 validate (LinearState {lsVars, lsUses}) =
   let validateFunctionItem (Internal _, _) = Right ()
       validateFunctionItem (UserDefined ident, (linearity, ann)) =
-        let completeUses = filterCompleteUses lsUses ident
+        let completeUses = maybe mempty NE.toList (M.lookup ident (NE.head lsUses))
          in case linearity of
               LTPrimitive ->
                 if null completeUses
                   then Left (NotUsed ann ident)
                   else Right ()
               LTBoxed ->
-                case length completeUses of
-                  0 -> Left (NotUsed ann ident)
-                  1 -> Right ()
-                  _more ->
-                    Left (UsedMultipleTimes (getLinearityAnnotation <$> completeUses) ident)
+                case NE.nonEmpty completeUses of
+                  Nothing -> Left (NotUsed ann ident)
+                  Just neUses ->
+                    if length neUses == 1
+                      then Right ()
+                      else Left (UsedMultipleTimes (getLinearityAnnotation <$> neUses) ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
-
--- | count uses of a given identifier
-filterCompleteUses ::
-  [(Identifier, Linearity ann)] ->
-  Identifier ->
-  [Linearity ann]
-filterCompleteUses uses ident =
-  foldr
-    ( \(thisIdent, linearity) total -> case linearity of
-        Whole _ ->
-          if thisIdent == ident then linearity : total else total
-    )
-    []
-    uses
 
 getFunctionUses ::
   (Show ann) =>
@@ -94,7 +82,7 @@ getFunctionUses (Function {fnBody, fnArgs}) =
     initialState =
       LinearState
         { lsVars = initialVars,
-          lsUses = mempty,
+          lsUses = NE.singleton mempty,
           lsFresh = 0
         }
 
@@ -119,6 +107,6 @@ getGlobalUses (Global {glbExpr}) =
     initialState =
       LinearState
         { lsVars = mempty,
-          lsUses = mempty,
+          lsUses = NE.singleton mempty,
           lsFresh = 0
         }

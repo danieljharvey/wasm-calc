@@ -20,6 +20,7 @@ import Control.Monad (unless)
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor (second)
+import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
@@ -32,6 +33,40 @@ getFresh = do
   modify (\ls -> ls {lsFresh = lsFresh ls + 1})
   gets lsFresh
 
+-- | push a load of uses directly onto the head of the uses stack
+pushUses ::
+  (MonadState (LinearState ann) m) =>
+  M.Map Identifier (NE.NonEmpty (Linearity ann)) ->
+  m ()
+pushUses uses =
+  let pushForIdent ident =
+        traverse_ (\(Whole ann) -> recordUsesInState ident ann)
+   in traverse_ (uncurry pushForIdent) (M.toList uses)
+
+mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
+mapHead f (neHead NE.:| neTail) =
+  f neHead NE.:| neTail
+
+recordUsesInState ::
+  (MonadState (LinearState ann) m) =>
+  Identifier ->
+  ann ->
+  m ()
+recordUsesInState ident ann =
+  modify
+    ( \ls ->
+        let f =
+              M.alter
+                ( \existing ->
+                    let newItem = Whole ann
+                     in Just $ case existing of
+                          Just neExisting -> newItem NE.:| NE.toList neExisting
+                          Nothing -> NE.singleton newItem
+                )
+                ident
+         in ls {lsUses = mapHead f (lsUses ls)}
+    )
+
 recordUse ::
   ( MonadState (LinearState ann) m,
     MonadWriter (M.Map Identifier (Type ann)) m
@@ -40,8 +75,24 @@ recordUse ::
   Type ann ->
   m ()
 recordUse ident ty = do
-  modify (\ls -> ls {lsUses = (ident, Whole (getOuterTypeAnnotation ty)) : lsUses ls})
+  recordUsesInState ident (getOuterTypeAnnotation ty)
   unless (isPrimitive ty) $ tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+
+-- run an action, giving it a new uses scope
+-- then chop off the new values and return them
+-- this allows us to dedupe and re-add them to the current stack as desired
+scoped :: (MonadState (LinearState ann) m) => m a -> m (a, M.Map Identifier (NE.NonEmpty (Linearity ann)))
+scoped action = do
+  -- add a new empty stack
+  modify (\ls -> ls {lsUses = mempty NE.:| NE.toList (lsUses ls)})
+  -- run the action, collecting uses in NE.head of uses stack
+  result <- action
+  -- grab the top level items
+  items <- gets (NE.head . lsUses)
+  -- bin them off stack
+  modify (\ls -> ls {lsUses = NE.fromList (NE.tail (lsUses ls))})
+  -- return both things
+  pure (result, items)
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
@@ -124,6 +175,9 @@ getVarsInScope = gets (S.fromList . mapMaybe userDefined . M.keys . lsVars)
       UserDefined i -> Just i
       _ -> Nothing
 
+combineWithBiggestItems :: (Ord k, Foldable t) => M.Map k (t a) -> M.Map k (t a) -> M.Map k (t a)
+combineWithBiggestItems = M.unionWith (\l r -> if length r > length l then r else l)
+
 decorate ::
   (Show ann) =>
   ( MonadState (LinearState ann) m,
@@ -153,23 +207,28 @@ decorate (EMatch ty expr pats) = do
   -- for vars currently in scope outside the pattern arms
   existingVars <- getVarsInScope
 
-  -- need to work out a way of scoping variables created in patterns
-  -- as they only exist in `patExpr`
   let decoratePair (pat, patExpr) = do
         (decoratedPat, _idents) <- decoratePattern pat
-        (decoratedPatExpr, patIdents) <- runWriterT (decorate patExpr)
+        ((decoratedPatExpr, uses), patIdents) <- runWriterT (scoped (decorate patExpr))
         -- we only care about idents that exist in the current scope
         let usefulIdents =
               M.filterWithKey (\k _ -> S.member k existingVars) patIdents
-        pure (usefulIdents, (decoratedPat, decoratedPatExpr))
+        pure ((usefulIdents, uses), (decoratedPat, decoratedPatExpr))
 
   decoratedPatterns <- traverse decoratePair pats
 
-  let allIdents = foldMap fst decoratedPatterns
+  let allIdents = foldMap (fst . fst) decoratedPatterns
+
+  let allUses = snd . fst <$> decoratedPatterns
+      combinedUses = foldr combineWithBiggestItems (NE.head allUses) (NE.tail allUses)
+
+  -- here we're gonna go through each constructor and keep the longest list of
+  -- things, then push the ones we want to keep hold of
+  pushUses combinedUses
 
   -- now we know all the idents, we can decorate each pattern with the ones
   -- it's missing
-  let decorateWithIdents (idents, (pat, patExpr)) =
+  let decorateWithIdents ((idents, _), (pat, patExpr)) =
         let dropIdents = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference allIdents idents))
          in (pat, mapOuterExprAnnotation (second (const dropIdents)) patExpr)
 
@@ -179,8 +238,13 @@ decorate (EMatch ty expr pats) = do
 decorate (EInfix ty op a b) =
   EInfix (ty, Nothing) op <$> decorate a <*> decorate b
 decorate (EIf ty predExpr thenExpr elseExpr) = do
-  (decoratedThen, thenIdents) <- runWriterT (decorate thenExpr)
-  (decoratedElse, elseIdents) <- runWriterT (decorate elseExpr)
+  ((decoratedThen, thenUses), thenIdents) <- runWriterT (scoped (decorate thenExpr))
+  ((decoratedElse, elseUses), elseIdents) <- runWriterT (scoped (decorate elseExpr))
+
+  -- here we're gonna go through each constructor and keep the longest list of
+  -- things, then push the ones we want to keep hold of
+  pushUses
+    (combineWithBiggestItems thenUses elseUses)
 
   -- work out idents used in the other branch but not this one
   let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))
