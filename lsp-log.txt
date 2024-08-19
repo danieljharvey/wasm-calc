@@ -1,0 +1,477 @@
+
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc9/test/static/bigfunction.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "function big(\n  a: Int32, \n  b: Int32, \n  c: Int32, \n  d: Int32, \n  e: Int32, \n  f: Int32, \n  g: Int32, \n  h: Int32\n) -> Int32 { \n  if 1 then\n    2\n  else\n    {\n      let a: Int8 = 100; \n      if 3 then\n        4\n      else\n        if 5 then\n          6\n        else\n          if 7 then 8 else if 9 then 10 else 11\n    }\n}"}}}
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc9/test/static/drawing.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "global i: Int32 = 100\n\nglobal mut j = True\n\nimport imports.draw as draw(\n  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8\n) -> Void\n\nfunction min(floor: Int8, value: Int8) -> Int8 { \n  if value > floor then value else floor\n}\n\nfunction max(ceiling: Int8, value: Int8) -> Int8 { \n  if value < ceiling then value else ceiling\n}\n\nfunction clamp(\n  floor: Int8, ceiling: Int8, value: Int8\n) -> Int8 { min(floor, max(ceiling, value))}\n\nfunction drawBounded(\n  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8\n) -> Void { \n  let maximumWidth: Int8 = 400; \n  let maximumHeight: Int8 = 300; \n  draw(\n    clamp(0, maximumWidth, x), \n    clamp(0, maximumHeight, y), \n    r, \n    g, \n    b\n  )\n}\n\nexport function test(index: Int8) -> Void { \n  let r = clamp(0, 255, index * 2); \n  let g = clamp(0, 255, 255 - r); \n  let b = clamp(0, 255, r * 3); \n  drawBounded(index * 2, index * 3, r, g, b); \n  drawBounded(100 - index, index * 3, b, g, r); \n  drawBounded(10 + index * 3, 50 - index * 2, g, r, b); \n  drawBounded(index * 4, 200 - index * 3, b, r, g)\n}"}}}
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc9/test/static/noalloc.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "function [noglobalmutate noallocate noimports] add(\n  a: Int8, b: Int8\n) -> Int8 { a + b}\n\nfunction id<a>(a: a) -> a { a}\n\nexport function test(index: Int8) -> Int8 { \n  let a: Box(Int8) = Box(1); \n  let b: Box(Int8) = Box(2); \n  let (Box(c),Box(d)) = (id(a),id(b)); \n  add(c, d)\n}"}}}
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc9/static/malloc.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "global mut location: Int32 = 0\n\nglobal mut allocatedCount: Int32 = 0\n\nexport function malloc(size: Int32) -> Int32 { \n  let currentItem: Int32 = load(location); \n  let itemHasBeenUsed: Int32 = load(location + 4); \n  set(allocatedCount, allocatedCount + 1); \n  if itemHasBeenUsed == 0 && currentItem == 0 || size == currentItem then\n    {\n      let oldLocation = location; \n      store(location, size); \n      store(location + 4, (1: Int32)); \n      set(location, location + size + 8); \n      let newLocation = location; \n      if (load(newLocation): Int32) == (0: Int32) then\n        {\n          store(newLocation, (0: Int32)); \n          store(newLocation + 4, (0: Int32)); \n          (1: Int32)\n        }\n      else\n        { (1: Int32) }; \n      oldLocation + 8\n    }\n  else\n    {\n      set(location, location + currentItem + 8); \n      malloc(size)\n    }\n}\n\nexport function drop(dropLocation: Int32) -> Void { \n  let droppedSize: Int32 = load(dropLocation - 8); \n  store(dropLocation - 4, (0: Int32)); \n  set(allocatedCount, allocatedCount - 1); \n  let sizeOfNextBlock: Int32 = load(dropLocation + droppedSize); \n  let nextBlockUsed: Int32 = load(dropLocation + droppedSize + 4); \n  if nextBlockUsed == 0 then\n    {\n      let combinedSize = droppedSize + sizeOfNextBlock; \n      store(dropLocation - 8, combinedSize); \n      (1: Int32)\n    }\n  else\n    (1: Int32); \n  set(location, dropLocation - 8)\n}\n\nexport function getAllocatedTotal() -> Int32 { \n  allocatedCount\n}\n\ntest allocatingOnceReturnsZeroPlusFour = \n  malloc(3) == 8\n\ntest allocatingOnceMovesLocationToSizePlusFour = \n  malloc(3); \n  location == 11\n\ntest allocatingTwiceMovesLocationMore = \n  malloc(3); \n  malloc(3); \n  location == 22\n\ntest allocatingTwice = \n  malloc(3); \n  malloc(3) == 19\n\ntest allocatingTwiceWithLocationReset = \n  malloc(3); \n  store(location, (0: Int32)); \n  malloc(3) == 19\n\ntest droppingLeavesSizeButResetsUsed = \n  let a = malloc(3); \n  drop(a); \n  let used: Int32 = load(4); \n  let size: Int32 = load(0); \n  used == 0 && size == 3\n\ntest allocateWhereSizeIsAlreadySet = \n  store(0, (3: Int32)); \n  store(4, (0: Int32)); \n  malloc(3) == 8\n\ntest dropThenReallocate = \n  let a = malloc(3); \n  drop(a); \n  malloc(3) == a\n\ntest joinUnusedBlocksOnDrop = \n  let a = malloc(3); \n  let b = malloc(3); \n  drop(b); \n  drop(a); \n  malloc(6) == a"}}}
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/bigfunction.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "function big(\n  a: Int32, \n  b: Int32, \n  c: Int32, \n  d: Int32, \n  e: Int32, \n  f: Int32, \n  g: Int32, \n  h: Int32\n) -> Int32 { \n  if 1 then\n    2\n  else\n    {\n      let a: Int8 = 100; \n      if 3 then\n        4\n      else\n        if 5 then\n          6\n        else\n          if 7 then 8 else if 9 then 10 else 11\n    }\n}"}}}
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/drawing.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "global i: Int32 = 100\n\nglobal mut j = True\n\nfunction min(floor: Int8, value: Int8) -> Int8 { \n  if value > floor then value else floor\n}\n\nfunction max(ceiling: Int8, value: Int8) -> Int8 { \n  if value < ceiling then value else ceiling\n}\n\nimport imports.draw as draw(\n  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8\n) -> Void\n\nfunction clamp(\n  floor: Int8, ceiling: Int8, value: Int8\n) -> Int8 { min(floor, max(ceiling, value))}\n\nfunction drawBounded(\n  x: Int8, y: Int8, r: Int8, g: Int8, b: Int8\n) -> Void { \n  let maximumWidth: Int8 = 400; \n  let maximumHeight: Int8 = 300; \n  draw(\n    clamp(0, maximumWidth, x), \n    clamp(0, maximumHeight, y), \n    r, \n    g, \n    b\n  )\n}\n\nexport function test(index: Int8) -> Void { \n  let r = clamp(0, 255, index * 2); \n  let g = clamp(0, 255, 255 - r); \n  let b = clamp(0, 255, r * 3); \n  drawBounded(index * 2, index * 3, r, g, b); \n  drawBounded(100 - index, index * 3, b, g, r); \n  drawBounded(10 + index * 3, 50 - index * 2, g, r, b); \n  drawBounded(index * 4, 200 - index * 3, b, r, g)\n}"}}}
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "function [noglobalmutate noallocate noimports] add(\n  a: Int8, b: Int8\n) -> Int8 { a + b}\n\nfunction id<a>(a: a) -> a { a}\n\nexport function test(index: Int8) -> Int8 { \n  let a: Box(Int8) = Box(1); \n  let b: Box(Int8) = Box(2); \n  let (Box(c),Box(d)) = (id(a),id(b)); \n  add(c, d)\n}"}}}
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 1
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 2
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 3
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 4
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 5
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 6
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 7
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 8
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 9
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 10
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 11
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 12
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 13
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 14
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 15
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 16
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 17
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 18
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 19
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 20
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 21
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 22
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 23
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 24
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 25
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 26
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 27
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 28
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 29
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 30
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 31
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 32
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 33
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 34
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 35
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 36
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 37
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 38
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 39
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 40
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 41
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 42
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 43
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 44
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 45
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 46
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 47
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 48
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 49
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 50
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 51
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 52
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 53
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 54
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 55
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 56
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 57
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 58
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 59
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 60
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 61
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 62
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 63
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 64
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 65
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 66
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 67
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 68
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 69
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 70
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 71
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 72
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 73
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 74
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 75
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 76
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 77
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 78
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 79
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 80
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 81
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 82
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 83
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 84
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 85
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 86
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 87
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 88
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 89
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 90
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 91
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 92
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 93
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 94
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 95
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 96
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 97
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 98
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 99
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 100
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 101
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 102
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 103
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 104
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 105
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 106
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 107
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 108
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 109
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 110
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 111
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 112
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 113
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 114
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 115
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 116
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 117
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 118
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 119
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 120
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 121
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 122
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 123
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 124
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 125
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 126
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 127
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 128
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 129
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 130
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 131
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 132
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 133
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 134
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 135
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 136
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 137
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 138
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 139
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 140
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 141
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 142
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 143
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 144
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 145
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 146
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 147
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 148
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 149
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 150
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 151
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 152
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 153
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 154
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 155
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 156
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 157
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 158
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 159
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 160
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 161
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 162
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 163
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 164
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 165
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 166
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 167
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 168
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 169
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 170
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 171
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 172
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 173
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 174
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 175
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 176
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 177
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 178
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 179
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 180
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 181
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 182
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 183
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 184
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 185
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 186
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 187
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 188
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 189
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 190
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 191
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 192
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 193
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 194
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 195
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 196
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 197
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 198
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 199
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 200
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 201
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 202
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 203
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 204
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 205
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 206
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 207
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 208
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 209
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 210
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 211
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 212
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 213
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 214
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 215
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 216
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 217
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 218
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 219
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 220
+textDocumentDidSave
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidSave, _params = DidSaveTextDocumentParams {_textDocument = TextDocumentIdentifier {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"}}, _text = Nothing}}
+Processing DidChangeTextDocument for: NormalizedUri 3186465602908928764 "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"
+Found the virtual file: 221
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_Initialized, _params = InitializedParams}
+workspaceFolders []
+textDocumentDidOpen
+TNotificationMessage {_jsonrpc = "2.0", _method = SMethod_TextDocumentDidOpen, _params = DidOpenTextDocumentParams {_textDocument = TextDocumentItem {_uri = Uri {getUri = "file:///Users/danielharvey/Git/wasm-calc/wasm-calc10/test/static/noalloc.calc"}, _languageId = LanguageKind_Custom "calc", _version = 0, _text = "function [noglobalmutate noallocate noimports] add(\n  a: Int8, b: Int8\n) -> Int8 { a + b}\n\nfunction id<a>(a: a) -> a { a}\n\nexport function test(index: Int8) -> Int8 { \n  let a: Box(Int8) = Box(1); \n  let b: Box(Int8) = Box(2); \n  let (Box(c),Box(d)) = (id(a),id(b)); \n  add(c, d)\n}\n\nfunction patternMatch(\n  tuple: (Boolean,Boolean,Int8)\n) -> Int8 { \n  case tuple {\n    (True,False,c) -> { c }, \n    (False,True,c) -> { 1 - c }, \n    _ -> 0 \n  }\n}"}}}
