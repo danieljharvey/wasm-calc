@@ -10,3 +10,13 @@ export function test(index: Int8) -> Int8 {
   let (Box(c),Box(d)) = (id(a),id(b)); 
   add(c, d)
 }
+
+function patternMatch(
+  tuple: (Boolean,Boolean,Int8)
+) -> Int8 { 
+  case tuple {
+    (True,False,c) -> { c }, 
+    (False,True,c) -> { 1 - c }, 
+    _ -> 0 
+  }
+}
