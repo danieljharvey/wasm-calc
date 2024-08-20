@@ -195,3 +195,99 @@ function main() -> Int64 {
 }
 ```
 
+## wasm-calc9
+
+Upgrade from bump allocator (never free memory) to an actual malloc / free
+implementation [written in the language
+itself](/wasm-calc/blob/trunk/wasm-calc9/static/malloc.calc).
+
+Ability checking - annotate functions with things they're not allowed to do:
+
+```
+function [noglobalmutate noallocate noimports] add(
+  a: Int8, b: Int8
+) -> Int8 { a + b}
+```
+
+Inline tests - expressions that return `True` or `False` that are automatically
+run on each run of the typechecker.
+
+```
+test dropThenReallocate = 
+  let a = malloc(3); 
+  drop(a); 
+  malloc(3) == a
+```
+
+## wasm-calc10
+
+Pattern matching and literals in patterns
+
+```
+function patternMatch(
+  tuple: (Boolean,Boolean,Int8)
+) -> Int8 { 
+  case tuple {
+    (True,False,c) -> { c }, 
+    (False,True,c) -> { 1 - c }, 
+    _ -> 0 
+  }
+}
+```
+
+## wasm-calc11
+
+Declare algebraic data types and pattern match on them
+
+```
+type Colour = Red | Green | Blue
+
+function test() -> Int8 {
+    case Blue { Red -> 1, Green -> 2, Blue -> 3 }
+}
+```
+
+```
+type These<a,b> = This(a) | That(b) | These(a,b)
+
+function test() -> Boolean { 
+  case These(True,False) { 
+    This(a) -> a, 
+    That(b) -> b, 
+    These(a,b) -> a && b 
+  }
+}
+```
+
+```
+type Maybe<a> = Just(a) | Nothing
+
+function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { 
+  case maybe { 
+    Just(a) -> a, 
+    Nothing -> default
+  }
+}
+
+function test() -> Int64 { 
+  let matchValue: Maybe(Box(Int64)) = Just(Box(100)); 
+  let default: Box(Int64) = Box(0);
+  let Box(result) = fromMaybe(matchValue, default); 
+  result
+}
+```
+
+```
+type List<a> = Cons(a, List(a)) | Nil
+
+function sum(list:List(Int64)) -> Int64 {
+  case list { 
+    Cons(a, rest) -> a + sum(rest), 
+    Nil -> 0 
+  }
+}
+ 
+function test() -> Int64 { 
+    sum(Cons(1, Cons(2, Cons(3, Cons(4, Nil)))))
+}
+```
