@@ -81,7 +81,7 @@ checkLoad (Just ty) ann index = do
     throwError $
       ManualMemoryAccessOutsideLimit ann memLimit index
   -}
-  if isNumber ty
+  if isNumberOrUnificationVar ty
     then pure $ ELoad (ty $> ann) typedIndex
     else throwError (LoadingNonPrimitiveType ann ty)
 
@@ -101,7 +101,7 @@ checkStore maybeTy ann index expr = do
     throwError $
       ManualMemoryAccessOutsideLimit ann memLimit index
   -}
-  unless (isNumber $ getOuterAnnotation typedExpr) $
+  unless (isNumberOrUnificationVar $ getOuterAnnotation typedExpr) $
     throwError (StoringNonPrimitiveType ann (getOuterAnnotation typedExpr))
   let tyVoid = TPrim ann TVoid
   case maybeTy of
@@ -231,21 +231,33 @@ checkInfix Nothing ann op a b = do
       rightThenLeft `catchError` const throwInfixError
   let ty = getOuterAnnotation elabA
   unless
-    (isNumber ty)
+    (isNumberOrUnificationVar ty)
     ( throwError $
         InfixTypeMismatch op (getOuterAnnotation elabA) (getOuterAnnotation elabB)
     )
-  pure (EInfix (ty $> ann) op elabA elabB)
+
+  (finalTy, finalA, finalB) <- unifyExprs elabA elabB
+
+  pure (EInfix (finalTy $> ann) op finalA finalB)
+
+unifyExprs :: Expr (Type ann) -> Expr (Type ann) -> TypecheckM ann (Type (ann), Expr (Type ann), Expr (Type ann))
+unifyExprs l r = do
+
+  ty <- unify (getOuterAnnotation l) (getOuterAnnotation r)
+
+  pure (ty, mapOuterExprAnnotation (const ty) l, mapOuterExprAnnotation (const ty) r)
+
 
 -- | is this type a primitive number?
-isNumber :: Type ann -> Bool
-isNumber (TPrim _ TInt8) = True
-isNumber (TPrim _ TInt16) = True
-isNumber (TPrim _ TInt32) = True
-isNumber (TPrim _ TInt64) = True
-isNumber (TPrim _ TFloat32) = True
-isNumber (TPrim _ TFloat64) = True
-isNumber _ = False
+isNumberOrUnificationVar :: Type ann -> Bool
+isNumberOrUnificationVar (TPrim _ TInt8) = True
+isNumberOrUnificationVar (TPrim _ TInt16) = True
+isNumberOrUnificationVar (TPrim _ TInt32) = True
+isNumberOrUnificationVar (TPrim _ TInt64) = True
+isNumberOrUnificationVar (TPrim _ TFloat32) = True
+isNumberOrUnificationVar (TPrim _ TFloat64) = True
+isNumberOrUnificationVar (TUnificationVar {}) = True
+isNumberOrUnificationVar _ = False
 
 -- | like `check`, but we also check we're not passing a non-boxed value to a
 -- generic argument
@@ -317,6 +329,7 @@ checkApply maybeTy ann fnName args = do
         checkReturnType
           tyFnReturn
           (substitute moreUnified tyFnReturn)
+
       pure (actualTyReturn, elabArgs)
     _ ->
       throwError $
@@ -493,11 +506,18 @@ infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
   pure $ EAnn (getOuterAnnotation typedExpr $> ann) (ty $> ty) typedExpr
-infer (EPrim ann prim) =
-  case prim of
-    PBool _ -> pure (EPrim (TPrim ann TBool) prim)
-    PIntLit _ -> throwError (UnknownIntegerLiteral ann)
-    PFloatLit _ -> throwError (UnknownFloatLiteral ann)
+infer (EPrim ann prim) = do
+  tyPrim <- case prim of
+    PBool _ -> pure (TPrim ann TBool)
+    PIntLit _ -> do
+      uniVar <- freshUnificationVariable
+      storeIntConstraint uniVar
+      pure (TUnificationVar ann uniVar)
+    PFloatLit _ -> do
+      uniVar <- freshUnificationVariable
+      storeFloatConstraint uniVar
+      pure (TUnificationVar ann uniVar)
+  pure (EPrim tyPrim prim)
 infer (EMatch ann matchExpr pats) =
   checkMatch Nothing ann matchExpr pats
 infer (EBox ann inner) = do

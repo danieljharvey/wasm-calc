@@ -207,10 +207,10 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
           (HM.toList unified)
       fromTv tv =
         case M.lookup tv mapped of
-          Just a -> Just (tv, a)
-          Nothing -> case M.lookup tv fallbacks of
-            Just a -> Just (tv, a)
-            Nothing -> Nothing
+          Just (IsKnown ty) -> Just (tv, ty)
+          _ -> case M.lookup tv fallbacks of
+            Just ty -> Just (tv, ty)
+            _ -> Nothing
   pure $ mapMaybe fromTv typeVars
 
 flipMap :: (Ord v) => M.Map k v -> M.Map v k

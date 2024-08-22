@@ -119,12 +119,15 @@ elaborateGlobal :: Global ann -> TypecheckM ann (Global (Type ann))
 elaborateGlobal (Global {glbMutability, glbIdentifier, glbExpr}) = do
   elabExpr <- infer glbExpr
 
+  unified <- gets tcsUnified
+  substitutedExpr <- traverse (substituteOrFail unified) elabExpr
+
   pure $
     Global
-      { glbAnn = getOuterAnnotation elabExpr,
+      { glbAnn = getOuterAnnotation substitutedExpr,
         glbMutability,
         glbIdentifier,
-        glbExpr = elabExpr
+        glbExpr = substitutedExpr
       }
 
 elaborateImport :: Import ann -> TypecheckM ann (Import (Type ann))
@@ -170,7 +173,7 @@ checkAndSubstitute ::
 checkAndSubstitute ty expr = do
   exprA <- check ty expr
   unified <- gets tcsUnified
-  pure $ substitute unified <$> exprA
+  traverse (substituteOrFail unified) exprA
 
 elaborateFunction ::
   Function ann ->

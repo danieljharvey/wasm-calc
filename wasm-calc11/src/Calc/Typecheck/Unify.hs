@@ -1,5 +1,5 @@
 module Calc.Typecheck.Unify
-  ( unify,
+  ( unify,storeIntConstraint,storeFloatConstraint
   )
 where
 
@@ -48,6 +48,27 @@ storeUnified nat ty =
           }
     )
 
+storeIntConstraint :: Natural -> TypecheckM ann ()
+storeIntConstraint nat =
+  modify
+    ( \tcs ->
+        tcs
+          { tcsUnified =
+              HM.insert nat IsIntLit (tcsUnified tcs)
+          }
+    )
+
+storeFloatConstraint :: Natural -> TypecheckM ann ()
+storeFloatConstraint nat =
+  modify
+    ( \tcs ->
+        tcs
+          { tcsUnified =
+              HM.insert nat IsFloatLit (tcsUnified tcs)
+          }
+    )
+
+
 -- | given a unification variable, either save it and return the type
 -- or explode because we've already unified it with something else
 unifyVariableWithType ::
@@ -64,5 +85,24 @@ unifyVariableWithType nat ty =
         pure ty
       Just (IsKnown existingTy) -> do
         unify existingTy ty
-      Just IsIntLit -> error "is it an int lit though"
-      Just IsFloatLit -> error "is it a float lit though"
+      Just IsIntLit -> case ty of
+                          TPrim _ TInt8 ->
+                              storeUnified nat ty >> pure ty
+                          TPrim _ TInt16 ->
+                              storeUnified nat ty >> pure ty
+                          TPrim _ TInt32 ->
+                              storeUnified nat ty >> pure ty
+                          TPrim _ TInt64 ->
+                              storeUnified nat ty >> pure ty
+                          TUnificationVar _ newNat -> do
+                            storeIntConstraint newNat >> pure ty
+                          _ -> error "not an int"
+      Just IsFloatLit -> case ty of
+                            TPrim _ TFloat32 ->
+                                storeUnified nat ty >> pure ty
+                            TPrim _ TFloat64 ->
+                                storeUnified nat ty >> pure ty
+                            TUnificationVar _ newNat ->
+                              storeFloatConstraint newNat >> pure ty
+                            _ -> error "not a float"
+
