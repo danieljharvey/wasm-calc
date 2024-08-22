@@ -147,6 +147,10 @@ spec = do
                   ],
                 tyInt32
               ),
+              (
+                 "function main() -> Int32 { let a = 1; a }",
+                 tyInt32
+              ),
               ( joinLines
                   [ "type Colour = Red | Green",
                     "function main() -> Colour { let a = Red; a }"

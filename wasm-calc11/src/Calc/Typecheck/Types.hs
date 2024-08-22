@@ -8,6 +8,7 @@ module Calc.Typecheck.Types
     TypecheckGlobal (..),
     TypeScheme (..),
     TCDataType (..),
+    TCUnified (..)
   )
 where
 
@@ -44,11 +45,16 @@ data TypecheckGlobal ann = TypecheckGlobal
   }
   deriving stock (Eq, Ord, Show)
 
+-- | what do we know about this type?
+data TCUnified ann
+  = IsIntLit | IsFloatLit | IsKnown (Type ann)
+  deriving stock (Eq, Ord, Show)
+
 data TypecheckState ann = TypecheckState
   { tcsFunctions :: HM.HashMap FunctionName (TypeScheme ann),
     tcsGlobals :: HM.HashMap Identifier (TypecheckGlobal ann),
     tcsUnique :: Natural,
-    tcsUnified :: HM.HashMap Natural (Type ann)
+    tcsUnified :: HM.HashMap Natural (TCUnified ann)
   }
   deriving stock (Eq, Ord, Show)
 

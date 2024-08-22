@@ -44,7 +44,7 @@ storeUnified nat ty =
     ( \tcs ->
         tcs
           { tcsUnified =
-              HM.insert nat ty (tcsUnified tcs)
+              HM.insert nat (IsKnown ty) (tcsUnified tcs)
           }
     )
 
@@ -62,5 +62,7 @@ unifyVariableWithType nat ty =
         -- this is the first match, store it and return the passed-in type
         storeUnified nat ty
         pure ty
-      Just existingTy -> do
+      Just (IsKnown existingTy) -> do
         unify existingTy ty
+      Just IsIntLit -> error "is it an int lit though"
+      Just IsFloatLit -> error "is it a float lit though"
