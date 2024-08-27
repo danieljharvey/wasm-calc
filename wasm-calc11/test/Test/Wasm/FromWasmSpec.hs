@@ -3,6 +3,7 @@
 
 module Test.Wasm.FromWasmSpec (spec) where
 
+import Control.Monad.Identity
 import Calc.Parser
 import Calc.Types
 import Calc.Wasm.FromExpr.Drops
@@ -10,7 +11,7 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
+import Calc.Wasm.FromExpr.Helpers (memorySizeForType, getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
 import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
@@ -37,6 +38,20 @@ spec = do
       it "Tuple of smaller ints" $ do
         getOffsetList (unsafeTy "(Int8,Int8,Int64)")
           `shouldBe` [0, 1, 2, 10]
+
+    fdescribe "memorySizeForType" $ do
+      it "Maybe" $ do
+        evalStateT (memorySizeForType (unsafeTy "Maybe(Int64)")) exprState
+          `shouldBe` pure @Identity 5
+
+      it "Either" $ do
+        evalStateT (memorySizeForType (unsafeTy "Either(Int64,Int64)")) exprState
+          `shouldBe` pure @Identity 5
+
+      it "Identity" $ do
+        evalStateT (memorySizeForType (unsafeTy "Identity(Int64)")) exprState
+          `shouldBe` pure @Identity 6
+
 
     describe "getOffsetListForConstructor" $ do
       it "Construct with single item" $ do
