@@ -47,6 +47,10 @@ spec = do
         evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These") exprState
           `shouldBe` Right [1, 2, 10]
 
+      it "No discriminator when there's only one constructor" $ do
+        evalStateT (getOffsetListForConstructor (unsafeTy "Identity(Int8)") "Identity") exprState
+          `shouldBe` Right [1]
+
       it "Construct with two items" $ do
         evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This") exprState
           `shouldBe` Right [1, 2]

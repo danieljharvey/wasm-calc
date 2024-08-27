@@ -280,7 +280,9 @@ getOffsetListForConstructor ::
   m [Natural]
 getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = do
   (Data _ dtVars constructors) <- lookupDataType dataTypeName
-  wasmTys <- case M.lookup constructor constructors of
+  case M.lookup constructor constructors of
+    Nothing ->
+      error $ "did not find constructor " <> show constructor
     Just constructorTys -> do
       -- for `Just(I32)`, replace `a` in Maybe<a> with I32
       let replacements = M.fromList $ monomorphiseTypes dtVars constructorTys (void <$> tyItems)
@@ -296,10 +298,13 @@ getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = 
               Nothing -> pure Pointer -- polymorphic values become "Pointer", this seems boringly safe
             other -> liftEither (scalarFromType other)
 
-      traverse toWasm constructorTys
-    Nothing ->
-      error $ "did not find constructor " <> show constructor
-  pure $ scanl (\offset item -> offset + memorySize item) (memorySize I8) wasmTys
+      wasmTys <- traverse toWasm constructorTys
+
+      -- if we have multiple constructors, we also include an I8 discriminator
+      -- field
+      let discriminator = if length constructors > 1 then memorySize I8 else 0
+
+      pure $ filter (> 0) $ scanl (\offset item -> offset + memorySize item) discriminator wasmTys
 getOffsetListForConstructor _ _ = pure []
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
@@ -388,12 +393,17 @@ memorySizeInsideConstructor (TContainer {}) = pure $ memorySize Pointer
 memorySizeInsideConstructor (TConstructor {}) = pure $ memorySize Pointer
 memorySizeInsideConstructor other = memorySizeForType other
 
-getConstructorNumber :: (MonadState FromExprState m) => Type ann -> Constructor -> m Natural
+-- | if there is more than one constructor, return the index
+-- if there's onlu one, return Nothing
+getConstructorNumber :: (MonadState FromExprState m) => Type ann -> Constructor -> m (Maybe Natural)
 getConstructorNumber ty constructor = do
   (Data _ _ constructors) <- case ty of
     TConstructor _ dataTypeName _ -> lookupDataType dataTypeName
     _ -> error $ "expected TConstructor, got " <> show (void ty)
-  let numberMap = M.fromList $ zip (M.keys constructors) [0 ..]
-  case M.lookup constructor numberMap of
-    Just nat -> pure nat
-    Nothing -> error $ "constructor not found " <> show constructor
+  if length constructors < 2
+    then pure Nothing
+    else do
+      let numberMap = M.fromList $ zip (M.keys constructors) [0 ..]
+      case M.lookup constructor numberMap of
+        Just nat -> pure (Just nat)
+        Nothing -> error $ "constructor not found " <> show constructor

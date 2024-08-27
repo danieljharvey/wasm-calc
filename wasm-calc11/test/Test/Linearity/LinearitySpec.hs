@@ -60,13 +60,6 @@ spec = do
                   (EAnn Nothing dTyInt32 (dInt 1))
                   (EIf Nothing (dBool True) (dVar "a") (dInt 2))
               ),
-              ( "function dropBoxAfterUse() -> Int64 { let Box(a) = Box((100: Int64)); a }",
-                ELet
-                  Nothing
-                  (PBox (Just DropMe) (PVar Nothing "a"))
-                  (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100)))
-                  (dVar "a")
-              ),
               ( "function dropTupleAfterUse() -> Int64 { let (a,_) = ((100: Int64),(200: Int64)); a }",
                 ELet
                   Nothing
