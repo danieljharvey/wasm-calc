@@ -304,7 +304,7 @@ getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = 
       -- field
       let discriminator = if length constructors > 1 then memorySize I8 else 0
 
-      pure $ filter (> 0) $ scanl (\offset item -> offset + memorySize item) discriminator wasmTys
+      pure $ scanl (\offset item -> offset + memorySize item) discriminator wasmTys
 getOffsetListForConstructor _ _ = pure []
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
