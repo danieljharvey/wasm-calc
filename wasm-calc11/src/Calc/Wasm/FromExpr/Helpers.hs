@@ -25,6 +25,7 @@ module Calc.Wasm.FromExpr.Helpers
   )
 where
 
+import Calc.TypeUtils
 import Calc.ExprUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
@@ -368,15 +369,21 @@ memorySizeForType (TPrim _ TFloat32) =
 memorySizeForType (TPrim _ TFloat64) =
   pure $ memorySize F64
 memorySizeForType (TPrim _ TBool) =
-  pure $ memorySize I32
+  pure $ memorySize I8
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
-memorySizeForType (TConstructor _ dataTypeName _) = do
-  (Data _ _ constructors) <- lookupDataType dataTypeName
-  let discriminator = memorySize I8
+memorySizeForType (TConstructor _ dataTypeName tyArgs) = do
+  (Data _ vars constructors) <- lookupDataType dataTypeName
+  let discriminator = if length constructors > 1
+                          then memorySize I8
+                          else 0
       sizeOfConstructor tys =
         getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) tys)
-  sizes <- traverse sizeOfConstructor (M.elems constructors)
+  -- replace `A` in the type with `Int8` or whatever
+  let fixedConstructors = matchConstructorTypesToArgs vars (void <$> tyArgs) <$> M.elems constructors
+  -- calculate the size of each constructor
+  sizes <- traverse sizeOfConstructor fixedConstructors
+  -- return the biggest
   pure $ discriminator + maximum sizes
 memorySizeForType (TContainer _ as) =
   getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) (NE.toList as))
@@ -386,6 +393,18 @@ memorySizeForType (TVar _ _) =
   pure $ memorySize Pointer
 memorySizeForType (TUnificationVar _ _) =
   error "memorySizeForType TUnificationVar"
+
+-- given the arguments to a constructor, match them to the data types's vars
+-- if we cannot find one explode
+matchConstructorTypesToArgs :: [TypeVar] -> [Type ann] -> [Type ann] -> [Type ann]
+matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
+  let pairs = M.fromList (zip dataTypeVars tyArgs)
+      replaceTy outerTy = case outerTy of
+        TVar _ var -> case M.lookup var pairs of
+          Just ty -> ty
+          Nothing -> error "unknown generic"
+        otherTy -> mapType replaceTy otherTy
+   in replaceTy <$> dataTypeArgs
 
 -- nested data types only take up "Pointer"
 memorySizeInsideConstructor :: (MonadState FromExprState m) => Type ann -> m Natural
