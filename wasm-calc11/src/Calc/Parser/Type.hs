@@ -25,7 +25,6 @@ typeParser =
   tyPrimitiveParser
     <|> tyTupleParser
     <|> tyConstructorParser
-    <|> tyBoxParser
     <|> tyVarParser
 
 tyPrimitiveParser :: Parser ParserType
@@ -41,15 +40,6 @@ tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
         <|> (stringLiteral "Float64" $> TFloat64)
         <|> stringLiteral "Void"
         $> TVoid
-
-tyBoxParser :: Parser ParserType
-tyBoxParser = label "box" $
-  addTypeLocation $ do
-    _ <- stringLiteral "Box"
-    _ <- stringLiteral "("
-    tyInner <- typeParser
-    _ <- stringLiteral ")"
-    pure (TContainer mempty $ NE.singleton tyInner)
 
 -- | tuples use container, but we parse them distinctly
 tyTupleParser :: Parser ParserType

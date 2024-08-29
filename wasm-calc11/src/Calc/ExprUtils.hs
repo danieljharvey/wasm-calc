@@ -25,7 +25,6 @@ getOuterAnnotation (EVar ann _) = ann
 getOuterAnnotation (EConstructor ann _ _) = ann
 getOuterAnnotation (EApply ann _ _) = ann
 getOuterAnnotation (ETuple ann _ _) = ann
-getOuterAnnotation (EBox ann _) = ann
 getOuterAnnotation (ELoad ann _) = ann
 getOuterAnnotation (EStore ann _ _) = ann
 getOuterAnnotation (ESet ann _ _) = ann
@@ -46,7 +45,6 @@ mapOuterExprAnnotation f expr' =
     EVar ann a -> EVar (f ann) a
     EApply ann a b -> EApply (f ann) a b
     ETuple ann a b -> ETuple (f ann) a b
-    EBox ann a -> EBox (f ann) a
     ELoad ann a -> ELoad (f ann) a
     EStore ann a b -> EStore (f ann) a b
     ESet ann a b -> ESet (f ann) a b
@@ -77,7 +75,6 @@ bindExpr f (ETuple ann a as) =
   ETuple ann <$> f a <*> traverse f as
 bindExpr f (EConstructor ann constructor args) =
   EConstructor ann constructor <$> traverse f args
-bindExpr f (EBox ann a) = EBox ann <$> f a
 bindExpr f (EAnn ann a b) = EAnn ann a <$> f b
 bindExpr f (ELoad ann a) = ELoad ann <$> f a
 bindExpr f (EStore ann a b) = EStore ann <$> f a <*> f b
@@ -89,5 +86,4 @@ getOuterPatternAnnotation (PWildcard ann) = ann
 getOuterPatternAnnotation (PVar ann _) = ann
 getOuterPatternAnnotation (PTuple ann _ _) = ann
 getOuterPatternAnnotation (PLiteral ann _) = ann
-getOuterPatternAnnotation (PBox ann _) = ann
 getOuterPatternAnnotation (PConstructor ann _ _) = ann

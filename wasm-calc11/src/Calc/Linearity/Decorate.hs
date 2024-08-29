@@ -142,9 +142,6 @@ decoratePattern (PWildcard ty) = do
       pure (PVar (ty, dropForType ty) ident, idents)
 decoratePattern (PLiteral ty prim) =
   pure (PLiteral (ty, Nothing) prim, mempty)
-decoratePattern (PBox ty pat) = do
-  (decoratedPat, innerIdents) <- decoratePattern pat
-  pure (PBox (ty, dropForType ty) decoratedPat, innerIdents)
 decoratePattern (PConstructor ty constructor pats) = do
   decoratedPatsAndIdents <- traverse decoratePattern pats
 
@@ -258,8 +255,6 @@ decorate (EApply ty fnName args) =
   EApply (ty, Nothing) fnName <$> traverse decorate args
 decorate (ETuple ty a as) =
   ETuple (ty, Nothing) <$> decorate a <*> traverse decorate as
-decorate (EBox ty a) =
-  EBox (ty, Nothing) <$> decorate a
 decorate (EAnn ty tyAnn a) =
   EAnn (ty, Nothing) ((,Nothing) <$> tyAnn) <$> decorate a
 decorate (ELoad ty a) =

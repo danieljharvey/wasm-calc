@@ -41,7 +41,6 @@ exprParserInternal =
           try annotationParser
           <|> try tupleParser
           <|> constructorParser
-          <|> boxParser
           <|> primExprParser
           <|> ifParser
           <|> loadParser
@@ -153,15 +152,6 @@ tupleParser = label "tuple" $
       _ -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
-
-boxParser :: Parser (Expr Annotation)
-boxParser = label "box" $
-  addLocation $ do
-    _ <- stringLiteral "Box"
-    _ <- stringLiteral "("
-    inner <- exprParserInternal
-    _ <- stringLiteral ")"
-    pure (EBox mempty inner)
 
 loadParser :: Parser (Expr Annotation)
 loadParser = label "load" $

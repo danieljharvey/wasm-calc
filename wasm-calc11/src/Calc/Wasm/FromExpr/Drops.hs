@@ -135,6 +135,10 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
     )
 typeToDropPaths (TVar _ tyVar) addPath =
   pure [addPath (DropPathFetch (Just tyVar))]
+typeToDropPaths (TConstructor _ constructor tyArgs) addPath = do
+  offsetList <- getOffsetListForConstructor _ _
+  error "need to make this work"
+
 typeToDropPaths _ _ = pure mempty
 
 typeVars :: Type ann -> S.Set TypeVar

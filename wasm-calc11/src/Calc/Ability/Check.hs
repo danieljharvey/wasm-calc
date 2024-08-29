@@ -152,10 +152,6 @@ abilityExpr (ETuple ann a b) = do
   -- we'll need to account for other allocations in future
   tell (S.singleton $ AllocateMemory ann)
   ETuple ann <$> abilityExpr a <*> traverse abilityExpr b
-abilityExpr (EBox ann a) = do
-  -- we'll need to account for other allocations in future
-  tell (S.singleton $ AllocateMemory ann)
-  EBox ann <$> abilityExpr a
 abilityExpr (EConstructor ann constructor as) = do
   tell (S.singleton $ AllocateMemory ann)
   EConstructor ann constructor <$> traverse abilityExpr as

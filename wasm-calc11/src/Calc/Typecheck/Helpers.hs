@@ -132,9 +132,6 @@ identifiersFromPattern :: Pattern ann -> Type ann -> TypecheckM ann [(Identifier
 identifiersFromPattern (PLiteral {}) _ = pure mempty
 identifiersFromPattern (PVar _ identifier) ty =
   pure [(identifier, ty)]
-identifiersFromPattern (PBox _ pat) (TContainer _ tys)
-  | length tys == 1 =
-      identifiersFromPattern pat (NE.head tys)
 identifiersFromPattern (PWildcard _) _ = pure mempty
 identifiersFromPattern pat@(PTuple _ p ps) ty@(TContainer _ tyItems) = do
   when

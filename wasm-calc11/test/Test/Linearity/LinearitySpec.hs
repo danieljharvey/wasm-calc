@@ -40,7 +40,6 @@ spec = do
             _ -> error "not enough items for tuple"
           tyTuple as = TContainer mempty (NE.fromList as)
           tyInt32 = TPrim mempty TInt32
-          tyInt64 = TPrim mempty TInt64
           letAEqualsTuple =
             ELet
               Nothing
@@ -60,13 +59,6 @@ spec = do
                   (EAnn Nothing dTyInt32 (dInt 1))
                   (EIf Nothing (dBool True) (dVar "a") (dInt 2))
               ),
-              ( "function dropBoxAfterUse() -> Int64 { let Box(a) = Box((100: Int64)); a }",
-                ELet
-                  Nothing
-                  (PBox (Just DropMe) (PVar Nothing "a"))
-                  (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100)))
-                  (dVar "a")
-              ),
               ( "function dropTupleAfterUse() -> Int64 { let (a,_) = ((100: Int64),(200: Int64)); a }",
                 ELet
                   Nothing
@@ -77,25 +69,6 @@ spec = do
                       (NE.singleton $ EAnn Nothing dTyInt64 (dInt 200))
                   )
                   (dVar "a")
-              ),
-              ( "function allocUnused() -> Int64 { let _ = Box((1: Int32)); 22 }",
-                ELet
-                  Nothing
-                  (PVar (Just DropMe) "_fresh_name1")
-                  (EBox Nothing (EAnn Nothing dTyInt32 (dInt 1)))
-                  (dInt 22)
-              ),
-              ( "function incrementallyDropBoxesAfterUse() -> Int64 { let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner }",
-                ELet
-                  Nothing
-                  (PBox (Just DropMe) (PVar Nothing "outer"))
-                  (EBox Nothing (EBox Nothing (EAnn Nothing dTyInt64 (dInt 100))))
-                  ( ELet
-                      Nothing
-                      (PBox (Just DropMe) (PVar Nothing "inner"))
-                      (dVar "outer")
-                      (dVar "inner")
-                  )
               ),
               ( "function tupleSometimesUsed() -> (Int32,Int32) { let a = ((1: Int32), (2: Int32)); let b = ((2: Int32), (3: Int32)); if True then a else b}",
                 letAEqualsTuple
@@ -124,28 +97,6 @@ spec = do
                       (EInfix Nothing OpAdd (dVar "b") (dVar "c"))
                   )
               ),
-              ( "function dropVariablesInIfBranches() -> Int64 { let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c }",
-                ELet
-                  Nothing
-                  (PVar Nothing "a")
-                  (EBox Nothing (EAnn Nothing dTyInt64 (dInt 1)))
-                  ( ELet
-                      Nothing
-                      (PVar Nothing "b")
-                      (EBox Nothing (EAnn Nothing dTyInt64 (dInt 2)))
-                      ( ELet
-                          Nothing
-                          (PBox (Just DropMe) (PVar Nothing "c"))
-                          ( EIf
-                              Nothing
-                              (dBool True)
-                              (EVar (dropIdents [("b", tyTuple [tyInt64])]) "a")
-                              (EVar (dropIdents [("a", tyTuple [tyInt64])]) "b")
-                          )
-                          (dVar "c")
-                      )
-                  )
-              ),
               ( "function hmm() -> Int64 { let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c }",
                 ELet
                   Nothing
@@ -161,13 +112,6 @@ spec = do
                       (EVar Nothing "a")
                       (EInfix Nothing OpAdd (EVar Nothing "b") (EVar Nothing "c"))
                   )
-              ),
-              ( "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a, _) = pair; Box(a) }",
-                ELet
-                  Nothing
-                  (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar (Just DropMe) "_fresh_name1"))
-                  (EVar Nothing "pair")
-                  (EBox Nothing (EVar Nothing "a"))
               ),
               ( "function matchBool<a>(one: a, two: a) -> a { case True { True -> one, False -> two } }",
                 EMatch
@@ -187,37 +131,6 @@ spec = do
                       [ (PLiteral Nothing (PIntLit 1), EVar (dropIdents [("three", TVar () "a"), ("two", TVar () "a")]) "one"),
                         (PLiteral Nothing (PIntLit 2), EVar (dropIdents [("one", TVar () "a"), ("three", TVar () "a")]) "two"),
                         (PVar Nothing "_fresh_name1", EVar (dropIdents [("one", TVar () "a"), ("two", TVar () "a")]) "three")
-                      ]
-                  )
-              ),
-              ( "function matchWithBox() -> Int64 { case True { True -> { let box = Box((100: Int64)); let Box(b) = box; b} , False -> 0 } }",
-                EMatch
-                  Nothing
-                  (dBool True)
-                  ( NE.fromList
-                      [ ( PLiteral Nothing (PBool True),
-                          EBlock
-                            Nothing
-                            ( ELet
-                                Nothing
-                                (PVar Nothing "box")
-                                ( EBox
-                                    Nothing
-                                    ( EAnn
-                                        Nothing
-                                        (TPrim Nothing TInt64)
-                                        (EPrim Nothing (PIntLit 100))
-                                    )
-                                )
-                                ( ELet
-                                    Nothing
-                                    (PBox (Just DropMe) (PVar Nothing "b"))
-                                    (EVar Nothing "box")
-                                    (EVar Nothing "b")
-                                )
-                            )
-                        ),
-                        (PLiteral Nothing (PBool False), dInt 0)
                       ]
                   )
               )

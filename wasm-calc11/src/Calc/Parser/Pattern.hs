@@ -21,7 +21,6 @@ patternParser =
     ( try patWildcardParser
         <|> patPrimParser
         <|> try patVariableParser
-        <|> try patBoxParser
         <|> patConstructorParser
         <|> patTupleParser
     )
@@ -54,16 +53,6 @@ patTupleParser = label "tuple" $
     _ <- stringLiteral ")"
     pure (NE.head neArgs, neTail)
 
-----
-
-patBoxParser :: Parser ParserPattern
-patBoxParser = label "box" $
-  withLocation PBox $ do
-    _ <- stringLiteral "Box"
-    _ <- stringLiteral "("
-    inner <- patternParser
-    _ <- stringLiteral ")"
-    pure inner
 
 ----
 

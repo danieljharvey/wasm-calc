@@ -265,11 +265,6 @@ fromExpr (ETuple (ty, _) a as) = do
             <*> fromExpr item
       )
       allItems
-fromExpr (EBox (ty, _) inner) = do
-  innerWasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation inner
-  containerWasmType <- liftEither $ scalarFromType ty
-  index <- addLocal Nothing containerWasmType
-  boxed index innerWasmType <$> fromExpr inner
 fromExpr (ELoad (ty, _) index) = do
   wasmType <- liftEither $ scalarFromType ty
   WLoad wasmType <$> fromExpr index

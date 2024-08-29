@@ -179,9 +179,14 @@ spec = do
             [ ( "Int64",
                 []
               ),
-              ( "Box(Int64)",
+              ( "Identity(Int64)",
                 [DropPathFetch Nothing]
               ),
+              ( "Identity(Identity(Int64))",
+                [DropPathSelect (unsafeTy "Identity(Int64)") 0 (DropPathFetch Nothing),
+                DropPathFetch Nothing]
+              ),
+
               ( "(a,b)",
                 [ DropPathSelect (unsafeTy "a") 0 (DropPathFetch (Just "a")),
                   DropPathSelect (unsafeTy "b") 4 (DropPathFetch (Just "b")),
@@ -192,7 +197,10 @@ spec = do
                 [ DropPathSelect (unsafeTy "b") 8 (DropPathFetch (Just "b")),
                   DropPathFetch Nothing
                 ]
-              )
+              ),
+              ("(Int64, (Int64, Int32))",
+              [DropPathSelect (unsafeTy "(Int64,Int32)") 8 (DropPathFetch Nothing),
+              DropPathFetch Nothing])
             ]
 
       traverse_

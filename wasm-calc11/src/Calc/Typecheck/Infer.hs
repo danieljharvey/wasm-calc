@@ -64,10 +64,6 @@ check (TPrim tyAnn tyPrim) (EPrim _ (PIntLit i)) = do
       TInt64 -> pure tyPrim
       _ -> throwError (ExpectedInteger tyAnn tyPrim)
   pure $ EPrim ty (PIntLit i)
-check (TContainer tyAnn tyItems) (EBox _ inner) | length tyItems == 1 = do
-  typedInner <- check (NE.head tyItems) inner
-  let ty = TContainer tyAnn (NE.singleton (getOuterAnnotation typedInner))
-  pure $ EBox ty typedInner
 check ty expr = do
   exprA <- infer expr
   unifiedTy <- unify ty (getOuterAnnotation exprA)
@@ -340,9 +336,6 @@ checkPattern ty@(TPrim _ floatLit) (PLiteral ann (PFloatLit float))
 checkPattern (TPrim _ TVoid) pat@(PVar _ _) =
   throwError (CantBindVoidValue pat)
 checkPattern ty (PVar ann var) = pure (PVar (ty $> ann) var)
-checkPattern ty@(TContainer _ tyItems) (PBox _ a)
-  | length tyItems == 1 =
-      PBox ty <$> checkPattern (NE.head tyItems) a
 checkPattern ty@(TContainer _ tyItems) pat@(PTuple _ p ps) = do
   when
     (length (NE.tail tyItems) /= length ps)
@@ -503,15 +496,6 @@ infer (EPrim ann prim) =
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
 infer (EMatch ann matchExpr pats) =
   checkMatch Nothing ann matchExpr pats
-infer (EBox ann inner) = do
-  typedInner <- infer inner
-  pure $
-    EBox
-      ( TContainer
-          ann
-          (NE.singleton $ getOuterAnnotation typedInner)
-      )
-      typedInner
 infer (EConstructor ann constructor args) =
   checkConstructor Nothing ann constructor args
 infer (ELet ann pat expr rest) =

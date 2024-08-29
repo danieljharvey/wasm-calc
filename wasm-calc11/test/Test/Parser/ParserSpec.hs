@@ -391,7 +391,6 @@ spec = do
       let strings =
             [ ("_", PWildcard ()),
               ("a", PVar () "a"),
-              ("Box(_)", PBox () (PWildcard ())),
               ("1", patInt 1),
               ("Just(True)", PConstructor () "Just" [patBool True]),
               ("These(True,False)", PConstructor () "These" [patBool True, patBool False]),
@@ -432,7 +431,6 @@ spec = do
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2,)", EApply () "add" [int 1, int 2]),
               ("go()", EApply () "go" []),
-              ("Box(1)", EBox () (int 1)),
               ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),
               ( "let (a,b) = (1,2); a + b",
                 ELet

@@ -15,7 +15,6 @@ data Pattern ann
   | PWildcard ann
   | PTuple ann (Pattern ann) (NE.NonEmpty (Pattern ann))
   | PLiteral ann Prim
-  | PBox ann (Pattern ann)
   | PConstructor ann Constructor [Pattern ann]
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -23,7 +22,6 @@ instance PP.Pretty (Pattern ann) where
   pretty (PVar _ identifier) = PP.pretty identifier
   pretty (PWildcard _) = "_"
   pretty (PLiteral _ prim) = PP.pretty prim
-  pretty (PBox _ inner) = "Box(" <> PP.pretty inner <> ")"
   pretty (PTuple _ a as) =
     "(" <> PP.cat (PP.punctuate ", " (PP.pretty <$> tupleItems a as)) <> ")"
     where

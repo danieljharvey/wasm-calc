@@ -7,7 +7,6 @@ module Test.Helpers
     int,
     bool,
     float,
-    box,
     var,
     tuple,
     tyVoid,
@@ -48,9 +47,6 @@ bool = EPrim mempty . PBool
 
 var :: (Monoid ann) => String -> Expr ann
 var = EVar mempty . Identifier . fromString
-
-box :: (Monoid ann) => Expr ann -> Expr ann
-box = EBox mempty
 
 tuple :: (Monoid ann) => [Expr ann] -> Expr ann
 tuple = \case

@@ -32,8 +32,6 @@ predicatesFromPattern ::
 predicatesFromPattern (PWildcard {}) _ = pure mempty
 predicatesFromPattern (PLiteral ty prim) path = pure [Equals path ty prim]
 predicatesFromPattern (PVar {}) _ = pure mempty
-predicatesFromPattern (PBox _ inner) path =
-  predicatesFromPattern inner (path <> [(getOuterPatternAnnotation inner, 0)])
 predicatesFromPattern (PTuple ty p ps) path = do
   let allPs = zip (p : NE.toList ps) [0 ..]
   let offsetList = getOffsetList ty

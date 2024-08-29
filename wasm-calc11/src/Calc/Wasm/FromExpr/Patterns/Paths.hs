@@ -44,11 +44,6 @@ patternToDropPaths (PWildcard (ty, drops)) addPath =
   pure [addPath (PathFetch ty) | drops == Just DropMe]
 patternToDropPaths (PVar (ty, drops) _) addPath =
   pure [addPath (PathFetch ty) | drops == Just DropMe]
-patternToDropPaths (PBox (ty, drops) a) addPath = do
-  let dropContainer =
-        ([addPath (PathFetch ty) | drops == Just DropMe])
-  paths <- patternToDropPaths a (PathSelect (fst $ getOuterPatternAnnotation a) 0 . addPath)
-  pure (paths <> dropContainer)
 patternToDropPaths (PLiteral {}) _ =
   pure mempty
 patternToDropPaths (PTuple (ty, drops) a as) addPath = do
@@ -89,8 +84,6 @@ patternToPaths (PWildcard _) _ = pure mempty
 patternToPaths (PLiteral {}) _ = pure mempty
 patternToPaths (PVar ty ident) addPath =
   pure $ M.singleton ident (addPath (PathFetch ty))
-patternToPaths (PBox _ pat) addPath =
-  patternToPaths pat (PathSelect (getOuterPatternAnnotation pat) 0 . addPath)
 patternToPaths (PTuple ty p ps) addPath = do
   let offsetList = getOffsetList ty
 

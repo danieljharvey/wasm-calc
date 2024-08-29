@@ -24,7 +24,6 @@ data Expr ann
   | EVar ann Identifier
   | EApply ann FunctionName [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
-  | EBox ann (Expr ann)
   | EConstructor ann Constructor [Expr ann]
   | EAnn ann (Type ann) (Expr ann)
   | ELoad ann (Expr ann) -- index
@@ -124,8 +123,6 @@ instance PP.Pretty (Expr ann) where
 
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs
-  pretty (EBox _ inner) =
-    "Box(" <> PP.pretty inner <> ")"
   pretty (ELoad _ index) =
     "load(" <> PP.pretty index <> ")"
   pretty (EStore _ index expr) =
