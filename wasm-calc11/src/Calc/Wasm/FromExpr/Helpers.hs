@@ -25,8 +25,8 @@ module Calc.Wasm.FromExpr.Helpers
   )
 where
 
-import Calc.TypeUtils
 import Calc.ExprUtils
+import Calc.TypeUtils
 import Calc.Typecheck
   ( TypecheckEnv (..),
     runTypecheckM,
@@ -374,9 +374,10 @@ memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
 memorySizeForType (TConstructor _ dataTypeName tyArgs) = do
   (Data _ vars constructors) <- lookupDataType dataTypeName
-  let discriminator = if length constructors > 1
-                          then memorySize I8
-                          else 0
+  let discriminator =
+        if length constructors > 1
+          then memorySize I8
+          else 0
       sizeOfConstructor tys =
         getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) tys)
   -- replace `A` in the type with `Int8` or whatever

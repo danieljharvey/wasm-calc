@@ -3,7 +3,6 @@
 
 module Test.Wasm.FromWasmSpec (spec) where
 
-import Control.Monad.Identity
 import Calc.Parser
 import Calc.Types
 import Calc.Wasm.FromExpr.Drops
@@ -11,10 +10,11 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Helpers (memorySizeForType, getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
+import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, memorySizeForType, monomorphiseTypes)
 import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
+import Control.Monad.Identity
 import Control.Monad.State
 import Data.Foldable (traverse_)
 import qualified Data.Text as T
@@ -75,7 +75,6 @@ spec = do
       it "Identity" $ do
         evalStateT (memorySizeForType (unsafeTy "Identity(Int64)")) exprState
           `shouldBe` pure @Identity 8
-
 
     describe "getOffsetListForConstructor" $ do
       it "Construct with single item" $ do
