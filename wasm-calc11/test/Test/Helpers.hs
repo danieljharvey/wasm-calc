@@ -112,7 +112,14 @@ exprState =
   where
     fesDataTypes =
       M.fromList
-        [ ( DataName "Maybe",
+        [ ( DataName "Identity",
+            Data
+              { dtName = DataName "Identity",
+                dtVars = ["a"],
+                dtConstructors = M.singleton "Identity" [TVar mempty "a"]
+              }
+          ),
+          ( DataName "Maybe",
             Data
               { dtName = DataName "Maybe",
                 dtVars = ["a"],

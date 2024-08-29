@@ -10,10 +10,11 @@ import Calc.Wasm.FromExpr.Drops
     createDropFunction,
     typeToDropPaths,
   )
-import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, monomorphiseTypes)
+import Calc.Wasm.FromExpr.Helpers (getOffsetList, getOffsetListForConstructor, memorySizeForType, monomorphiseTypes)
 import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.ToWasm.Types
 import Control.Monad (void)
+import Control.Monad.Identity
 import Control.Monad.State
 import Data.Foldable (traverse_)
 import qualified Data.Text as T
@@ -38,6 +39,43 @@ spec = do
         getOffsetList (unsafeTy "(Int8,Int8,Int64)")
           `shouldBe` [0, 1, 2, 10]
 
+    describe "memorySizeForType" $ do
+      it "Boolean" $ do
+        evalStateT (memorySizeForType (unsafeTy "Boolean")) exprState
+          `shouldBe` pure @Identity 1
+
+      it "Int8" $ do
+        evalStateT (memorySizeForType (unsafeTy "Int8")) exprState
+          `shouldBe` pure @Identity 1
+
+      it "Int32" $ do
+        evalStateT (memorySizeForType (unsafeTy "Int32")) exprState
+          `shouldBe` pure @Identity 4
+
+      it "Int64" $ do
+        evalStateT (memorySizeForType (unsafeTy "Int64")) exprState
+          `shouldBe` pure @Identity 8
+
+      it "(Int64,Int64,Int8)" $ do
+        evalStateT (memorySizeForType (unsafeTy "(Int64,Int64,Int8)")) exprState
+          `shouldBe` pure @Identity 17
+
+      it "Maybe" $ do
+        evalStateT (memorySizeForType (unsafeTy "Maybe(Int64)")) exprState
+          `shouldBe` pure @Identity 9
+
+      it "Either" $ do
+        evalStateT (memorySizeForType (unsafeTy "Either(Int64,Int64)")) exprState
+          `shouldBe` pure @Identity 9
+
+      it "These" $ do
+        evalStateT (memorySizeForType (unsafeTy "These(Int64,Int64)")) exprState
+          `shouldBe` pure @Identity 17
+
+      it "Identity" $ do
+        evalStateT (memorySizeForType (unsafeTy "Identity(Int64)")) exprState
+          `shouldBe` pure @Identity 8
+
     describe "getOffsetListForConstructor" $ do
       it "Construct with single item" $ do
         evalStateT (getOffsetListForConstructor (unsafeTy "Maybe(Int8)") "Just") exprState
@@ -46,6 +84,10 @@ spec = do
       it "Construct with two items" $ do
         evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8,Int64)") "These") exprState
           `shouldBe` Right [1, 2, 10]
+
+      it "No discriminator when there's only one constructor" $ do
+        evalStateT (getOffsetListForConstructor (unsafeTy "Identity(Int8)") "Identity") exprState
+          `shouldBe` Right [0, 1]
 
       it "Construct with two items" $ do
         evalStateT (getOffsetListForConstructor (unsafeTy "These(Int8, Int64)") "This") exprState

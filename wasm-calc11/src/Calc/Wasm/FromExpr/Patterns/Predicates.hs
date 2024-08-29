@@ -15,6 +15,7 @@ import Calc.Wasm.ToWasm.Types
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe (maybeToList)
 import GHC.Natural
 
 data Predicate ann = Equals [(Type ann, Natural)] (Type ann) Prim
@@ -49,11 +50,15 @@ predicatesFromPattern (PConstructor ty constructor ps) path = do
   -- make sure we've got the correct constructor
   let discriminatorType = TPrim (getOuterTypeAnnotation ty) TInt8
   let discriminatorPath = path <> [(discriminatorType, 0)]
+
+  -- if we need a discrimnator, create an Equals fields for it
   let discriminatorMatch =
         Equals
           discriminatorPath
           discriminatorType
-          (PIntLit (fromIntegral constructorValue))
+          . PIntLit
+          . fromIntegral
+          <$> constructorValue
 
   offsetList <- getOffsetListForConstructor ty constructor
 
@@ -68,7 +73,8 @@ predicatesFromPattern (PConstructor ty constructor ps) path = do
               (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
         )
         indexedPs
-  pure $ discriminatorMatch : predicates
+
+  pure $ maybeToList discriminatorMatch <> predicates
 
 -- | turn a single `Predicate` into a `WasmExpr` for that predicate, that
 -- should return a boolean

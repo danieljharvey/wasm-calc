@@ -434,6 +434,12 @@ spec = do
                     asTest "sum(0,repeat(6,100))" -- surprisingly easy to pop the stack by increasing this value
                   ],
                 Wasm.VI64 600
+              ),
+              ( joinLines
+                  [ "type Identity<a> = Identity(a)",
+                    asTest "let boxed :Identity(Int64) = Identity(100); case boxed { Identity(a) -> a }"
+                  ],
+                Wasm.VI64 100
               )
               {-,
               -- absolutely baffled why `allocated` is not dropped here when we

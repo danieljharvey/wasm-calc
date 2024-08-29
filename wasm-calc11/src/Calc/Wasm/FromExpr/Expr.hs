@@ -193,7 +193,7 @@ fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
 fromExpr (EConstructor (ty, _) constructor args) = do
   -- what is the underlying discriminator value?
-  constructorNumber <- WPrim . WPInt32 . fromIntegral <$> getConstructorNumber ty constructor
+  constructorNumber <- fmap (WPrim . WPInt32 . fromIntegral) <$> getConstructorNumber ty constructor
 
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType
@@ -210,7 +210,12 @@ fromExpr (EConstructor (ty, _) constructor args) = do
             <*> fromExpr item
       )
       allItems
-  pure $ WSet index allocate ((0, I8, constructorNumber) : wasmItems)
+
+  let allWasmItems = case constructorNumber of
+        Just nat -> (0, I8, nat) : wasmItems
+        Nothing -> wasmItems
+
+  pure $ WSet index allocate allWasmItems
 fromExpr (EBlock (_, Just _) _) = do
   error "found drops on block"
 fromExpr (EBlock _ expr) = do
