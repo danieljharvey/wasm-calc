@@ -19,13 +19,15 @@ import Calc.Wasm.FromExpr.Helpers
   ( addGeneratedFunction,
     genericArgName,
     getOffsetList,
+    getOffsetListForConstructor,
     lookupIdent,
+    matchConstructorTypesToArgs,
     scalarFromType,
   )
 import Calc.Wasm.FromExpr.Patterns (Path (..))
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
-import Control.Monad (foldM)
+import Control.Monad (foldM, void)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Foldable (foldl')
@@ -37,11 +39,13 @@ import qualified Data.Text as T
 import GHC.Natural
 
 -- | for a variable, describe how to get it
-data DropPath ann
+data DropPath
   = -- | we're going in deeper
-    DropPathSelect (Type ann) Natural (DropPath ann)
+    DropPathSelect (Type ()) Natural DropPath
   | -- | drop this item
     DropPathFetch (Maybe TypeVar)
+  | -- | multiple branches of a sum type, we check the first field to see which to follow
+    DropPathBranches (NE.NonEmpty [DropPath])
   deriving stock (Eq, Ord, Show)
 
 -- | given a type, create a new drop function for it or use one passed into the
@@ -114,8 +118,8 @@ addDropsToWasmExpr drops wasmExpr =
 typeToDropPaths ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   Type ann ->
-  (DropPath ann -> DropPath ann) ->
-  m [DropPath ann]
+  (DropPath -> DropPath) ->
+  m [DropPath]
 typeToDropPaths ty@(TContainer _ tyItems) addPath = do
   let offsetList = getOffsetList ty
   innerPaths <-
@@ -127,7 +131,7 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
                 . addPath
             )
       )
-      (zip [0 ..] (NE.toList tyItems))
+      (zip [0 ..] (void <$> NE.toList tyItems))
 
   pure
     ( mconcat innerPaths
@@ -135,11 +139,57 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
     )
 typeToDropPaths (TVar _ tyVar) addPath =
   pure [addPath (DropPathFetch (Just tyVar))]
-typeToDropPaths (TConstructor _ constructor tyArgs) addPath = do
-  offsetList <- getOffsetListForConstructor _ _
-  error "need to make this work"
+typeToDropPaths ty@(TConstructor _ dataName tyArgs) addPath = do
+  -- need to look up `dataName` here
+  dt <- gets (M.lookup dataName . fesDataTypes)
+  case dt of
+    Nothing -> error $ "could not find data type " <> show dataName
+    Just (Data _ vars constructors) -> do
+      -- replace `A` in the type with `Int8` or whatever
+      let fixedConstructors = matchConstructorTypesToArgs vars (void <$> tyArgs) <$> constructors
 
+      -- then do this for each constructor
+      offsetLists <-
+        traverse
+          ( \(constructor, tys) ->
+              (,)
+                <$> getOffsetListForConstructor ty constructor
+                <*> pure tys
+          )
+          (M.toList fixedConstructors)
+
+      -- for each constructor...
+      let withOffsetList (offsetList, tys) =
+            mconcat
+              <$> traverse
+                ( \(index, innerTy) ->
+                    typeToDropPaths
+                      innerTy
+                      ( DropPathSelect innerTy (offsetList !! index)
+                          . addPath
+                      )
+                )
+                (zip [0 ..] tys)
+
+      innerPaths <- NE.fromList <$> traverse withOffsetList offsetLists
+
+      case innerPaths of
+        -- if there's only one constructor, we don't need to branch
+        (one NE.:| rest) | branchesAreEmpty rest -> 
+            pure $ one <> [addPath (DropPathFetch Nothing)]
+        _ ->
+          -- if there's multiple branches with things to do then return a tree structure that
+          -- we'll later turn into a big nested If statement
+          pure
+            [ addPath (DropPathBranches innerPaths),
+              addPath (DropPathFetch Nothing)
+            ]
 typeToDropPaths _ _ = pure mempty
+
+-- we don't bother building branches if they won't do anything
+branchesAreEmpty :: [[a]] -> Bool
+branchesAreEmpty branches
+  = null branches || all null branches
 
 typeVars :: Type ann -> S.Set TypeVar
 typeVars (TVar _ tv) = S.singleton tv
@@ -180,9 +230,9 @@ createDropFunction natIndex ty = do
 
   let wasmArgs = wasmTy : (typeVarList $> Pointer)
 
-  let expr = case wasmExprs of
-        [] -> WReturnVoid
-        _ -> flattenDropExprs wasmExprs
+  let expr = case NE.nonEmpty wasmExprs of
+        Nothing -> WReturnVoid
+        Just neWasmExprs -> flattenDropExprs neWasmExprs
 
   pure $
     WasmFunction
@@ -195,16 +245,23 @@ createDropFunction natIndex ty = do
         wfAbilities = mempty
       }
 
+data DoDrop
+  = NoDrop
+  | DropAll
+  | DropWithApply Natural
+
 -- | do all the drops one after the other
 -- fails if list is empty
-flattenDropExprs :: [(Maybe Natural, WasmExpr)] -> WasmExpr
-flattenDropExprs exprs = case NE.uncons (NE.fromList exprs) of
-  ((Nothing, a), Nothing) -> WDrop a
-  ((Just i, a), Nothing) -> WApply (WasmGeneratedRef i) [a]
+flattenDropExprs :: NE.NonEmpty (DoDrop, WasmExpr) -> WasmExpr
+flattenDropExprs neExprs = case NE.uncons neExprs of
+  ((NoDrop, a), Nothing) -> a
+  ((DropAll, a), Nothing) -> WDrop a
+  ((DropWithApply i, a), Nothing) -> WApply (WasmGeneratedRef i) [a]
   (starting, Just rest) ->
     let withDrop (dropType, a) = case dropType of
-          Just i -> WApply (WasmGeneratedRef i) [a]
-          Nothing -> WDrop a
+          DropWithApply i -> WApply (WasmGeneratedRef i) [a]
+          DropAll -> WDrop a
+          NoDrop -> a
      in foldl'
           ( \exprA exprB ->
               WSequence Void exprA (withDrop exprB)
@@ -217,16 +274,38 @@ dropExprFromPath ::
   (MonadError FromWasmError m) =>
   M.Map TypeVar Natural ->
   Natural ->
-  DropPath ann ->
-  m (Maybe Natural, WasmExpr)
+  DropPath ->
+  m (DoDrop, WasmExpr)
 dropExprFromPath _ wholeExprIndex (DropPathFetch Nothing) =
-  pure (Nothing, WVar wholeExprIndex)
+  pure (DropAll, WVar wholeExprIndex)
 dropExprFromPath typeVarMap wholeExprIndex (DropPathFetch (Just tyVar)) =
   case M.lookup tyVar typeVarMap of
     Just i ->
-      pure (Just i, WVar wholeExprIndex)
+      pure (DropWithApply i, WVar wholeExprIndex)
     Nothing -> error "Failed finding generic"
 dropExprFromPath typeVarMap wholeExprIndex (DropPathSelect ty index inner) = do
   wasmTy <- liftEither (scalarFromType ty)
   (nat, innerExpr) <- dropExprFromPath typeVarMap wholeExprIndex inner
   pure (nat, WTupleAccess wasmTy innerExpr index)
+dropExprFromPath typeVarMap wholeExprIndex (DropPathBranches paths) = do
+  let combineExprs wasmExprs = case NE.nonEmpty wasmExprs of
+        Nothing -> WReturnVoid
+        Just neWasmExprs -> flattenDropExprs neWasmExprs
+
+  let withPath path =
+        combineExprs <$> traverse (dropExprFromPath typeVarMap wholeExprIndex) path
+
+  exprsForConstructor <- traverse withPath paths
+
+  let bigExpr =
+        foldr
+          ( \(idx, dropExpr) wholeExpr ->
+              let wasmReturnType = Void
+                  wasmTypeForTuple = Pointer
+                  wasmPred = WInfix I32 OpEquals (WPrim $ WPInt32 idx) (WTupleAccess wasmTypeForTuple (WVar wholeExprIndex) 0)
+               in WIf wasmReturnType wasmPred dropExpr wholeExpr
+          )
+          (NE.head exprsForConstructor)
+          (zip [1 ..] (NE.tail exprsForConstructor))
+
+  pure (NoDrop, bigExpr)

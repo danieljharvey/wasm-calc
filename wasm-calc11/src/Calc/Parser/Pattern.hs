@@ -53,7 +53,6 @@ patTupleParser = label "tuple" $
     _ <- stringLiteral ")"
     pure (NE.head neArgs, neTail)
 
-
 ----
 
 patPrimParser :: Parser ParserPattern

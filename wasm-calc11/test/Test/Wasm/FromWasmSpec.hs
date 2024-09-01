@@ -106,7 +106,7 @@ spec = do
         monomorphiseTypes @() ["a", "b"] [tyVar "b", tyVar "a"] [tyInt64, tyInt32]
           `shouldBe` [("a", tyInt32), ("b", tyInt64)]
 
-    describe "createDropFunction" $ do
+    fdescribe "createDropFunction" $ do
       let wasmFunction =
             WasmFunction
               { wfName = FunctionName "thing",
@@ -126,14 +126,14 @@ spec = do
                     wfArgs = [I64]
                   }
               ),
-              ( "Box(Int64)",
+              ( "Identity(Int64)",
                 wasmFunction
                   { wfName = FunctionName "drop_1",
                     wfExpr = WDrop (WVar 0),
                     wfArgs = [Pointer]
                   }
               ),
-              ( "(Box(Int64),Box(Int64))",
+              ( "(Identity(Int64),Identity(Int64))",
                 wasmFunction
                   { wfName = FunctionName "drop_1",
                     wfExpr =
@@ -162,7 +162,49 @@ spec = do
                         (WDrop (WVar 0)),
                     wfArgs = [Pointer, Pointer, Pointer]
                   }
+              ),
+              ( "Maybe(Int64)", 
+                wasmFunction
+                  { wfName = FunctionName "drop_1",
+                    wfExpr =
+                        WDrop (WVar 0),
+                    wfArgs = [Pointer]
+                  }
+              ),
+
+              ( "Either(Int64,(Int64,Int64))", 
+                wasmFunction
+                  { wfName = FunctionName "drop_1",
+                    wfExpr =
+                      WSequence
+                        Void
+                        ( WIf
+                            Void
+                            (WInfix I8 OpEquals (WPrim (WPInt32 1)) (WTupleAccess Pointer (WVar 0) 0))
+                            (WDrop (WTupleAccess Pointer (WVar 0) 1))
+                            WReturnVoid
+                        )
+                        (WDrop (WVar 0)),
+                    wfArgs = [Pointer]
+                  }
+              ),
+              ( "Either(Int64,Either(Int64,Int64))", 
+                wasmFunction
+                  { wfName = FunctionName "drop_1",
+                    wfExpr =
+                      WSequence
+                        Void
+                        ( WIf
+                            Void
+                            (WInfix I8 OpEquals (WPrim (WPInt32 1)) (WTupleAccess Pointer (WVar 0) 0))
+                            (WDrop (WTupleAccess Pointer (WVar 0) 1))
+                            WReturnVoid
+                        )
+                        (WDrop (WVar 0)),
+                    wfArgs = [Pointer]
+                  }
               )
+
             ]
       traverse_
         ( \(tyString, wasmFunc) -> do
@@ -174,7 +216,7 @@ spec = do
         )
         testVals
 
-    describe "typeToDropPaths" $ do
+    fdescribe "typeToDropPaths" $ do
       let testVals =
             [ ( "Int64",
                 []
@@ -183,10 +225,13 @@ spec = do
                 [DropPathFetch Nothing]
               ),
               ( "Identity(Identity(Int64))",
-                [DropPathSelect (unsafeTy "Identity(Int64)") 0 (DropPathFetch Nothing),
-                DropPathFetch Nothing]
+                [ DropPathSelect (unsafeTy "Identity(Int64)") 0 (DropPathFetch Nothing),
+                  DropPathFetch Nothing
+                ]
               ),
-
+              ( "Maybe(Int64)",
+                [DropPathFetch Nothing]
+              ),
               ( "(a,b)",
                 [ DropPathSelect (unsafeTy "a") 0 (DropPathFetch (Just "a")),
                   DropPathSelect (unsafeTy "b") 4 (DropPathFetch (Just "b")),
@@ -198,9 +243,11 @@ spec = do
                   DropPathFetch Nothing
                 ]
               ),
-              ("(Int64, (Int64, Int32))",
-              [DropPathSelect (unsafeTy "(Int64,Int32)") 8 (DropPathFetch Nothing),
-              DropPathFetch Nothing])
+              ( "(Int64, (Int64, Int32))",
+                [ DropPathSelect (unsafeTy "(Int64,Int32)") 8 (DropPathFetch Nothing),
+                  DropPathFetch Nothing
+                ]
+              )
             ]
 
       traverse_

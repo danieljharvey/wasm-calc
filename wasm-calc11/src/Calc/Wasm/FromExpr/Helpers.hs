@@ -5,6 +5,7 @@
 module Calc.Wasm.FromExpr.Helpers
   ( getAbilitiesForFunction,
     scalarFromType,
+    matchConstructorTypesToArgs,
     lookupDataType,
     addLocal,
     lookupGlobal,

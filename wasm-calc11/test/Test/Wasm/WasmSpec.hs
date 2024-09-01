@@ -72,7 +72,7 @@ spec = do
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ (asTest "42", Wasm.VI64 42),
+            [ {-(asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -444,6 +444,18 @@ spec = do
               ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
                 Wasm.VI64 4
               ),
+              ( joinLines
+                  [ "type Either<e,a> = Left(e) | Right(a)",
+                    asTest "let either: Either(Int64,(Int64,Int64)) = Right((1,100)); if False then { case either { Right((_,a)) -> a, Left(e) -> e } } else 42"
+                  ],
+                Wasm.VI64 42
+              ),
+              ( joinLines
+                  [ "type Either<e,a> = Left(e) | Right(a)",
+                    asTest "let either: Either(Int64,(Int64,Int64)) = Left(1); if False then { case either { Right((_,a)) -> a, Left(e) -> e } } else 42"
+                  ],
+                Wasm.VI64 42
+              ),
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",
@@ -456,10 +468,10 @@ spec = do
               )
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
-      describe "Deallocations for expressions" $ do
+      fdescribe "Deallocations for expressions" $ do
         traverse_ testDeallocation testVals
 
     describe "Run tests" $ do

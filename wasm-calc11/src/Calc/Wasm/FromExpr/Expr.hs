@@ -160,7 +160,7 @@ fromMatch expr pats = do
 
 andExprs :: NE.NonEmpty WasmExpr -> WasmExpr
 andExprs neExprs =
-  foldr (WInfix I32 OpAnd) (NE.head neExprs) (NE.tail neExprs)
+  foldr (WInfix I8 OpAnd) (NE.head neExprs) (NE.tail neExprs)
 
 fromExprWithDrops ::
   ( MonadError FromWasmError m,
