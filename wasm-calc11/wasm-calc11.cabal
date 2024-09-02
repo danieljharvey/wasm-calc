@@ -56,6 +56,9 @@ common shared
     Calc.Ability.Check
     Calc.Ability.Error
     Calc.Build
+    Calc.Build.Format
+    Calc.Build.Print
+    Calc.Build.Steps
     Calc.Dependencies
     Calc.ExprUtils
     Calc.Linearity
