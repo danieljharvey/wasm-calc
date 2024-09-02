@@ -6,8 +6,8 @@
 -- | test evaluating and running tests for a module
 module Test.PrettyPrint.PrettyPrintSpec (spec) where
 
+import Calc.Build.Format
 import qualified Calc.Parser as Parse
-import Calc.PrettyPrint
 import Calc.Types.Module
 import Data.Bifunctor (second)
 import Data.FileEmbed
