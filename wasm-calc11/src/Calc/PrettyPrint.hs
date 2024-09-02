@@ -1,10 +1,6 @@
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
-
-{-# OPTIONS -Wno-orphans #-}
 
 module Calc.PrettyPrint
   ( prettyPrint,

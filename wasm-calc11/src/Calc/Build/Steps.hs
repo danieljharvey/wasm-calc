@@ -6,17 +6,19 @@
 
 {-# OPTIONS -Wno-orphans #-}
 
+module Calc.Build.Steps
+  ( BuildError (..),
+    parseModuleStep,
+    resolveModuleStep,
+    typecheckModuleStep,
+    linearityCheckStep,
+    abilityCheckStep,
+    fromExprStep,
+    testsAllPass,
+    displayResults,
+  )
+where
 
-module Calc.Build.Steps (BuildError(..), parseModuleStep,resolveModuleStep,
-    typecheckModuleStep,linearityCheckStep,abilityCheckStep,fromExprStep,testsAllPass,displayResults) where
-
-import Calc.Wasm.ToWasm.Types (WasmModule)
-import Calc.Types.Ability
-import qualified Data.Set as S
-import Control.Monad.Except
-import Calc.Types.Type
-import Calc.Types.Annotation
-import Calc.Types.Module
 import Calc.Ability.Check
 import Calc.Dependencies
 import qualified Calc.Linearity as Linearity
@@ -24,13 +26,20 @@ import Calc.Module (resolveModule)
 import Calc.Parser
 import Calc.Parser.Types
 import Calc.Typecheck
+import Calc.Types.Ability
+import Calc.Types.Annotation
+import Calc.Types.Module
+import Calc.Types.Type
 import Calc.Wasm.FromExpr.Module
+import Calc.Wasm.ToWasm.Types (WasmModule)
+import Control.Monad.Except
 import Data.Monoid
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Void
 import qualified Error.Diagnose as Diag
 import Error.Diagnose.Compat.Megaparsec
-import Data.Void
 
 data BuildError
   = BuildDiagnostic (Diag.Diagnostic T.Text)
@@ -39,13 +48,11 @@ data BuildError
 instance HasHints Void msg where
   hints _ = mempty
 
-
 parseModuleStep :: T.Text -> Either BuildError [ModuleItem Annotation]
 parseModuleStep input =
-    case parseModule input of
-      Right a -> pure a
-      Left bundle -> throwError $ BuildDiagnostic (fromErrorBundle bundle (T.unpack input))
-
+  case parseModule input of
+    Right a -> pure a
+    Left bundle -> throwError $ BuildDiagnostic (fromErrorBundle bundle (T.unpack input))
 
 resolveModuleStep :: [ModuleItem Annotation] -> Either BuildError (Module Annotation)
 resolveModuleStep parsedModuleItems =
@@ -58,7 +65,7 @@ typecheckModuleStep input parsedModule =
   case elaborateModule parsedModule of
     Right a -> pure a
     Left typeErr ->
-        throwError $ BuildDiagnostic (typeErrorDiagnostic input typeErr)
+      throwError $ BuildDiagnostic (typeErrorDiagnostic input typeErr)
 
 linearityCheckStep :: T.Text -> Module (Type Annotation) -> Either BuildError ()
 linearityCheckStep input typedModule =

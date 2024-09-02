@@ -2,13 +2,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS -Wno-orphans #-}
 
 module Calc.Build.Format
-  (
-    formatAndSave,
+  ( formatAndSave,
     format,
   )
 where
