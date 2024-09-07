@@ -20,3 +20,6 @@ file_volume/
 ./file-volume/
 ./git/
 .DS_Store
+
+# lsp logs
+lsp-log.txt
