@@ -47,7 +47,8 @@ elaborateModule
               tceMemoryLimit = case mdMemory of
                 Nothing -> 0
                 Just (LocalMemory {lmLimit}) -> lmLimit
-                Just (ImportedMemory {imLimit}) -> imLimit,
+                Just (ImportedMemory {imLimit}) -> imLimit
+                Just (ExportedMemory {emLimit}) -> emLimit,
               tceDataTypes = arrangeDataTypes mdDataTypes
             }
 

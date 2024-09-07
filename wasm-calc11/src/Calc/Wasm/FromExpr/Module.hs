@@ -141,9 +141,12 @@ fromFunction functionAbilities funcMap importMap globalMap dataTypeMap generated
     )
 
 fromMemory :: Maybe (Memory (Type ann)) -> WasmMemory
-fromMemory Nothing = WasmMemory 0 Nothing
+fromMemory Nothing =
+  WasmMemory 0 WasmLocal
 fromMemory (Just (LocalMemory {lmLimit})) =
-  WasmMemory lmLimit Nothing
+  WasmMemory lmLimit WasmLocal
+fromMemory (Just (ExportedMemory {emLimit,emExportName = Identifier emExportName})) =
+  WasmMemory emLimit (WasmExported emExportName)
 fromMemory
   ( Just
       ( ImportedMemory
@@ -153,7 +156,7 @@ fromMemory
           }
         )
     ) =
-    WasmMemory imLimit (Just (imExternalModule, imExternalMemoryName))
+    WasmMemory imLimit (WasmImported imExternalModule imExternalMemoryName)
 
 fromGlobal :: (Eq ann, Show ann) => Global (Type ann) -> Either FromWasmError WasmGlobal
 fromGlobal (Global {glbExpr, glbMutability}) = do

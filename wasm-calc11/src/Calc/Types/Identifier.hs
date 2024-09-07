@@ -22,9 +22,16 @@ instance PP.Pretty Identifier where
 validIdentifier :: Text -> Bool
 validIdentifier a =
   T.length a > 0
-    && T.filter Ch.isAlphaNum a == a
+    && T.filter isValidChar a == a
     && not (Ch.isDigit (T.head a))
-    && Ch.isLower (T.head a)
+    && isValidFirstChar (T.head a)
+
+isValidFirstChar :: Char -> Bool
+isValidFirstChar a = Ch.isLower a || a == '_'
+
+-- alpha numeric or `_`
+isValidChar :: Char -> Bool
+isValidChar a = Ch.isAlphaNum a || a == '_'
 
 safeMkIdentifier :: Text -> Maybe Identifier
 safeMkIdentifier a =

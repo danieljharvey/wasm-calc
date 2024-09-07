@@ -41,11 +41,26 @@ importMemoryParser = myLexeme
     imExternalMemoryName <- identifierParser
     stringLiteral "as"
     stringLiteral "memory"
-    imLimit <- naturalParser
+    imLimit <- myLexeme naturalParser
     pure (imExternalModule, imExternalMemoryName, imLimit)
 
+-- `export memory 100 as dogmemory`
+exportMemoryParser :: Parser (Memory Annotation)
+exportMemoryParser = myLexeme
+  $ withLocation
+    ( \emAnn (emExportName, emLimit) ->
+        ExportedMemory {emAnn, emExportName,emLimit}
+    )
+  $ do
+    stringLiteral "export"
+    stringLiteral "memory"
+    emLimit <- myLexeme naturalParser
+    stringLiteral "as"
+    emExportName <- identifierParser
+    pure (emExportName,emLimit)
+
 memoryParser :: Parser (Memory Annotation)
-memoryParser = localMemoryParser <|> importMemoryParser
+memoryParser = localMemoryParser <|> importMemoryParser <|> exportMemoryParser
 
 mutabilityParser :: Parser Mutability
 mutabilityParser = myLexeme $ do
@@ -94,12 +109,12 @@ moduleItemParser :: Parser (ModuleItem Annotation)
 moduleItemParser =
   ModuleData
     <$> dataParser
+      <|> try (ModuleMemory <$> memoryParser)
       <|> ModuleFunction
     <$> functionParser
       <|> ModuleGlobal
     <$> globalParser
       <|> ModuleTest
     <$> testParser
-      <|> try (ModuleMemory <$> memoryParser)
       <|> ModuleImport
     <$> importParser

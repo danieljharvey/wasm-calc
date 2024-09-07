@@ -136,6 +136,13 @@ spec = do
                   }
               ),
               ( joinLines
+                  [ "export memory 100 as somememory"
+                  ],
+                emptyModule
+                  { mdMemory = Just (ExportedMemory () 100 "somememory")
+                  }
+              ),
+              ( joinLines
                   [ "memory 100",
                     "function main() -> Int32 { 100 }"
                   ],
@@ -313,6 +320,14 @@ spec = do
                     fnReturnType = tyInt64
                   }
               ),
+              ( "function _start() -> Int64 { 1 }",
+                emptyFunction
+                  { fnFunctionName = "_start",
+                    fnBody = int 1,
+                    fnReturnType = tyInt64
+                  }
+              ),
+
               ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 emptyFunction
                   { fnArgs =
@@ -431,6 +446,7 @@ spec = do
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2,)", EApply () "add" [int 1, int 2]),
+              ("_snake_case", EVar () "_snake_case"),
               ("go()", EApply () "go" []),
               ("Box(1)", EBox () (int 1)),
               ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),

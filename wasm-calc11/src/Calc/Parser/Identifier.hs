@@ -67,8 +67,10 @@ identifierParser =
 identifierParserInternal :: Parser Identifier
 identifierParserInternal =
   maybePred
-    (takeWhile1P (Just "variable name") Char.isAlphaNum)
+    (takeWhile1P (Just "variable name") charPred)
     (filterProtectedNames >=> safeMkIdentifier)
+  where
+    charPred a = Char.isAlphaNum a || a == '_'
 
 functionNameParser :: Parser FunctionName
 functionNameParser = do

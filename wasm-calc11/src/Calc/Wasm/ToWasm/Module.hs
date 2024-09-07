@@ -84,6 +84,14 @@ exportFromTest env wfIndex wt =
     (TL.fromStrict $ testName wt)
     (Wasm.ExportFunc (fromIntegral wfIndex + fromIntegral (functionOffset env)))
 
+exportFromMemory :: Int -> WasmMemory -> Maybe Wasm.Export
+exportFromMemory memIndex (WasmMemory _ (WasmExported name)) =
+  Just $ Wasm.Export
+    (TL.fromStrict $ name)
+    (Wasm.ExportMemory (fromIntegral memIndex))
+exportFromMemory  _ _ = Nothing
+
+
 -- take all functions from the allocator module, and offset their function
 -- numbers so they live after the imports
 allocatorFunctions ::
@@ -144,7 +152,9 @@ globals env =
 -- | if no memory has been imported, we create our own `memory`
 -- instance for this module
 memory :: WasmMemory -> [Wasm.Memory]
-memory (WasmMemory _limit Nothing) =
+memory (WasmMemory _limit WasmLocal) =
+  [Wasm.Memory (Wasm.Limit 1 Nothing)]
+memory (WasmMemory _limit (WasmExported _ )) =
   [Wasm.Memory (Wasm.Limit 1 Nothing)]
 memory _ = mempty
 
@@ -155,13 +165,14 @@ functionImportsToWasm =
 memoryImportsToWasm :: WasmMemory -> [Wasm.Import]
 memoryImportsToWasm wasmMemory =
   case wasmMemory of
-    (WasmMemory _ (Just (memModule, memName))) ->
+    (WasmMemory _ (WasmImported memModule memName)) ->
       [ Wasm.Import
           (TL.fromStrict memModule)
           (TL.fromStrict memName)
           (Wasm.ImportMemory (Wasm.Limit 1 Nothing))
       ]
-    (WasmMemory _ Nothing) -> mempty
+    (WasmMemory _ WasmLocal) -> mempty
+    (WasmMemory _ (WasmExported _)) -> mempty
 
 -- | we can't get these out of the file directly
 -- so these are
@@ -221,6 +232,7 @@ moduleToWasm wholeMod@(WasmModule {wmMemory, wmGlobals, wmImports, wmTests, wmFu
         typeFromTest <$> wmTests
       exports =
         mapMaybe (uncurry $ exportFromFunction env) (zip [0 ..] wmFunctions)
+          <> maybeToList (exportFromMemory 0 wmMemory)
           <> fmap (uncurry $ exportFromTest env) (zip [testsOffset ..] wmTests)
       imports = memoryImportsToWasm wmMemory <> functionImports
 

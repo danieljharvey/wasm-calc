@@ -6,6 +6,7 @@ module Calc.Wasm.ToWasm.Types
     WasmModule (..),
     WasmGlobal (..),
     WasmMemory (..),
+    WasmMemoryAccess (..),
     WasmFunction (..),
     WasmExpr (..),
     WasmImport (..),
@@ -45,8 +46,14 @@ data WasmType
 
 data WasmMemory = WasmMemory
   { wmeMemoryStart :: Natural,
-    wmeImport :: Maybe (T.Text, T.Text)
+    wmeMemoryAccess :: WasmMemoryAccess
   }
+  deriving stock (Eq, Ord, Show)
+
+data WasmMemoryAccess
+ = WasmImported T.Text T.Text
+ | WasmExported T.Text
+ | WasmLocal
   deriving stock (Eq, Ord, Show)
 
 data WasmGlobal = WasmGlobal
