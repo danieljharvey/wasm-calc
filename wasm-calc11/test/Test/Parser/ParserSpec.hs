@@ -39,7 +39,9 @@ spec = do
               ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
               ("Box(a)", tyContainer [tyVar "a"]),
               ("Colour", tyConstructor "Colour" mempty),
-              ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"])
+              ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"]),
+               ("Array(Boolean)", TArray () tyBool)
+
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -472,6 +474,7 @@ spec = do
                   (EBlock () (ELet () (PVar () "a") (bool True) (bool False)))
                   (bool False)
               ),
+              ("[True,False,True]",EArray () [bool True,bool False, bool True]),
               ("Red", EConstructor () "Red" []),
               ("Nothing ", EConstructor () "Nothing" []),
               ("Some(1)", EConstructor () "Some" [int 1]),

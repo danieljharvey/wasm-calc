@@ -213,6 +213,7 @@ scalarFromType (TPrim _ TInt64) = pure I64
 scalarFromType (TPrim _ TFloat32) = pure F32
 scalarFromType (TPrim _ TFloat64) = pure F64
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
+scalarFromType (TArray {}) = pure Pointer -- is this right?
 scalarFromType (TContainer {}) = pure Pointer
 scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
@@ -343,6 +344,8 @@ offsetForType (TPrim _ TBool) =
   memorySize I32
 offsetForType (TConstructor {}) =
   memorySize Pointer
+offsetForType (TArray {} ) =
+  memorySize Pointer
 offsetForType (TPrim _ TVoid) =
   error "offsetForType TVoid"
 offsetForType (TContainer _ _) =
@@ -370,6 +373,8 @@ memorySizeForType (TPrim _ TFloat64) =
   pure $ memorySize F64
 memorySizeForType (TPrim _ TBool) =
   pure $ memorySize I8
+memorySizeForType (TArray _ _ty) =
+  error "memorySizeForType TArray"
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
 memorySizeForType (TConstructor _ dataTypeName tyArgs) = do

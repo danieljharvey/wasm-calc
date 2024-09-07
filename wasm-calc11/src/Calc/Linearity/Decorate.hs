@@ -200,6 +200,8 @@ decorate (ELet ty pat expr rest) = do
     <*> decorate rest -- keep hold of the stuff we learned
 decorate (EPrim ty prim) =
   pure $ EPrim (ty, Nothing) prim
+decorate (EArray ty items) =
+  EArray (ty, Nothing) <$> traverse decorate items
 decorate (EMatch ty expr pats) = do
   decoratedExpr <- decorate expr
 

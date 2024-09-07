@@ -38,6 +38,7 @@ data Type ann
   | TFunction ann [Type ann] (Type ann)
   | TContainer ann (NE.NonEmpty (Type ann))
   | TConstructor ann DataName [Type ann]
+  | TArray ann (Type ann)
   | TVar ann TypeVar
   | TUnificationVar ann Natural
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -55,6 +56,8 @@ instance PP.Pretty (Type ann) where
         "Box(" <> PP.pretty (NE.head as) <> ")"
   pretty (TContainer _ as) =
     "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> NE.toList as)) <> ")"
+  pretty (TArray _ a) =
+        "Array(" <> PP.pretty a <> ")"
   pretty (TConstructor _ dataName []) =
     PP.pretty dataName
   pretty (TConstructor _ dataName args) =

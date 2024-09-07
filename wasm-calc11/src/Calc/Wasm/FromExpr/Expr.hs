@@ -191,6 +191,7 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
+fromExpr (EArray {}) = error "fromExpr EArray"
 fromExpr (EConstructor (ty, _) constructor args) = do
   -- what is the underlying discriminator value?
   constructorNumber <- fmap (WPrim . WPInt32 . fromIntegral) <$> getConstructorNumber ty constructor

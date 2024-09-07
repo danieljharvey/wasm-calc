@@ -25,6 +25,7 @@ data Expr ann
   | EApply ann FunctionName [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
+  | EArray ann [Expr ann]
   | EConstructor ann Constructor [Expr ann]
   | EAnn ann (Type ann) (Expr ann)
   | ELoad ann (Expr ann) -- index
@@ -96,6 +97,10 @@ instance PP.Pretty (Expr ann) where
         PP.punctuate ", " (PP.pretty <$> args)
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
+  pretty (EArray _ items) =
+    "[" <+> PP.group (PP.line' <>
+            indentMulti 2 (PP.cat (PP.punctuate ", " (PP.pretty <$> items))))
+            <+> "]"
   pretty (EIf _ predExpr thenExpr elseExpr) =
     PP.group
       ( "if"

@@ -51,6 +51,7 @@ exprParserInternal =
           <|> try applyParser
           <|> try varParser
           <|> blockParser
+          <|> arrayParser
           <|> inBrackets (addLocation exprParserInternal)
           <?> "term"
    in addLocation (makeExprParser parser table) <?> "expression"
@@ -233,3 +234,11 @@ patternCaseParser = do
   stringLiteral "->"
   patExpr <- exprParserInternal
   pure (pat, patExpr)
+
+arrayParser :: Parser (Expr Annotation)
+arrayParser = label "array" $ addLocation $ do
+  stringLiteral "["
+  args <- sepBy1 exprParserInternal (stringLiteral ",")
+  stringLiteral "]"
+  pure (EArray mempty args)
+

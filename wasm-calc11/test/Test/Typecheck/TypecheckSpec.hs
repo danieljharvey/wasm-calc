@@ -270,7 +270,8 @@ spec = do
               joinLines
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
-                ]
+                ],
+              "function main() -> Array(Int32) { [(1:Int32), True,False] }"
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
@@ -305,7 +306,8 @@ spec = do
               ( "let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner",
                 "Int64"
               ),
-              ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64")
+              ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64"),
+              ("[True,False,True]","Array(Boolean)")
             ]
 
       describe "Successfully typechecking expressions" $ do

@@ -48,6 +48,7 @@ protectedTypeNames =
       "Float64",
       "Boolean",
       "Box",
+      "Array",
       "True",
       "False"
     ]

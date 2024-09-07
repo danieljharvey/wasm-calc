@@ -514,6 +514,8 @@ infer (EBox ann inner) = do
       typedInner
 infer (EConstructor ann constructor args) =
   checkConstructor Nothing ann constructor args
+infer (EArray _ann _items) =
+  error "infer EArray"
 infer (ELet ann pat expr rest) =
   checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =
