@@ -21,6 +21,7 @@ module Calc.Wasm.FromExpr.Helpers
     getOffsetListForConstructor,
     boxed,
     memorySizeForType,
+    memorySize,
     getConstructorNumber,
   )
 where
@@ -205,7 +206,7 @@ getImportMap mdImports =
 
 scalarFromType :: Type ann -> Either FromWasmError WasmType
 scalarFromType (TPrim _ TVoid) = pure Void
-scalarFromType (TPrim _ TBool) = pure I32
+scalarFromType (TPrim _ TBool) = pure I8
 scalarFromType (TPrim _ TInt8) = pure I8
 scalarFromType (TPrim _ TInt16) = pure I16
 scalarFromType (TPrim _ TInt32) = pure I32
@@ -341,7 +342,7 @@ offsetForType (TPrim _ TFloat32) =
 offsetForType (TPrim _ TFloat64) =
   memorySize F64
 offsetForType (TPrim _ TBool) =
-  memorySize I32
+  memorySize I8
 offsetForType (TConstructor {}) =
   memorySize Pointer
 offsetForType (TArray {} ) =
@@ -373,8 +374,9 @@ memorySizeForType (TPrim _ TFloat64) =
   pure $ memorySize F64
 memorySizeForType (TPrim _ TBool) =
   pure $ memorySize I8
-memorySizeForType (TArray _ _ty) =
-  error "memorySizeForType TArray"
+memorySizeForType (TArray _ len ty) = do
+  innerSize <- memorySizeForType ty
+  pure $ memorySize I32 + innerSize * len
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
 memorySizeForType (TConstructor _ dataTypeName tyArgs) = do

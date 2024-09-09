@@ -29,7 +29,9 @@ protectedNames =
       "let",
       "load",
       "store",
-      "set"
+      "set",
+      "size",
+      "start"
     ]
 
 filterProtectedNames :: T.Text -> Maybe T.Text

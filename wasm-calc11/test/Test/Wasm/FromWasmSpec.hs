@@ -76,6 +76,11 @@ spec = do
         evalStateT (memorySizeForType (unsafeTy "Identity(Int64)")) exprState
           `shouldBe` pure @Identity 8
 
+      it "Array(3, Int64)" $ do
+        evalStateT (memorySizeForType (unsafeTy "Array(3, Int64)")) exprState
+          `shouldBe` pure @Identity 28
+
+
     describe "getOffsetListForConstructor" $ do
       it "Construct with single item" $ do
         evalStateT (getOffsetListForConstructor (unsafeTy "Maybe(Int8)") "Just") exprState
@@ -211,7 +216,7 @@ spec = do
               [ ( Equals [] tyBool (PBool True),
                   WVar 100,
                   WInfix
-                    I32
+                    I8
                     OpEquals
                     (WPrim (WPBool True))
                     (WVar 100)

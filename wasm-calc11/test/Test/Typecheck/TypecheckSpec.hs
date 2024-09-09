@@ -207,8 +207,8 @@ spec = do
               ( "function main() -> Int32 { case True { True -> 1, False -> 2 } }",
                 tyInt32
               ),
-              ( "function main() -> Array(Int32) { [] }",
-                TArray () tyInt32
+              ( "function main() -> Array(0, Int32) { [] }",
+                TArray () 0 tyInt32
               ),
               ( joinLines
                   [ "type Either<e,a> = Left(e) | Right(a)",
@@ -274,7 +274,7 @@ spec = do
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
                 ],
-              "function main() -> Array(Int32) { [(1:Int32), True,False] }",
+              "function main() -> Array(3, Int32) { [(1: Int32), True, False] }",
               "function main() -> Int32 { let _ = []; 100 }"
 
             ]
@@ -312,7 +312,9 @@ spec = do
                 "Int64"
               ),
               ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64"),
-              ("[True,False,True]","Array(Boolean)")
+              ("[True,False,True]","Array(3, Boolean)"),
+              ("size([True,False])","Int32"),
+              ("start([True,False])","Int32")
             ]
 
       describe "Successfully typechecking expressions" $ do

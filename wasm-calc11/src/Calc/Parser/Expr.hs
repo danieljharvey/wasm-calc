@@ -47,6 +47,8 @@ exprParserInternal =
           <|> loadParser
           <|> storeParser
           <|> setParser
+          <|> arraySizeParser
+          <|> arrayStartParser
           <|> patternMatchParser
           <|> try applyParser
           <|> try varParser
@@ -194,6 +196,26 @@ setParser = label "set" $
     expr <- exprParserInternal
     stringLiteral ")"
     pure $ ESet mempty ident expr
+
+arraySizeParser :: Parser (Expr Annotation)
+arraySizeParser = label "size" $
+  addLocation $ do
+    stringLiteral "size"
+    stringLiteral "("
+    expr <- exprParserInternal
+    stringLiteral ")"
+    pure $ EArraySize mempty expr
+
+arrayStartParser :: Parser (Expr Annotation)
+arrayStartParser = label "start" $
+  addLocation $ do
+    stringLiteral "start"
+    stringLiteral "("
+    expr <- exprParserInternal
+    stringLiteral ")"
+    pure $ EArrayStart mempty expr
+
+
 
 constructorParser :: Parser (Expr Annotation)
 constructorParser =

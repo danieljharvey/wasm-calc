@@ -48,10 +48,12 @@ check ty (ESet ann ident expr) =
   checkSet (Just ty) ann ident expr
 check (TConstructor _ tyConstructor tyArgs) (EConstructor ann constructor args) =
   checkConstructor (Just (tyConstructor, tyArgs)) ann constructor args
-check (TArray tyAnn tyInner) (EArray _ann items) = do
+check (TArray tyAnn tyLen tyInner) (EArray _ann items) = do
   typedItems <- traverse (check tyInner) items
   combinedType <- unifyMany (tyInner NE.:| (getOuterAnnotation <$> typedItems))
-  pure (EArray (TArray tyAnn combinedType) typedItems)
+  let arrayLength = fromIntegral (length items)
+  unless (arrayLength == tyLen) $ error "array length mismatch"
+  pure (EArray (TArray tyAnn arrayLength combinedType) typedItems)
 check (TPrim tyAnn tyPrim) (EPrim _ (PFloatLit f)) = do
   ty <-
     TPrim tyAnn <$> case tyPrim of
@@ -523,8 +525,21 @@ infer (EArray ann items) =
     Just neItems -> do
       typedItems <- traverse infer neItems
       combinedType <- unifyMany (getOuterAnnotation <$> typedItems)
-      pure (EArray (TArray ann combinedType) (NE.toList typedItems))
+      let arrayLength = fromIntegral (length items)
+      pure (EArray (TArray ann arrayLength combinedType) (NE.toList typedItems))
     Nothing -> throwError $ UnknownArrayLiteral ann
+infer (EArraySize ann item) = do
+  typedItem <- infer item
+  case getOuterAnnotation typedItem of
+    TArray {} -> pure ()
+    _ -> error "size of non-array"
+  pure $ EArraySize (TPrim ann TInt32) typedItem
+infer (EArrayStart ann item) = do
+  typedItem <- infer item
+  case getOuterAnnotation typedItem of
+    TArray {} -> pure ()
+    _ -> error "start of non-array"
+  pure $ EArrayStart (TPrim ann TInt32) typedItem
 infer (ELet ann pat expr rest) =
   checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =

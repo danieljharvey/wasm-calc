@@ -40,7 +40,7 @@ spec = do
               ("Box(a)", tyContainer [tyVar "a"]),
               ("Colour", tyConstructor "Colour" mempty),
               ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"]),
-               ("Array(Boolean)", TArray () tyBool)
+               ("Array(1,Boolean)", TArray () 1 tyBool)
 
             ]
       traverse_
@@ -476,6 +476,8 @@ spec = do
               ),
               ("[True,False,True]",EArray () [bool True,bool False, bool True]),
               ("[]",EArray () []),
+              ("size([])", EArraySize () (EArray () [])),
+              ("start([])", EArrayStart () (EArray () [])),
               ("Red", EConstructor () "Red" []),
               ("Nothing ", EConstructor () "Nothing" []),
               ("Some(1)", EConstructor () "Some" [int 1]),

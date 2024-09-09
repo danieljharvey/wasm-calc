@@ -26,6 +26,8 @@ data Expr ann
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
   | EArray ann [Expr ann]
+  | EArraySize ann (Expr ann)
+  | EArrayStart ann (Expr ann)
   | EConstructor ann Constructor [Expr ann]
   | EAnn ann (Type ann) (Expr ann)
   | ELoad ann (Expr ann) -- index
@@ -101,6 +103,10 @@ instance PP.Pretty (Expr ann) where
     "[" <+> PP.group (PP.line' <>
             indentMulti 2 (PP.cat (PP.punctuate ", " (PP.pretty <$> items))))
             <+> "]"
+  pretty (EArraySize _ item) =
+    "size(" <> PP.pretty item <> ")"
+  pretty (EArrayStart _ item) =
+    "start(" <> PP.pretty item <> ")"
   pretty (EIf _ predExpr thenExpr elseExpr) =
     PP.group
       ( "if"

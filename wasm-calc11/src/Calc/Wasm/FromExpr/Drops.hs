@@ -135,6 +135,8 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
     )
 typeToDropPaths (TVar _ tyVar) addPath =
   pure [addPath (DropPathFetch (Just tyVar))]
+typeToDropPaths (TArray {}) addPath
+ = pure [addPath (DropPathFetch Nothing) ]
 typeToDropPaths _ _ = pure mempty
 
 typeVars :: Type ann -> S.Set TypeVar

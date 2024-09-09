@@ -4,6 +4,7 @@
 
 module Test.Wasm.WasmSpec (spec) where
 
+import Debug.Trace
 import Calc.Dependencies
 import Calc.Linearity (validateModule)
 import Calc.Module
@@ -444,6 +445,12 @@ spec = do
               ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
                 Wasm.VI64 4
               ),
+              ( asTest "let _ = [True,False]; 100",
+              Wasm.VI64 100
+              ),
+              ( "export function test() -> Int32 { let array = [True,False]; size(array) }",
+              Wasm.VI32 2
+              ),
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",
@@ -524,7 +531,7 @@ compile input =
                 case FromExpr.fromModule typedMod of
                   Left e -> error (show e)
                   Right wasmMod ->
-                    ToWasm.moduleToWasm (addAllocCount wasmMod)
+                    ToWasm.moduleToWasm (addAllocCount (traceShowId wasmMod))
 
 -- add a `alloccount` function that returns state of allocator
 addAllocCount :: ToWasm.WasmModule -> ToWasm.WasmModule

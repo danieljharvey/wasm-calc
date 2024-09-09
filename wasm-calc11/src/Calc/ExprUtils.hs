@@ -25,6 +25,8 @@ getOuterAnnotation (EVar ann _) = ann
 getOuterAnnotation (EConstructor ann _ _) = ann
 getOuterAnnotation (EApply ann _ _) = ann
 getOuterAnnotation (EArray ann _) = ann
+getOuterAnnotation (EArraySize ann _) = ann
+getOuterAnnotation (EArrayStart ann _) = ann
 getOuterAnnotation (ETuple ann _ _) = ann
 getOuterAnnotation (EBox ann _) = ann
 getOuterAnnotation (ELoad ann _) = ann
@@ -48,6 +50,8 @@ mapOuterExprAnnotation f expr' =
     EApply ann a b -> EApply (f ann) a b
     ETuple ann a b -> ETuple (f ann) a b
     EArray ann items -> EArray (f ann) items
+    EArraySize ann items -> EArraySize (f ann) items
+    EArrayStart ann items -> EArrayStart (f ann) items
     EBox ann a -> EBox (f ann) a
     ELoad ann a -> ELoad (f ann) a
     EStore ann a b -> EStore (f ann) a b
@@ -81,6 +85,10 @@ bindExpr f (EConstructor ann constructor args) =
   EConstructor ann constructor <$> traverse f args
 bindExpr f (EArray ann items) =
   EArray ann <$> traverse f items
+bindExpr f (EArraySize ann item) =
+  EArraySize ann <$> f item
+bindExpr f (EArrayStart ann item) =
+  EArrayStart ann <$> f item
 bindExpr f (EBox ann a) = EBox ann <$> f a
 bindExpr f (EAnn ann a b) = EAnn ann a <$> f b
 bindExpr f (ELoad ann a) = ELoad ann <$> f a

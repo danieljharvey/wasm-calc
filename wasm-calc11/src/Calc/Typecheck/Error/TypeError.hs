@@ -277,7 +277,7 @@ typeErrorDiagnostic input e =
                       <*> pure
                         ( Diag.This
                             ( prettyPrint
-                                "Please add a type annotation, ie '([] : Array(Boolean))'."
+                                "Please add a type annotation, ie '([] : Array(0,Boolean))'."
                             )
                         )
                   ]

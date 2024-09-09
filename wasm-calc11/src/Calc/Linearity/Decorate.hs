@@ -202,6 +202,10 @@ decorate (EPrim ty prim) =
   pure $ EPrim (ty, Nothing) prim
 decorate (EArray ty items) =
   EArray (ty, Nothing) <$> traverse decorate items
+decorate (EArraySize ty item) =
+  EArraySize (ty, Nothing) <$> decorate item
+decorate (EArrayStart ty item) =
+  EArrayStart (ty, Nothing) <$> decorate item
 decorate (EMatch ty expr pats) = do
   decoratedExpr <- decorate expr
 

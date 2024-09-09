@@ -152,6 +152,9 @@ abilityExpr (ETuple ann a b) = do
   -- we'll need to account for other allocations in future
   tell (S.singleton $ AllocateMemory ann)
   ETuple ann <$> abilityExpr a <*> traverse abilityExpr b
+abilityExpr (EArray ann items) = do
+  tell (S.singleton $ AllocateMemory ann)
+  EArray ann <$> traverse abilityExpr items
 abilityExpr (EBox ann a) = do
   -- we'll need to account for other allocations in future
   tell (S.singleton $ AllocateMemory ann)

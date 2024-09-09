@@ -2,6 +2,7 @@
 
 module Calc.Parser.Type (typeParser) where
 
+import Calc.Parser.Primitives
 import Calc.Parser.Identifier
 import Calc.Parser.Shared
   ( addTypeLocation,
@@ -86,8 +87,10 @@ tyArrayParser = label "array" $
   addTypeLocation $ do
     _ <- stringLiteral "Array"
     _ <- stringLiteral "("
+    nat <- myLexeme naturalParser
+    stringLiteral ","
     tyInner <- typeParser
     _ <- stringLiteral ")"
-    pure (TArray mempty tyInner)
+    pure (TArray mempty nat tyInner)
 
 

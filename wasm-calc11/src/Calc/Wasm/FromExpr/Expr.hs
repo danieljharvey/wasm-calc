@@ -191,7 +191,40 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
-fromExpr (EArray {}) = error "fromExpr EArray"
+fromExpr (EArraySize _ inner) = do
+  wasmInner <- fromExpr inner
+  pure $ WTupleAccess I32 wasmInner 0
+fromExpr (EArrayStart _ _inner) = do
+  error "array start"
+  --wasmInner <- fromExpr inner
+  --pure $ WTupleAccess I32 wasmInner 0
+
+fromExpr (EArray (ty,_) items) = do
+  wasmType <- liftEither $ scalarFromType ty
+  index <- addLocal Nothing wasmType
+
+  let allItems = zip [0 ..] items
+  tupleLength <- memorySizeForType ty
+
+  innerItemSize <- case ty of
+                     TArray _ _ tyInner -> memorySizeForType tyInner
+                     _ -> error "not an array"
+
+  let allocate = WAllocate (fromIntegral tupleLength)
+
+  wasmItems <-
+    traverse
+      ( \(i, item) ->
+          (,,) ((i * innerItemSize) + (memorySize I32))
+            <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
+            <*> fromExpr item
+      )
+      allItems
+
+  let nat = WPrim (WPInt32 (fromIntegral (length items)))
+  let allWasmItems = (0,I32, nat) : wasmItems
+
+  pure $ WSet index allocate allWasmItems
 fromExpr (EConstructor (ty, _) constructor args) = do
   -- what is the underlying discriminator value?
   constructorNumber <- fmap (WPrim . WPInt32 . fromIntegral) <$> getConstructorNumber ty constructor
