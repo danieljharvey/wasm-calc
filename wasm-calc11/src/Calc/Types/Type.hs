@@ -41,6 +41,7 @@ data Type ann
   | TArray ann Natural (Type ann)
   | TVar ann TypeVar
   | TUnificationVar ann Natural
+  | TReference ann (Type ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance PP.Pretty (Type ann) where
@@ -68,3 +69,5 @@ instance PP.Pretty (Type ann) where
     where
       tyArgs =
         PP.punctuate ", " (PP.pretty <$> args)
+  pretty (TReference _ inner) =
+    "&" <> PP.pretty inner

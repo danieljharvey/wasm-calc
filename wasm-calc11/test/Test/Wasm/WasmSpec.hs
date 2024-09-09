@@ -451,6 +451,9 @@ spec = do
               ( "export function test() -> Int32 { let array = [True,False]; size(array) }",
               Wasm.VI32 2
               ),
+              ( "export function test() -> Int32 { let array = [True,False]; start(array) }",
+              Wasm.VI32 44 -- annoying flaky way to test this
+              ),
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",

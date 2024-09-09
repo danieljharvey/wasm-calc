@@ -206,9 +206,11 @@ decorate (EArraySize ty item) =
   EArraySize (ty, Nothing) <$> decorate item
 decorate (EArrayStart ty item) =
   EArrayStart (ty, Nothing) <$> decorate item
+decorate (EReference ty expr) = do
+  (thing,_) <- scoped (decorate expr)
+  pure $ EReference (ty,Nothing) thing
 decorate (EMatch ty expr pats) = do
   decoratedExpr <- decorate expr
-
   -- we're only interested in adding drops
   -- for vars currently in scope outside the pattern arms
   existingVars <- getVarsInScope

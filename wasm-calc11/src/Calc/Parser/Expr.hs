@@ -54,6 +54,7 @@ exprParserInternal =
           <|> try varParser
           <|> blockParser
           <|> arrayParser
+          <|> referenceParser
           <|> inBrackets (addLocation exprParserInternal)
           <?> "term"
    in addLocation (makeExprParser parser table) <?> "expression"
@@ -215,7 +216,12 @@ arrayStartParser = label "start" $
     stringLiteral ")"
     pure $ EArrayStart mempty expr
 
-
+referenceParser :: Parser (Expr Annotation)
+referenceParser = label "reference" $
+  addLocation $ do
+    stringLiteral "&"
+    expr <- exprParserInternal
+    pure $ EReference mempty expr
 
 constructorParser :: Parser (Expr Annotation)
 constructorParser =

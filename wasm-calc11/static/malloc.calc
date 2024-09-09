@@ -14,9 +14,10 @@ export function malloc(requestedSize: Int32) -> Int32 {
     {
       set(allocatedCount, allocatedCount + 1); 
       let oldLocation = location; 
-      store(location, size); 
+      store(location, roundedSize); 
       store(location + 4, (1: Int32)); 
-      set(location, location + size + 8); 
+      set(location, location + roundedSize + 8); 
+  set(allocatedCount, allocatedCount + 1); 
       let newLocation = location; 
       if (load(newLocation): Int32) == (0: Int32) then
         {
@@ -31,24 +32,24 @@ export function malloc(requestedSize: Int32) -> Int32 {
   else
     {
       set(location, location + currentItem + 8); 
-      malloc(size)
+      malloc(roundedSize)
     }
 }
 
 export function drop(dropLocation: Int32) -> Void { 
   let droppedSize: Int32 = load(dropLocation - 8); 
   store(dropLocation - 4, (0: Int32)); 
-  set(allocatedCount, allocatedCount - 1); 
-  let sizeOfNextBlock: Int32 = load(dropLocation + droppedSize); 
+  let requestedSizeOfNextBlock: Int32 = load(dropLocation + droppedSize); 
   let nextBlockUsed: Int32 = load(dropLocation + droppedSize + 4); 
   if nextBlockUsed == 0 then
     {
-      let combinedSize = droppedSize + sizeOfNextBlock; 
+      let combinedSize = droppedSize + requestedSizeOfNextBlock; 
       store(dropLocation - 8, combinedSize); 
       (1: Int32)
     }
   else
     (1: Int32); 
+  set(allocatedCount, allocatedCount - 1); 
   set(location, dropLocation - 8)
 }
 
@@ -99,4 +100,4 @@ test joinUnusedBlocksOnDrop =
   let b = malloc(3); 
   drop(b); 
   drop(a); 
-  malloc(6) == a
+  malloc(8) == a

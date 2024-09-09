@@ -191,14 +191,14 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
+fromExpr (EReference _ expr) =
+  fromExpr expr
 fromExpr (EArraySize _ inner) = do
   wasmInner <- fromExpr inner
   pure $ WTupleAccess I32 wasmInner 0
-fromExpr (EArrayStart _ _inner) = do
-  error "array start"
-  --wasmInner <- fromExpr inner
-  --pure $ WTupleAccess I32 wasmInner 0
-
+fromExpr (EArrayStart _ inner) = do
+  wasmInner <- fromExpr inner
+  pure $ WInfix I32 OpAdd wasmInner (WPrim (WPInt32 4))
 fromExpr (EArray (ty,_) items) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

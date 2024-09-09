@@ -29,6 +29,7 @@ typeParser =
     <|> tyBoxParser
     <|> tyArrayParser
     <|> tyVarParser
+    <|> tyReferenceParser
 
 tyPrimitiveParser :: Parser ParserType
 tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
@@ -92,5 +93,13 @@ tyArrayParser = label "array" $
     tyInner <- typeParser
     _ <- stringLiteral ")"
     pure (TArray mempty nat tyInner)
+
+
+tyReferenceParser :: Parser ParserType
+tyReferenceParser = label "reference" $
+  addTypeLocation $ do
+    stringLiteral "&"
+    ty <- typeParser
+    pure $ TReference mempty ty
 
 

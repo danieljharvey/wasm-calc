@@ -216,6 +216,7 @@ scalarFromType (TPrim _ TFloat64) = pure F64
 scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
 scalarFromType (TArray {}) = pure Pointer -- is this right?
 scalarFromType (TContainer {}) = pure Pointer
+scalarFromType (TReference _ ty) = scalarFromType ty
 scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
@@ -343,6 +344,8 @@ offsetForType (TPrim _ TFloat64) =
   memorySize F64
 offsetForType (TPrim _ TBool) =
   memorySize I8
+offsetForType (TReference _ ty) =
+  offsetForType ty
 offsetForType (TConstructor {}) =
   memorySize Pointer
 offsetForType (TArray {} ) =
@@ -374,6 +377,8 @@ memorySizeForType (TPrim _ TFloat64) =
   pure $ memorySize F64
 memorySizeForType (TPrim _ TBool) =
   pure $ memorySize I8
+memorySizeForType (TReference _ ty) =
+  memorySizeForType ty
 memorySizeForType (TArray _ len ty) = do
   innerSize <- memorySizeForType ty
   pure $ memorySize I32 + innerSize * len

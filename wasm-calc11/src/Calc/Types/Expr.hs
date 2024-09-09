@@ -34,6 +34,7 @@ data Expr ann
   | EStore ann (Expr ann) (Expr ann) -- index, value
   | ESet ann Identifier (Expr ann)
   | EBlock ann (Expr ann)
+  | EReference ann (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- when on multilines, indent by `i`, if not then nothing
@@ -145,3 +146,4 @@ instance PP.Pretty (Expr ann) where
     "set(" <> PP.pretty ident <> "," <+> PP.pretty expr <> ")"
   pretty (EBlock _ expr) =
     PP.group ("{" <> PP.line <> indentMulti 2 (PP.pretty expr) <> PP.line <> "}")
+  pretty (EReference _ expr) = "&" <> PP.pretty expr

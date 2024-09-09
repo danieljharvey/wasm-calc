@@ -507,6 +507,9 @@ infer (EPrim ann prim) =
     PBool _ -> pure (EPrim (TPrim ann TBool) prim)
     PIntLit _ -> throwError (UnknownIntegerLiteral ann)
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
+infer (EReference ann expr) = do
+  typedExpr <- infer expr
+  pure $ EReference (TReference ann (getOuterAnnotation typedExpr)) typedExpr
 infer (EMatch ann matchExpr pats) =
   checkMatch Nothing ann matchExpr pats
 infer (EBox ann inner) = do
@@ -532,12 +535,14 @@ infer (EArraySize ann item) = do
   typedItem <- infer item
   case getOuterAnnotation typedItem of
     TArray {} -> pure ()
+    TReference _ (TArray {}) -> pure ()
     _ -> error "size of non-array"
   pure $ EArraySize (TPrim ann TInt32) typedItem
 infer (EArrayStart ann item) = do
   typedItem <- infer item
   case getOuterAnnotation typedItem of
     TArray {} -> pure ()
+    TReference _ (TArray {}) -> pure ()
     _ -> error "start of non-array"
   pure $ EArrayStart (TPrim ann TInt32) typedItem
 infer (ELet ann pat expr rest) =

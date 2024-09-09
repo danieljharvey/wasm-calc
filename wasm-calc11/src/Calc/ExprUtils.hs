@@ -33,6 +33,7 @@ getOuterAnnotation (ELoad ann _) = ann
 getOuterAnnotation (EStore ann _ _) = ann
 getOuterAnnotation (ESet ann _ _) = ann
 getOuterAnnotation (EBlock ann _) = ann
+getOuterAnnotation (EReference ann _) = ann
 
 -- | modify the outer annotation of an expression
 -- useful for adding line numbers during parsing
@@ -57,6 +58,7 @@ mapOuterExprAnnotation f expr' =
     EStore ann a b -> EStore (f ann) a b
     ESet ann a b -> ESet (f ann) a b
     EBlock ann a -> EBlock (f ann) a
+    EReference ann a -> EReference (f ann) a
 
 mapExpr :: (Expr ann -> Expr ann) -> Expr ann -> Expr ann
 mapExpr f =
@@ -95,6 +97,7 @@ bindExpr f (ELoad ann a) = ELoad ann <$> f a
 bindExpr f (EStore ann a b) = EStore ann <$> f a <*> f b
 bindExpr f (ESet ann a b) = ESet ann a <$> f b
 bindExpr f (EBlock ann a) = EBlock ann <$> f a
+bindExpr f (EReference ann a) = EReference ann <$> f a
 
 getOuterPatternAnnotation :: Pattern ann -> ann
 getOuterPatternAnnotation (PWildcard ann) = ann
