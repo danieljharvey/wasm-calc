@@ -48,6 +48,10 @@ check ty (ESet ann ident expr) =
   checkSet (Just ty) ann ident expr
 check (TConstructor _ tyConstructor tyArgs) (EConstructor ann constructor args) =
   checkConstructor (Just (tyConstructor, tyArgs)) ann constructor args
+check (TArray tyAnn tyInner) (EArray _ann items) = do
+  typedItems <- traverse (check tyInner) items
+  combinedType <- unifyMany (tyInner NE.:| (getOuterAnnotation <$> typedItems))
+  pure (EArray (TArray tyAnn combinedType) typedItems)
 check (TPrim tyAnn tyPrim) (EPrim _ (PFloatLit f)) = do
   ty <-
     TPrim tyAnn <$> case tyPrim of
@@ -477,7 +481,7 @@ checkMatch maybeTy ann matchExpr pats = do
         pure (elabPat, elabPatExpr)
   elabPats <- traverse withPair pats
   let allTypes = getOuterAnnotation . snd <$> elabPats
-  typ <- combineMany allTypes
+  typ <- unifyMany allTypes
 
   env <- ask
   case validatePatterns env ann (fst <$> NE.toList elabPats) of
@@ -486,10 +490,10 @@ checkMatch maybeTy ann matchExpr pats = do
   pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
 
 -- | used to combine branches of if or case matches
-combineMany ::
+unifyMany ::
   NE.NonEmpty (Type ann) ->
   TypecheckM ann (Type ann)
-combineMany types =
+unifyMany types =
   foldM unify (NE.head types) (NE.tail types)
 
 infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
@@ -514,8 +518,13 @@ infer (EBox ann inner) = do
       typedInner
 infer (EConstructor ann constructor args) =
   checkConstructor Nothing ann constructor args
-infer (EArray _ann _items) =
-  error "infer EArray"
+infer (EArray ann items) =
+  case NE.nonEmpty items of
+    Just neItems -> do
+      typedItems <- traverse infer neItems
+      combinedType <- unifyMany (getOuterAnnotation <$> typedItems)
+      pure (EArray (TArray ann combinedType) (NE.toList typedItems))
+    Nothing -> throwError $ UnknownArrayLiteral ann
 infer (ELet ann pat expr rest) =
   checkLet Nothing ann pat expr rest
 infer (EIf ann predExpr thenExpr elseExpr) =

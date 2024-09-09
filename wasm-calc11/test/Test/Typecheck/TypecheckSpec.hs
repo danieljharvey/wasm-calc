@@ -207,6 +207,9 @@ spec = do
               ( "function main() -> Int32 { case True { True -> 1, False -> 2 } }",
                 tyInt32
               ),
+              ( "function main() -> Array(Int32) { [] }",
+                TArray () tyInt32
+              ),
               ( joinLines
                   [ "type Either<e,a> = Left(e) | Right(a)",
                     "function main() -> Int32 { case Right((42:Int32)) { Right(a) -> a, Left(_) -> 0 } }"
@@ -271,7 +274,9 @@ spec = do
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
                 ],
-              "function main() -> Array(Int32) { [(1:Int32), True,False] }"
+              "function main() -> Array(Int32) { [(1:Int32), True,False] }",
+              "function main() -> Int32 { let _ = []; 100 }"
+
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing

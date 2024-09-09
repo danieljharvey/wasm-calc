@@ -475,6 +475,7 @@ spec = do
                   (bool False)
               ),
               ("[True,False,True]",EArray () [bool True,bool False, bool True]),
+              ("[]",EArray () []),
               ("Red", EConstructor () "Red" []),
               ("Nothing ", EConstructor () "Nothing" []),
               ("Some(1)", EConstructor () "Some" [int 1]),

@@ -37,6 +37,7 @@ data TypeError ann
   | ExpectedFloat ann TypePrim
   | UnknownIntegerLiteral ann
   | UnknownFloatLiteral ann
+  | UnknownArrayLiteral ann
   | ManualMemoryAccessOutsideLimit ann Natural Natural -- limit, value
   | CantSetConstant ann Identifier
   | ConstructorNotFound ann Constructor
@@ -261,6 +262,28 @@ typeErrorDiagnostic input e =
                   ]
               )
               []
+        (UnknownArrayLiteral ann) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Cannot infer type of array with no items in it."
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint
+                                "Please add a type annotation, ie '([] : Array(Boolean))'."
+                            )
+                        )
+                  ]
+              )
+              []
+
         (UnknownFloatLiteral ann) ->
           Diag.addReport diag $
             Diag.Err
@@ -297,7 +320,7 @@ typeErrorDiagnostic input e =
                       <*> pure
                         ( Diag.This
                             ( prettyPrint
-                                "This could be an Int32 or an Int64."
+                                "This could be an Int8, Int16, Int32 or an Int64."
                             )
                         )
                   ]

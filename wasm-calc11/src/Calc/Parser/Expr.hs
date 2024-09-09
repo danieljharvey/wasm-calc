@@ -238,7 +238,7 @@ patternCaseParser = do
 arrayParser :: Parser (Expr Annotation)
 arrayParser = label "array" $ addLocation $ do
   stringLiteral "["
-  args <- sepBy1 exprParserInternal (stringLiteral ",")
+  args <- sepBy exprParserInternal (stringLiteral ",")
   stringLiteral "]"
   pure (EArray mempty args)
 
