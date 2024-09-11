@@ -37,6 +37,7 @@ import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import GHC.Natural
+import Calc.Wasm.FromExpr.Patterns.Predicates
 
 -- | for a variable, describe how to get it
 data DropPath
@@ -47,6 +48,16 @@ data DropPath
   | -- | multiple branches of a sum type, we check the first field to see which to follow
     DropPathBranches (NE.NonEmpty [DropPath])
   deriving stock (Eq, Ord, Show)
+
+-- | for a variable, describe how to get it
+data FetchPath
+  = -- | we're going in deeper
+    FetchPathSelect (Type ()) Natural FetchPath
+  | -- | drop this item
+    FetchPathItem (Maybe TypeVar)
+  deriving stock (Eq, Ord, Show)
+
+
 
 -- | given a type, create a new drop function for it or use one passed into the
 -- current function
