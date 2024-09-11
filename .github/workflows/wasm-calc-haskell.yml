@@ -54,5 +54,5 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
       - name: Build and diff allocator
-        run: make build-malloc version=${{ matrix.version }}
+        run: nix develop --command make build-malloc version=${{ matrix.version }}
 
