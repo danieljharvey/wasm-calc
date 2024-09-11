@@ -25,24 +25,22 @@ run-build-drawing-demo-8:
 
 .PHONY: run-build-malloc-9
 run-build-malloc-9:
-	cabal build wasm-calc9
-	cabal run wasm-calc9 -- build wasm-calc9/static/malloc.calc > wasm-calc9/static/malloc.wasm
+	nix run .#wasm-calc9 build wasm-calc9/static/malloc.calc > wasm-calc9/static/malloc.wasm
 	wasm2wat wasm-calc9/static/malloc.wasm > wasm-calc9/static/malloc-new.wat
+	diff wasm-calc9/static/malloc-new.wat wasm-calc9/static/malloc.wat
 
 # calculator 10
 
 .PHONY: run-build-malloc-10
 run-build-malloc-10:
-	cabal build wasm-calc10
-	cabal run wasm-calc10 -- build wasm-calc10/static/malloc.calc > wasm-calc10/static/malloc.wasm
+	nix run .#wasm-calc10 build wasm-calc10/static/malloc.calc > wasm-calc10/static/malloc.wasm
 	wasm2wat wasm-calc10/static/malloc.wasm > wasm-calc10/static/malloc-new.wat
 
 # calculator 11
 
 .PHONY: run-build-malloc-11
 run-build-malloc-11:
-	cabal build wasm-calc11
-	cabal run wasm-calc11 -- build wasm-calc11/static/malloc.calc > wasm-calc11/static/malloc.wasm
+	nix run .#wasm-calc11 build wasm-calc11/static/malloc.calc > wasm-calc11/static/malloc.wasm
 	wasm2wat wasm-calc11/static/malloc.wasm > wasm-calc11/static/malloc-new.wat
 
 .PHONY: run-build-drawing-demo-11
@@ -77,6 +75,15 @@ version = 11
 STATIC_FILES = "./wasm-calc$(version)/test/static/"
 format-all-files:
 	find $(STATIC_FILES) -maxdepth 1 -type f -exec cabal run wasm-calc$(version) -- format {} \;
+
+# run with `make build-malloc version=9` to build and diff malloc.calc for
+# wasm-calc9
+.PHONY: build-malloc
+version = 11
+build-malloc:
+	nix run .#wasm-calc$(version) build wasm-calc$(version)/static/malloc.calc > wasm-calc$(version)/static/malloc.wasm
+	wasm2wat wasm-calc$(version)/static/malloc.wasm > wasm-calc$(version)/static/malloc-new.wat
+	diff wasm-calc$(version)/static/malloc-new.wat wasm-calc$(version)/static/malloc.wat
 
 .PHONY: freeze
 freeze:
