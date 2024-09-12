@@ -21,7 +21,7 @@ maintainer:         danieljamesharvey@gmail.com
 -- category:
 extra-source-files:
   CHANGELOG.md
-  static/malloc.wat
+  static/malloc.wasm
 
 common shared
   ghc-options:
