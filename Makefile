@@ -81,9 +81,8 @@ format-all-files:
 .PHONY: build-malloc
 version = 11
 build-malloc:
-	nix run .#wasm-calc$(version) build wasm-calc$(version)/static/malloc.calc > wasm-calc$(version)/static/malloc.wasm
-	nix shell nixpkgs#wabt -c wasm2wat wasm-calc$(version)/static/malloc.wasm > wasm-calc$(version)/static/malloc-new.wat
-	diff wasm-calc$(version)/static/malloc-new.wat wasm-calc$(version)/static/malloc.wat
+	nix run .#wasm-calc$(version) build wasm-calc$(version)/static/malloc.calc > wasm-calc$(version)/static/malloc-new.wasm
+	diff wasm-calc$(version)/static/malloc-new.wasm wasm-calc$(version)/static/malloc.wasm
 
 .PHONY: freeze
 freeze:
