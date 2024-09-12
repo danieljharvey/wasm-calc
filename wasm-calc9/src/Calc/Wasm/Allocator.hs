@@ -2,17 +2,17 @@
 
 module Calc.Wasm.Allocator (moduleWithAllocator) where
 
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString as B
 import Data.FileEmbed
 import qualified Language.Wasm as Wasm
 
 -- these are saved in a file that is included in compilation
-allocatorSource :: LB.ByteString
+allocatorSource :: B.ByteString
 allocatorSource =
-  LB.fromStrict $(makeRelativeToProject "static/malloc.wat" >>= embedFile)
+  $(makeRelativeToProject "static/malloc.wasm" >>= embedFile)
 
 -- we have an allocator, we need to import it
 moduleWithAllocator :: Wasm.Module
-moduleWithAllocator = case Wasm.parse allocatorSource of
+moduleWithAllocator = case Wasm.decode allocatorSource of
   Right mod' -> mod'
   Left e -> error (show e)
