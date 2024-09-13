@@ -103,7 +103,8 @@ table =
       binary ">" (EInfix mempty OpGreaterThan)
     ],
     [ binary "&&" (EInfix mempty OpAnd),
-      binary "||" (EInfix mempty OpOr)
+      binary "||" (EInfix mempty OpOr),
+      binary "%" (EInfix mempty OpRemainder)
     ]
   ]
 
