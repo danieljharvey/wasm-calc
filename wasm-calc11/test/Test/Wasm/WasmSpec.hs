@@ -440,10 +440,10 @@ spec = do
                     asTest "let boxed :Identity(Int64) = Identity(100); case boxed { Identity(a) -> a }"
                   ],
                 Wasm.VI64 100
-              )
-              {-,
-              -- absolutely baffled why `allocated` is not dropped here when we
-              -- generate what looks like the correct IR
+              ),
+              ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
+                Wasm.VI64 4
+              ),
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",
@@ -453,7 +453,7 @@ spec = do
                       "}"
                     ],
                 Wasm.VI64 101
-              )-}
+              )
             ]
 
       describe "From expressions" $ do

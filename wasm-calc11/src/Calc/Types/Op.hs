@@ -16,6 +16,7 @@ data Op
   | OpLessThanOrEqualTo
   | OpAnd
   | OpOr
+  | OpRemainder
   deriving stock (Eq, Ord, Show)
 
 -- how to print `Op` values
@@ -30,3 +31,4 @@ instance PP.Pretty Op where
   pretty OpLessThanOrEqualTo = "<="
   pretty OpAnd = "&&"
   pretty OpOr = "||"
+  pretty OpRemainder = "%"

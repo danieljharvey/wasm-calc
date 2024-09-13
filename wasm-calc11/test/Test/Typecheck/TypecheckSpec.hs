@@ -275,6 +275,7 @@ spec = do
               ("(2: Int64) >= 2", "Boolean"),
               ("2 < (2: Int64)", "Boolean"),
               ("(2: Int64) <= 2", "Boolean"),
+              ("(2: Int64) % 2", "Int64"),
               ("1.0 + (2.0: Float32)", "Float32"),
               ("(10.0 : Float64) * 10.0", "Float64"),
               ("if True then (1: Int64) else 2", "Int64"),
