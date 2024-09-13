@@ -1,8 +1,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
+import Data.Bifunctor (second)
+import Data.FileEmbed
+import qualified Data.Text.Encoding as T
 import Calc.ExprUtils
 import Calc.Module
 import Calc.Parser
@@ -16,6 +20,12 @@ import qualified Data.List.NonEmpty as NE
 import Data.Text (Text)
 import Test.Helpers
 import Test.Hspec
+import Data.Either (isRight)
+
+-- these are saved in a file that is included in compilation
+testInputs :: [(FilePath, Text)]
+testInputs =
+  fmap (second T.decodeUtf8) $(makeRelativeToProject "test/static/" >>= embedDir)
 
 spec :: Spec
 spec = do
@@ -220,6 +230,9 @@ spec = do
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
 
+      fdescribe "Successfully typechecking modules" $ do
+        traverse_ (uncurry testModuleTypechecks) testInputs
+
       let failing =
             [ joinLines
                 [ "function increment(b: Boolean) -> Boolean { a + 1 }",
@@ -390,6 +403,22 @@ testSucceedingModule (input, md) =
           Right parsedMod ->
             getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
               `shouldBe` Right md
+
+testModuleTypechecks :: String -> Text -> Spec
+testModuleTypechecks fileName input  =
+  it fileName $ do
+    case parseModuleAndFormatError input of
+      Left e -> error (show e)
+      Right parsedModuleItems ->
+        case resolveModule parsedModuleItems of
+          Left e -> error (show e)
+          Right parsedMod -> do
+            let result = elaborateModule (void parsedMod)
+            case result of
+              Right _ -> pure () 
+              Left e -> error (show e)
+            isRight result `shouldBe` True 
+
 
 -- | find function called 'main'
 getMainFunction :: Module ann -> Function ann
