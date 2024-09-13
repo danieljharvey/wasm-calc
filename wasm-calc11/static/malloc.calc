@@ -10,9 +10,9 @@ export function malloc(requestedSize: Int32) -> Int32 {
     requestedSize + 4 - diff; 
   let currentItem: Int32 = load(location); 
   let itemHasBeenUsed: Int32 = load(location + 4); 
-  set(allocatedCount, allocatedCount + 1); 
   if itemHasBeenUsed == 0 && currentItem == 0 || size == currentItem then
     {
+      set(allocatedCount, allocatedCount + 1); 
       let oldLocation = location; 
       store(location, size); 
       store(location + 4, (1: Int32)); 

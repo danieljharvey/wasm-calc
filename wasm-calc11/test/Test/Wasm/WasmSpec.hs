@@ -443,9 +443,7 @@ spec = do
               ),
               ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
               Wasm.VI64 4)
-              {-,
-              -- absolutely baffled why `allocated` is not dropped here when we
-              -- generate what looks like the correct IR
+              ,
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",
@@ -455,7 +453,7 @@ spec = do
                       "}"
                     ],
                 Wasm.VI64 101
-              )-}
+              )
             ]
 
       describe "From expressions" $ do
