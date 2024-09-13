@@ -77,8 +77,8 @@ instructionFromOp ty OpAnd =
   Wasm.IBinOp (bitsizeFromType ty) Wasm.IAnd
 instructionFromOp ty OpOr =
   Wasm.IBinOp (bitsizeFromType ty) Wasm.IOr
-instructionFromOp ty OpRemainder
-  = Wasm.IBinOp (bitsizeFromType ty) Wasm.IRemS
+instructionFromOp ty OpRemainder =
+  Wasm.IBinOp (bitsizeFromType ty) Wasm.IRemS
 
 toWasm :: ToWasmEnv -> WasmExpr -> [Wasm.Instruction Natural]
 toWasm env wasmExpr =

@@ -442,8 +442,8 @@ spec = do
                 Wasm.VI64 100
               ),
               ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
-              Wasm.VI64 4)
-              ,
+                Wasm.VI64 4
+              ),
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",
