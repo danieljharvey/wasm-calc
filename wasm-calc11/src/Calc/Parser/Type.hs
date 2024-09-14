@@ -15,7 +15,7 @@ import qualified Data.List.NonEmpty as NE
 import Text.Megaparsec
   ( MonadParsec (try),
     label,
-    sepBy1,
+    sepEndBy1,
     (<|>),
   )
 
@@ -56,7 +56,7 @@ tyTupleParser :: Parser ParserType
 tyTupleParser = label "tuple" $
   addTypeLocation $ do
     _ <- stringLiteral "("
-    neArgs <- NE.fromList <$> sepBy1 typeParser (stringLiteral ",")
+    neArgs <- NE.fromList <$> sepEndBy1 typeParser (stringLiteral ",")
     _neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
       _ -> fail "Expected at least two items in a tuple"
@@ -72,7 +72,7 @@ tyConstructorParser :: Parser ParserType
 tyConstructorParser =
   let argsParser = do
         stringLiteral "("
-        args <- sepBy1 typeParser (stringLiteral ",")
+        args <- sepEndBy1 typeParser (stringLiteral ",")
         stringLiteral ")"
         pure args
    in label "type constructor" $ addTypeLocation $ do

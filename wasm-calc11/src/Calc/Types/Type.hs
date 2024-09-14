@@ -6,6 +6,7 @@ module Calc.Types.Type (Type (..), TypePrim (..)) where
 
 import Calc.Types.DataName
 import Calc.Types.TypeVar
+import Calc.Utils
 import qualified Data.List.NonEmpty as NE
 import GHC.Natural
 import qualified Prettyprinter as PP
@@ -56,5 +57,11 @@ instance PP.Pretty (Type ann) where
     "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> NE.toList as)) <> ")"
   pretty (TConstructor _ dataName []) =
     PP.pretty dataName
-  pretty (TConstructor _ dataName vars) =
-    PP.pretty dataName <> "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> vars)) <> ")"
+  pretty (TConstructor _ dataName args) =
+    PP.pretty dataName
+      <> "("
+      <> PP.group (PP.line' <> indentMulti 2 (PP.cat tyArgs) <> PP.line')
+      <> ")"
+    where
+      tyArgs =
+        PP.punctuate ", " (PP.pretty <$> args)

@@ -49,7 +49,7 @@ functionParser =
       fnName <- functionNameParser
       generics <- try genericsParser <|> pure mempty
       stringLiteral "("
-      args <- sepBy argTypeParser (stringLiteral ",")
+      args <- sepEndBy argTypeParser (stringLiteral ",")
       stringLiteral ")"
       stringLiteral "->"
       returnType <- typeParser
@@ -80,7 +80,7 @@ abilityConstraintsParser = myLexeme $ do
 genericsParser :: Parser [TypeVar]
 genericsParser = do
   stringLiteral "<"
-  generics <- sepBy typeVarParser (stringLiteral ",")
+  generics <- sepEndBy typeVarParser (stringLiteral ",")
   stringLiteral ">"
   pure generics
 

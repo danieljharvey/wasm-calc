@@ -18,14 +18,12 @@ patternParser :: Parser ParserPattern
 patternParser =
   label
     "pattern match"
-    ( orInBrackets
-        ( try patWildcardParser
-            <|> patPrimParser
-            <|> try patVariableParser
-            <|> try patBoxParser
-            <|> patConstructorParser
-            <|> patTupleParser
-        )
+    ( try patWildcardParser
+        <|> patPrimParser
+        <|> try patVariableParser
+        <|> try patBoxParser
+        <|> patConstructorParser
+        <|> patTupleParser
     )
 
 ----
@@ -49,7 +47,7 @@ patTupleParser :: Parser ParserPattern
 patTupleParser = label "tuple" $
   withLocation (\loc (pHead, pTail) -> PTuple loc pHead pTail) $ do
     _ <- stringLiteral "("
-    neArgs <- NE.fromList <$> sepBy1 patternParser (stringLiteral ",")
+    neArgs <- NE.fromList <$> sepEndBy1 patternParser (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
       _ -> fail "Expected at least two items in a tuple"
@@ -79,7 +77,7 @@ patArgsParser :: Parser [ParserPattern]
 patArgsParser =
   let argsWithBrackets = do
         stringLiteral "("
-        args <- sepBy1 patternParser (stringLiteral ",")
+        args <- sepEndBy1 patternParser (stringLiteral ",")
         stringLiteral ")"
         pure args
    in try argsWithBrackets <|> pure []

@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Shared
-  ( orInBrackets,
-    inBrackets,
+  ( inBrackets,
     myLexeme,
     withLocation,
     stringLiteral,
@@ -47,9 +46,6 @@ addTypeLocation = withLocation (mapOuterTypeAnnotation . const)
 
 inBrackets :: Parser a -> Parser a
 inBrackets = between2 '(' ')'
-
-orInBrackets :: Parser a -> Parser a
-orInBrackets parser = try parser <|> try (inBrackets parser)
 
 myLexeme :: Parser a -> Parser a
 myLexeme = L.lexeme (L.space space1 empty empty)

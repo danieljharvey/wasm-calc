@@ -22,6 +22,7 @@ maintainer:         danieljamesharvey@gmail.com
 extra-source-files:
   CHANGELOG.md
   static/malloc.wasm
+  test/static/*.calc
 
 common shared
   ghc-options:

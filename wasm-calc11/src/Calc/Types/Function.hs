@@ -17,20 +17,13 @@ import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Type
 import Calc.Types.TypeVar
+import Calc.Utils
 import qualified Data.Set as S
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
-
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc =
-  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
-
-newlines :: PP.Doc style -> PP.Doc style
-newlines a = PP.line' <> a <> PP.line'
 
 data AbilityConstraint
   = NoGlobalMutate

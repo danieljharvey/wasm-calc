@@ -31,6 +31,9 @@ check ty (EInfix ann op a b) =
   checkInfix (Just ty) ann op a b
 check ty (EMatch ann matchExpr pats) =
   checkMatch (Just ty) ann matchExpr pats
+check ty (EBlock ann inner) = do
+  elabInner <- check ty inner
+  pure $ EBlock (getOuterAnnotation elabInner $> ann) elabInner
 check (TContainer _ tyItems) (ETuple ann fstExpr restExpr) =
   checkTuple (Just tyItems) ann fstExpr restExpr
 check ty (ELet ann pat expr rest) =

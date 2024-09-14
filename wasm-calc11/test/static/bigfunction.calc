@@ -8,17 +8,17 @@ function big(
   g: Int32, 
   h: Int32
 ) -> Int32 { 
-  if 1 then
+  if True then
     2
   else
     {
       let a: Int8 = 100; 
-      if 3 then
+      if False then
         4
       else
-        if 5 then
+        if True then
           6
         else
-          if 7 then 8 else if 9 then 10 else 11
+          if True then 8 else if False then 10 else 11
     }
 }

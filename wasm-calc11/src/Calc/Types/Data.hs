@@ -8,6 +8,7 @@ import Calc.Types.Constructor
 import Calc.Types.DataName
 import Calc.Types.Type
 import Calc.Types.TypeVar
+import Calc.Utils
 import qualified Data.Map.Strict as M
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
@@ -22,10 +23,6 @@ data Data ann = Data
 instance PP.Pretty (Data ann) where
   pretty = renderDataType
 
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc = PP.flatAlt (PP.indent (fromIntegral i) doc) doc
-
 renderDataType ::
   Data ann ->
   PP.Doc style
@@ -36,17 +33,16 @@ renderDataType (Data tyCon vars' constructors') =
     <> if M.null constructors'
       then mempty
       else
-        PP.group $
-          PP.softline
-            <> indentMulti
-              2
-              ( PP.align $
-                  PP.vsep $
-                    zipWith
-                      (<+>)
-                      ("=" : repeat "|")
-                      (printCons <$> M.toList constructors')
-              )
+        PP.line
+          <> indentMulti
+            2
+            ( PP.align $
+                PP.vsep $
+                  zipWith
+                    (<+>)
+                    ("=" : repeat "|")
+                    (printCons <$> M.toList constructors')
+            )
   where
     printVars [] =
       mempty
@@ -59,10 +55,12 @@ renderDataType (Data tyCon vars' constructors') =
       PP.pretty consName
         <> PP.softline'
         <> "("
-        <> PP.hang
-          0
-          ( PP.align $
-              PP.vsep (PP.punctuate "," (prettyMt <$> args))
+        <> PP.group
+          ( PP.hang
+              0
+              ( PP.align $
+                  PP.vsep (PP.punctuate "," (prettyMt <$> args))
+              )
           )
         <> ")"
     prettyMt = PP.pretty

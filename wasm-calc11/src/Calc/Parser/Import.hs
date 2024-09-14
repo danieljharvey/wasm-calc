@@ -27,7 +27,7 @@ importParser =
       stringLiteral "as"
       impName <- functionNameParser
       stringLiteral "("
-      args <- sepBy argTypeParser (stringLiteral ",")
+      args <- sepEndBy argTypeParser (stringLiteral ",")
       stringLiteral ")"
       stringLiteral "->"
       impReturnType <- typeParser
