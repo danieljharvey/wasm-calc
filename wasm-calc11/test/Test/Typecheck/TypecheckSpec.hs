@@ -230,7 +230,7 @@ spec = do
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
 
-      fdescribe "Successfully typechecking modules" $ do
+      describe "Successfully typechecking modules" $ do
         traverse_ (uncurry testModuleTypechecks) testInputs
 
       let failing =

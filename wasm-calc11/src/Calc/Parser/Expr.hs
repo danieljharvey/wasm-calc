@@ -42,7 +42,6 @@ exprParserInternal =
           <|> try tupleParser
           <|> constructorParser
           <|> boxParser
-          <|> inBrackets (addLocation exprParserInternal)
           <|> primExprParser
           <|> ifParser
           <|> loadParser
@@ -52,6 +51,7 @@ exprParserInternal =
           <|> try applyParser
           <|> try varParser
           <|> blockParser
+          <|> inBrackets (addLocation exprParserInternal)
           <?> "term"
    in addLocation (makeExprParser parser table) <?> "expression"
 
@@ -210,10 +210,7 @@ patternMatchParser :: Parser (Expr Annotation)
 patternMatchParser = addLocation $ do
   matchExpr <- matchExprWithParser
   stringLiteral "{"
-  patterns <-
-    try patternMatchesParser
-      <|> pure
-      <$> patternCaseParser
+  patterns <- patternMatchesParser
   stringLiteral "}"
   case NE.nonEmpty patterns of
     (Just nePatterns) -> pure $ EMatch mempty matchExpr nePatterns
@@ -225,14 +222,14 @@ matchExprWithParser = do
   exprParserInternal
 
 patternMatchesParser :: Parser [(Pattern Annotation, Expr Annotation)]
-patternMatchesParser =
-  sepBy
+patternMatchesParser = do
+  sepBy1
     patternCaseParser
     (stringLiteral ",")
 
 patternCaseParser :: Parser (Pattern Annotation, Expr Annotation)
 patternCaseParser = do
-  pat <- orInBrackets patternParser
+  pat <- patternParser
   stringLiteral "->"
   patExpr <- exprParserInternal
   pure (pat, patExpr)

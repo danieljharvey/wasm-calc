@@ -18,7 +18,6 @@ patternParser :: Parser ParserPattern
 patternParser =
   label
     "pattern match"
-    ( orInBrackets
         ( try patWildcardParser
             <|> patPrimParser
             <|> try patVariableParser
@@ -26,7 +25,6 @@ patternParser =
             <|> patConstructorParser
             <|> patTupleParser
         )
-    )
 
 ----
 
