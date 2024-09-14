@@ -1,18 +1,17 @@
+type Result<e,a> = Left(e) | Right(a)
 
+type Type = TBoolean | TInt
 
-type Type = TInt | TBoolean
-
-type Expr<ann> = EInt(ann, Int32) | EBoolean(ann,Boolean)
+type Expr<ann> = EBoolean(ann, Boolean) | EInt(ann, Int32)
 
 type Unit = Unit
 
-function typecheck(expr: Expr(Unit)) -> Expr(Type) {
-    case expr {
-        EInt(_, i) -> EInt(TInt, i),
-        EBoolean(_, b) -> EBoolean(TBoolean,b)
-    }
+type Error = OhNo
 
-
-
-    }
-
+function typecheck(expr: Expr(Unit)) -> Result(Error,
+Expr(Type)) { 
+  case expr {
+    EInt(_, i) -> Right(EInt(TInt, i)), 
+    EBoolean(_, b) -> Right(EBoolean(TBoolean, b)) 
+  }
+}
