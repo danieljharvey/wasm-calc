@@ -430,7 +430,7 @@ spec = do
               ("True || False", EInfix () OpOr (bool True) (bool False)),
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
-              ("add(1,2)", EApply () "add" [int 1, int 2]),
+              ("add(1,2,)", EApply () "add" [int 1, int 2]),
               ("go()", EApply () "go" []),
               ("Box(1)", EBox () (int 1)),
               ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),
@@ -474,7 +474,7 @@ spec = do
                       ]
                   )
               ),
-              ( "case a { 1 -> 0, other -> other }",
+              ( "case a { 1 -> 0, other -> other, }",
                 EMatch
                   ()
                   (var "a")

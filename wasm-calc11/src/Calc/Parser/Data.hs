@@ -61,6 +61,6 @@ oneTypeConstructor = do
 constructorArgsParser :: Parser [Type Annotation]
 constructorArgsParser = do
   stringLiteral "("
-  types <- sepBy typeParser (stringLiteral ",")
+  types <- sepEndBy typeParser (stringLiteral ",")
   stringLiteral ")"
   pure types

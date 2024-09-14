@@ -139,7 +139,7 @@ applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do
   fnName <- functionNameParser
   stringLiteral "("
-  args <- sepBy exprParserInternal (stringLiteral ",")
+  args <- sepEndBy exprParserInternal (stringLiteral ",")
   stringLiteral ")"
   pure (EApply mempty fnName args)
 
@@ -147,7 +147,7 @@ tupleParser :: Parser (Expr Annotation)
 tupleParser = label "tuple" $
   addLocation $ do
     _ <- stringLiteral "("
-    neArgs <- NE.fromList <$> sepBy1 exprParserInternal (stringLiteral ",")
+    neArgs <- NE.fromList <$> sepEndBy1 exprParserInternal (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
       _ -> fail "Expected at least two items in a tuple"
@@ -198,7 +198,7 @@ constructorParser :: Parser (Expr Annotation)
 constructorParser =
   let argsParser = do
         stringLiteral "("
-        args <- sepBy1 exprParserInternal (stringLiteral ",")
+        args <- sepEndBy1 exprParserInternal (stringLiteral ",")
         stringLiteral ")"
         pure args
    in label "constructor" $ addLocation $ do
@@ -223,7 +223,7 @@ matchExprWithParser = do
 
 patternMatchesParser :: Parser [(Pattern Annotation, Expr Annotation)]
 patternMatchesParser = do
-  sepBy1
+  sepEndBy1
     patternCaseParser
     (stringLiteral ",")
 

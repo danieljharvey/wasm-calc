@@ -36,16 +36,13 @@ renderDataType (Data tyCon vars' constructors') =
     <> if M.null constructors'
       then mempty
       else
-        PP.group $
-          PP.softline
+        " =" <+>
+          PP.line
             <> indentMulti
               2
               ( PP.align $
                   PP.vsep $
-                    zipWith
-                      (<+>)
-                      ("=" : repeat "|")
-                      (printCons <$> M.toList constructors')
+                    PP.punctuate " |" (printCons <$> M.toList constructors')
               )
   where
     printVars [] =
@@ -59,10 +56,10 @@ renderDataType (Data tyCon vars' constructors') =
       PP.pretty consName
         <> PP.softline'
         <> "("
-        <> PP.hang
+        <> PP.group (PP.hang
           0
           ( PP.align $
               PP.vsep (PP.punctuate "," (prettyMt <$> args))
-          )
+          ))
         <> ")"
     prettyMt = PP.pretty
