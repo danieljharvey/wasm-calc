@@ -1,24 +1,31 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Lsp (lsp) where
 
-import Data.Text.Utf16.Rope.Mixed as TextRope
-import qualified Data.Text as T
+import Calc.Build.Steps
+import Calc.Test
+import Calc.Types.Annotation
+import Calc.Types.Module
+import Calc.Types.Type
 import Control.Lens hiding (Iso)
-import qualified Language.LSP.VFS as LSP
-import Data.Maybe
+import Control.Monad.Except
 import Control.Monad.IO.Class
-import Language.LSP.Protocol.Message
-import qualified Language.LSP.Protocol.Types as LSP
-import qualified Language.LSP.Server as LSP
+import Data.Maybe
+import Data.Text qualified as T
+import Data.Text.Utf16.Rope.Mixed as TextRope
 import Language.LSP.Protocol.Lens qualified as LSP
+import Language.LSP.Protocol.Message
+import Language.LSP.Protocol.Types qualified as LSP
+import Language.LSP.Server qualified as LSP
+import Language.LSP.VFS qualified as LSP
 
 doLog :: (MonadIO m) => String -> m ()
 doLog =
-  liftIO . appendFile "/Users/danielharvey/git/wasm-calc/lsp-log.txt" . (<>) "\n"
+  liftIO . appendFile "/Users/daniel/git/wasm-calc/lsp-log.txt" . (<>) "\n"
 
 handlers :: LSP.Handlers (LSP.LspM ())
 handlers =
@@ -43,9 +50,13 @@ handlers =
                   . LSP.uri
                   . to LSP.toNormalizedUri
         doLog ("Processing DidChangeTextDocument for: " <> show doc)
-        let TNotificationMessage _ _
-                (LSP.DidChangeTextDocumentParams
-                    (LSP.VersionedTextDocumentIdentifier textDocumentIdentifier _) _)  = notification
+        let TNotificationMessage
+              _
+              _
+              ( LSP.DidChangeTextDocumentParams
+                  (LSP.VersionedTextDocumentIdentifier textDocumentIdentifier _)
+                  _
+                ) = notification
         file <- findFile textDocumentIdentifier
         doLog (show file)
         pure (),
@@ -61,6 +72,12 @@ handlers =
 
         doLog (T.unpack file)
 
+        res <- runExceptT (lspBuildSteps file)
+        case res of
+          Right (_tests, typedModule) -> do
+            doLog (show typedModule)
+          Left _e -> doLog ("error")
+
         let LSP.Position _l _c' = pos
             rsp = LSP.Hover (LSP.InL ms) (Just range)
             ms = LSP.mkMarkdown "Poo poo"
@@ -70,14 +87,13 @@ handlers =
 
 findFile :: LSP.Uri -> LSP.LspM config T.Text
 findFile doc = do
-        let uri = LSP.toNormalizedUri doc
-        mdoc <- LSP.getVirtualFile uri
-        case mdoc of
-          Just (LSP.VirtualFile _ _ str) -> do
-            pure (TextRope.toText str)
-          Nothing -> do
-            error ("Didn't find anything in the VFS for: " <> show doc)
-
+  let uri = LSP.toNormalizedUri doc
+  mdoc <- LSP.getVirtualFile uri
+  case mdoc of
+    Just (LSP.VirtualFile _ _ str) -> do
+      pure (TextRope.toText str)
+    Nothing -> do
+      error ("Didn't find anything in the VFS for: " <> show doc)
 
 lsp :: IO Int
 lsp =
@@ -90,18 +106,39 @@ lsp =
         doInitialize = \env _req -> pure $ Right env,
         staticHandlers = \_caps -> handlers,
         interpretHandler = \env -> LSP.Iso (LSP.runLspT env) liftIO,
-        options = LSP.defaultOptions
-            { LSP.optTextDocumentSync = Just syncOptions
-            , LSP.optServerInfo = Just $ LSP.ServerInfo "Calc Language Server" Nothing
+        options =
+          LSP.defaultOptions
+            { LSP.optTextDocumentSync = Just syncOptions,
+              LSP.optServerInfo = Just $ LSP.ServerInfo "Calc Language Server" Nothing
             }
       }
-        where
-          syncOptions = LSP.TextDocumentSyncOptions
-                        (Just True) -- open/close notifications
-                        (Just LSP.TextDocumentSyncKind_Full) -- changes
-                        Nothing -- will save
-                        Nothing -- will save (wait until requests are sent to server)
-                        (Just $ LSP.InR $ LSP.SaveOptions $ Just False) -- save
+  where
+    syncOptions =
+      LSP.TextDocumentSyncOptions
+        (Just True) -- open/close notifications
+        (Just LSP.TextDocumentSyncKind_Full) -- changes
+        Nothing -- will save
+        Nothing -- will save (wait until requests are sent to server)
+        (Just $ LSP.InR $ LSP.SaveOptions $ Just False) -- save
 
+lspBuildSteps ::
+  (MonadIO m, MonadError BuildError m) =>
+  T.Text ->
+  m
+    ( [(T.Text, Bool)],
+      Module (Type Annotation)
+    )
+lspBuildSteps input = do
+  parsedModuleItems <- liftEither (parseModuleStep input)
 
+  parsedModule <- liftEither (resolveModuleStep parsedModuleItems)
 
+  typedModule <- liftEither (typecheckModuleStep input parsedModule)
+
+  liftEither (linearityCheckStep input typedModule)
+
+  _ <- liftEither (abilityCheckStep input parsedModule)
+
+  testResults <- liftIO (testModule typedModule)
+
+  pure (testResults, typedModule)

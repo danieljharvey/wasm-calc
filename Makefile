@@ -85,12 +85,13 @@ version = 11
 test:
 	cabal run wasm-calc$(version):tests
 
-# run with `make format-all-files version=7` to format all static `.calc` files for wasm-calc7
+# run with `make format-all-files version=7` to format all `.calc` files for wasm-calc7
 .PHONY: format-all-files
 version = 11
-STATIC_FILES = "./wasm-calc$(version)/test/static/"
+STATIC_FILES = "./wasm-calc$(version)/**/*.calc"
 format-all-files:
-	find $(STATIC_FILES) -maxdepth 1 -type f -exec cabal run wasm-calc$(version) -- format {} \;
+	find $(STATIC_FILES) -maxdepth 1 -type f -exec \
+		nix run .#wasm-calc$(version) format {} \;
 
 # run with `make build-malloc version=9` to build and diff malloc.calc for
 # wasm-calc9
