@@ -35,28 +35,28 @@ function typecheck(expr: Expr(Unit)) -> Result(TypeError,Expr(Type)) {
     case expr {
         EInt(_, i) -> Right(EInt(TInt, i)),
         EBoolean(_, b) -> Right(EBoolean(TBoolean,b)),
-        EIf(_, predExpr,thenExpr, elseExpr) ->  {
-  case typecheck(predExpr) {
-    Right(typedPred) -> {
-      if isBool(typedPred) then
-        case (typecheck(thenExpr), typecheck(elseExpr)) {
-          (Right(typedThen), Right(typedElse)) -> {
-            let tyThen = outerAnnotation(typedThen);
-            let tyElse = outerAnnotation(typedElse);
-            if typeEquals(tyThen,tyElse) then 
-              Right(EIf(tyThen,typedPred, typedThen,typedElse))
-             else 
-              Left(TypeMismatch(tyThen,tyElse))
-            
-          },
-          (Left(e),Right(_)) -> Left(e),
-          (Right(_), Left(e)) -> Left(e),
-          
-        }
-       else  
-        Left(ExpectedBooleanGotInt) 
-      }
-    }
+        EIf(_, predExpr,thnExpr, elsExpr) ->  {
+          case typecheck(predExpr) {
+            Left(e) -> Left(e),
+            Right(typedPred) -> {
+              if isBool(typedPred) then
+                case (typecheck(thnExpr), typecheck(elsExpr)) {
+                  (Right(typedThen), Right(typedElse)) -> {
+                    let tyThen = outerAnnotation(typedThen);
+                    let tyElse = outerAnnotation(typedElse);
+                    if typeEquals(tyThen,tyElse) then 
+                      Right(EIf(tyThen,typedPred, typedThen,typedElse))
+                     else 
+                      Left(TypeMismatch(tyThen,tyElse))
+                  },
+                  (Left(e),Right(_)) -> Left(e),
+                  (Right(_), Left(e)) -> Left(e),
+                  
+                }
+               else  
+                Left(ExpectedBooleanGotInt) 
+              }
+            }
 
 
         }

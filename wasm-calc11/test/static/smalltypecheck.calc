@@ -1,0 +1,18 @@
+
+
+type Type = TInt | TBoolean
+
+type Expr<ann> = EInt(ann, Int32) | EBoolean(ann,Boolean)
+
+type Unit = Unit
+
+function typecheck(expr: Expr(Unit)) -> Expr(Type) {
+    case expr {
+        EInt(_, i) -> EInt(TInt, i),
+        EBoolean(_, b) -> EBoolean(TBoolean,b)
+    }
+
+
+
+    }
+
