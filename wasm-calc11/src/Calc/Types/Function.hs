@@ -13,6 +13,7 @@ module Calc.Types.Function
   )
 where
 
+import Calc.Utils
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Type
@@ -23,14 +24,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
-
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc =
-  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
-
-newlines :: PP.Doc style -> PP.Doc style
-newlines a = PP.line' <> a <> PP.line'
 
 data AbilityConstraint
   = NoGlobalMutate

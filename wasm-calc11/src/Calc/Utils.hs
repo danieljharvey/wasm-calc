@@ -1,6 +1,7 @@
-module Calc.Utils (prettyShow, ltrace, ltraceM, neZipWith, neZipWithM, neUnzip) where
+module Calc.Utils (prettyShow, ltrace, ltraceM, neZipWith, neZipWithM, neUnzip, indentMulti, newlines) where
 
 -- useful junk goes here
+import qualified Prettyprinter as PP
 
 import Control.Monad (zipWithM)
 import Data.Bifunctor
@@ -37,3 +38,15 @@ ltraceM lbl x = Debug.traceM (lbl <> ": " <> TL.unpack (PS.pShow x))
 
 prettyShow :: (Show a) => a -> String
 prettyShow = TL.unpack . PS.pShow
+
+
+-- when on multilines, indent by `i`, if not then nothing
+indentMulti :: Integer -> PP.Doc style -> PP.Doc style
+indentMulti i doc =
+  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
+
+newlines :: PP.Doc style -> PP.Doc style
+newlines a = PP.line' <> a <> PP.line'
+
+
+

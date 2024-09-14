@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Calc.PrettyPrint
-  ( prettyPrint,
+  ( prettyPrint
   )
 where
 

@@ -9,6 +9,7 @@ import Calc.Types.Expr
 import Calc.Types.Identifier
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
+import Calc.Utils
 
 data Test ann = Test
   { tesAnn :: ann,
@@ -16,11 +17,6 @@ data Test ann = Test
     tesExpr :: Expr ann
   }
   deriving stock (Eq, Ord, Show, Functor)
-
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc =
-  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
 
 instance PP.Pretty (Test ann) where
   pretty (Test {tesName, tesExpr}) =

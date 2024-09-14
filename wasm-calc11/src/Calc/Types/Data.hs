@@ -4,6 +4,7 @@
 
 module Calc.Types.Data (Data (..)) where
 
+import Calc.Utils
 import Calc.Types.Constructor
 import Calc.Types.DataName
 import Calc.Types.Type
@@ -22,10 +23,6 @@ data Data ann = Data
 instance PP.Pretty (Data ann) where
   pretty = renderDataType
 
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc = PP.flatAlt (PP.indent (fromIntegral i) doc) doc
-
 renderDataType ::
   Data ann ->
   PP.Doc style
@@ -36,14 +33,15 @@ renderDataType (Data tyCon vars' constructors') =
     <> if M.null constructors'
       then mempty
       else
-        " =" <+>
-          PP.line
-            <> indentMulti
+        PP.line <> (
+            indentMulti
               2
               ( PP.align $
                   PP.vsep $
-                    PP.punctuate " |" (printCons <$> M.toList constructors')
-              )
+                    zipWith
+                      (<+>)
+                      ("=" : repeat "|")
+                      (printCons <$> M.toList constructors')))
   where
     printVars [] =
       mempty
