@@ -6,10 +6,10 @@ module Calc.Types.Type (Type (..), TypePrim (..)) where
 
 import Calc.Types.DataName
 import Calc.Types.TypeVar
+import Calc.Utils
 import qualified Data.List.NonEmpty as NE
 import GHC.Natural
 import qualified Prettyprinter as PP
-import Calc.Utils
 
 data TypePrim
   = TBool
@@ -63,6 +63,5 @@ instance PP.Pretty (Type ann) where
       <> PP.group (PP.line' <> indentMulti 2 (PP.cat tyArgs) <> PP.line')
       <> ")"
     where
-      tyArgs
-          = PP.punctuate ", " (PP.pretty <$> args)
-
+      tyArgs =
+        PP.punctuate ", " (PP.pretty <$> args)

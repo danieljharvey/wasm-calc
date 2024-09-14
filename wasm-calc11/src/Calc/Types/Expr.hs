@@ -92,8 +92,8 @@ instance PP.Pretty (Expr ann) where
       <> PP.group (PP.line' <> indentMulti 2 (PP.cat pArgs) <> PP.line')
       <> ")"
     where
-      pArgs
-          = PP.punctuate ", " (PP.pretty <$> args)
+      pArgs =
+        PP.punctuate ", " (PP.pretty <$> args)
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
   pretty (EIf _ predExpr thenExpr elseExpr) =
@@ -119,8 +119,8 @@ instance PP.Pretty (Expr ann) where
   pretty (ETuple _ a as) =
     "(" <> PP.group (PP.line' <> indentMulti 2 (PP.cat prettyItems) <> PP.line') <> ")"
     where
-      prettyItems
-        = PP.punctuate ", " (PP.pretty <$> tupleItems a as)
+      prettyItems =
+        PP.punctuate ", " (PP.pretty <$> tupleItems a as)
 
       tupleItems :: a -> NE.NonEmpty a -> [a]
       tupleItems b bs = b : NE.toList bs

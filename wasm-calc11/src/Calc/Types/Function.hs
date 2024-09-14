@@ -13,11 +13,11 @@ module Calc.Types.Function
   )
 where
 
-import Calc.Utils
 import Calc.Types.Expr
 import Calc.Types.FunctionName
 import Calc.Types.Type
 import Calc.Types.TypeVar
+import Calc.Utils
 import qualified Data.Set as S
 import Data.String
 import Data.Text (Text)

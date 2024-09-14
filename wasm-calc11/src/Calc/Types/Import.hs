@@ -12,9 +12,9 @@ where
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
 import Calc.Types.Type
+import Calc.Utils
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
-import Calc.Utils
 
 data Import ann = Import
   { impAnn :: ann,

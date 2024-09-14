@@ -7,9 +7,9 @@ module Calc.Types.Test where
 
 import Calc.Types.Expr
 import Calc.Types.Identifier
+import Calc.Utils
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
-import Calc.Utils
 
 data Test ann = Test
   { tesAnn :: ann,

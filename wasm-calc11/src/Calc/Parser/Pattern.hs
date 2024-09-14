@@ -18,13 +18,13 @@ patternParser :: Parser ParserPattern
 patternParser =
   label
     "pattern match"
-        ( try patWildcardParser
-            <|> patPrimParser
-            <|> try patVariableParser
-            <|> try patBoxParser
-            <|> patConstructorParser
-            <|> patTupleParser
-        )
+    ( try patWildcardParser
+        <|> patPrimParser
+        <|> try patVariableParser
+        <|> try patBoxParser
+        <|> patConstructorParser
+        <|> patTupleParser
+    )
 
 ----
 

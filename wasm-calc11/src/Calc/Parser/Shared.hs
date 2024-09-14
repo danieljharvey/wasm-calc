@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Shared
-  (
-    inBrackets,
+  ( inBrackets,
     myLexeme,
     withLocation,
     stringLiteral,
