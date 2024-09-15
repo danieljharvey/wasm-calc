@@ -180,17 +180,23 @@ spec = do
                 []
               ),
               ( "Box(Int64)",
-                [DropPathFetch Nothing]
+                [(ConstTrue,DropPathFetch Nothing)]
               ),
               ( "(a,b)",
-                [ DropPathSelect (unsafeTy "a") 0 (DropPathFetch (Just "a")),
-                  DropPathSelect (unsafeTy "b") 4 (DropPathFetch (Just "b")),
-                  DropPathFetch Nothing
+                [ (ConstTrue, DropPathSelect (unsafeTy "a") 0 (DropPathFetch (Just "a"))),
+                  (ConstTrue, DropPathSelect (unsafeTy "b") 4 (DropPathFetch (Just "b"))),
+                  (ConstTrue, DropPathFetch Nothing)
                 ]
               ),
               ( "(Int64,b)",
-                [ DropPathSelect (unsafeTy "b") 8 (DropPathFetch (Just "b")),
-                  DropPathFetch Nothing
+                [ (ConstTrue,DropPathSelect (unsafeTy "b") 8 (DropPathFetch (Just "b"))),
+                  (ConstTrue, DropPathFetch Nothing)
+                ]
+              ),
+              (
+                "Either(Boolean,(Int32,Int32))",
+                [ (Equals [] tyInt32 (PIntLit 1), DropPathSelect (unsafeTy "(Int32,Int32)") 1 (DropPathFetch Nothing)),
+                (ConstTrue, DropPathFetch Nothing)
                 ]
               )
             ]
@@ -199,7 +205,7 @@ spec = do
         ( \(tyString, paths) -> do
             it (show tyString) $
               evalStateT
-                (typeToDropPaths (unsafeTy tyString) id)
+                (typeToDropPaths (unsafeTy tyString) ConstTrue id)
                 exprState
                 `shouldBe` Right paths
         )
@@ -244,7 +250,7 @@ spec = do
         traverse_
           ( \(predicate, val, expected) ->
               it (show predicate) $
-                evalStateT (predicateToWasm @_ @() val predicate) exprState
+                evalStateT (predicateToWasm val predicate) exprState
                   `shouldBe` Right expected
           )
           testVals

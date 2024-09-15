@@ -23,9 +23,10 @@ import Calc.Wasm.FromExpr.Helpers
     scalarFromType,
   )
 import Calc.Wasm.FromExpr.Patterns (Path (..))
+import Calc.Wasm.FromExpr.Patterns.Predicates
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
-import Control.Monad (foldM)
+import Control.Monad (foldM, void)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Foldable (foldl')
@@ -37,9 +38,9 @@ import qualified Data.Text as T
 import GHC.Natural
 
 -- | for a variable, describe how to get it
-data DropPath ann
+data DropPath
   = -- | we're going in deeper
-    DropPathSelect (Type ann) Natural (DropPath ann)
+    DropPathSelect (Type ()) Natural DropPath
   | -- | drop this item
     DropPathFetch (Maybe TypeVar)
   deriving stock (Eq, Ord, Show)
@@ -114,16 +115,18 @@ addDropsToWasmExpr drops wasmExpr =
 typeToDropPaths ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   Type ann ->
-  (DropPath ann -> DropPath ann) ->
-  m [DropPath ann]
-typeToDropPaths ty@(TContainer _ tyItems) addPath = do
+  Predicate ->
+  (DropPath -> DropPath) ->
+  m [(Predicate, DropPath)]
+typeToDropPaths ty@(TContainer _ tyItems) predicate addPath = do
   let offsetList = getOffsetList ty
   innerPaths <-
     traverse
       ( \(index, innerTy) ->
           typeToDropPaths
             innerTy
-            ( DropPathSelect innerTy (offsetList !! index)
+            predicate
+            ( DropPathSelect (void innerTy) (offsetList !! index)
                 . addPath
             )
       )
@@ -131,11 +134,13 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
 
   pure
     ( mconcat innerPaths
-        <> [addPath (DropPathFetch Nothing)]
+        <> [(predicate, addPath (DropPathFetch Nothing))]
     )
-typeToDropPaths (TVar _ tyVar) addPath =
-  pure [addPath (DropPathFetch (Just tyVar))]
-typeToDropPaths _ _ = pure mempty
+typeToDropPaths (TVar _ tyVar) predicate addPath =
+  pure [(predicate, addPath (DropPathFetch (Just tyVar)))]
+typeToDropPaths (TConstructor _ _dt _args) _predicate _addPath = do
+  error "sdf"
+typeToDropPaths _ _ _ = pure mempty
 
 typeVars :: Type ann -> S.Set TypeVar
 typeVars (TVar _ tv) = S.singleton tv
@@ -167,12 +172,12 @@ createDropFunction ::
   Type ann ->
   m WasmFunction
 createDropFunction natIndex ty = do
-  dropPaths <- typeToDropPaths ty id
+  dropPaths <- typeToDropPaths ty ConstTrue id
   let typeVarList = S.toList (typeVars ty)
       allTypeVars = M.fromList $ zip typeVarList [0 ..]
   wasmTy <- liftEither (scalarFromType ty)
   let arg = 0
-  wasmExprs <- traverse (dropExprFromPath allTypeVars arg) dropPaths
+  wasmExprs <- traverse (dropExprFromPath allTypeVars arg) (snd <$> dropPaths)
 
   let wasmArgs = wasmTy : (typeVarList $> Pointer)
 
@@ -213,7 +218,7 @@ dropExprFromPath ::
   (MonadError FromWasmError m) =>
   M.Map TypeVar Natural ->
   Natural ->
-  DropPath ann ->
+  DropPath ->
   m (Maybe Natural, WasmExpr)
 dropExprFromPath _ wholeExprIndex (DropPathFetch Nothing) =
   pure (Nothing, WVar wholeExprIndex)

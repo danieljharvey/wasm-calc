@@ -3,8 +3,8 @@
 
 module Calc.Wasm.FromExpr.Patterns.Predicates where
 
+import Control.Monad (void)
 import Calc.ExprUtils
-import Calc.TypeUtils
 import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
@@ -18,7 +18,7 @@ import qualified Data.List.NonEmpty as NE
 import Data.Maybe (maybeToList)
 import GHC.Natural
 
-data Predicate ann = Equals [(Type ann, Natural)] (Type ann) Prim
+data Predicate = Equals [(Type (), Natural)] (Type ()) Prim | ConstTrue
   deriving stock (Eq, Ord, Show)
 
 -- | Return a list of things that would need to be true for a pattern to match
@@ -27,13 +27,16 @@ predicatesFromPattern ::
     MonadError FromWasmError m
   ) =>
   Pattern (Type ann) ->
-  [(Type ann, Natural)] ->
-  m [Predicate ann]
-predicatesFromPattern (PWildcard {}) _ = pure mempty
-predicatesFromPattern (PLiteral ty prim) path = pure [Equals path ty prim]
-predicatesFromPattern (PVar {}) _ = pure mempty
+  [(Type (), Natural)] ->
+  m [Predicate ]
+predicatesFromPattern (PWildcard {}) _ =
+  pure mempty
+predicatesFromPattern (PLiteral ty prim) path =
+  pure [Equals path (void ty) prim]
+predicatesFromPattern (PVar {}) _ =
+  pure mempty
 predicatesFromPattern (PBox _ inner) path =
-  predicatesFromPattern inner (path <> [(getOuterPatternAnnotation inner, 0)])
+  predicatesFromPattern inner (path <> [(void (getOuterPatternAnnotation inner), 0)])
 predicatesFromPattern (PTuple ty p ps) path = do
   let allPs = zip (p : NE.toList ps) [0 ..]
   let offsetList = getOffsetList ty
@@ -42,13 +45,13 @@ predicatesFromPattern (PTuple ty p ps) path = do
       ( \(pat, index) ->
           predicatesFromPattern
             pat
-            (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
+            (path <> [(void (getOuterPatternAnnotation pat), offsetList !! index)])
       )
       allPs
 predicatesFromPattern (PConstructor ty constructor ps) path = do
   constructorValue <- getConstructorNumber ty constructor
   -- make sure we've got the correct constructor
-  let discriminatorType = TPrim (getOuterTypeAnnotation ty) TInt8
+  let discriminatorType = TPrim () TInt8
   let discriminatorPath = path <> [(discriminatorType, 0)]
 
   -- if we need a discrimnator, create an Equals fields for it
@@ -70,7 +73,7 @@ predicatesFromPattern (PConstructor ty constructor ps) path = do
         ( \(pat, index) ->
             predicatesFromPattern
               pat
-              (path <> [(getOuterPatternAnnotation pat, offsetList !! index)])
+              (path <> [(void (getOuterPatternAnnotation pat), offsetList !! index)])
         )
         indexedPs
 
@@ -83,7 +86,7 @@ predicateToWasm ::
     MonadError FromWasmError m
   ) =>
   WasmExpr ->
-  Predicate ann ->
+  Predicate ->
   m WasmExpr
 predicateToWasm wasmValue (Equals path tyPrim primValue) = do
   wasmPrim <- fromPrim tyPrim primValue
@@ -98,6 +101,8 @@ predicateToWasm wasmValue (Equals path tyPrim primValue) = do
         )
         (reverse path)
   pure $ predicateToWasmInner wasmPath (WInfix wasmType OpEquals (WPrim wasmPrim)) wasmValue
+predicateToWasm _wasmValue ConstTrue =
+  pure $ WPrim (WPBool True)
 
 -- | inner function that works on just Wasm IR types
 predicateToWasmInner ::

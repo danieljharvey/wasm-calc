@@ -444,6 +444,12 @@ spec = do
               ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
                 Wasm.VI64 4
               ),
+              ( joinLines
+                  [ "type Either<e,a> = Left(e) | Right(a)",
+                    asTest "let either: Either(Boolean,Either(Boolean, Int64)) = Right(Right(100)); if False then { case either { Right(Right(a)) -> a, _ -> 0 } } else 100"
+                  ],
+                  Wasm.VI64 100
+              ),
               ( asTest $
                   joinLines
                     [ "let pair = ((1:Int64),False);",
