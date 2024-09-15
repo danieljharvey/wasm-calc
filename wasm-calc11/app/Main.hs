@@ -2,6 +2,7 @@ module Main where
 
 import qualified Calc
 import Control.Applicative
+import Control.Monad (void)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Options.Applicative as Opt
@@ -11,6 +12,7 @@ data AppAction
   = Repl
   | Build Text -- given an input path, turn it into a Wasm module or explode with an error
   | Format Text -- given an input path, format and write new file
+  | Lsp -- run the language server
 
 parseAppAction :: Opt.Parser AppAction
 parseAppAction =
@@ -21,6 +23,12 @@ parseAppAction =
             (pure Repl)
             (Opt.progDesc "Start new calc repl")
         )
+        <> Opt.command
+          "lsp"
+          ( Opt.info
+              (pure Lsp)
+              (Opt.progDesc "Start calc lsp")
+          )
         <> Opt.command
           "build"
           ( Opt.info
@@ -63,3 +71,4 @@ main = do
     Repl -> Calc.repl
     Build filePath -> Calc.build (T.unpack filePath)
     Format filePath -> Calc.prettyPrint (T.unpack filePath)
+    Lsp -> void Calc.lsp

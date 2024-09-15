@@ -6,11 +6,13 @@ module Calc
     module Calc.Repl,
     module Calc.Wasm,
     module Calc.PrettyPrint,
+    module Calc.Lsp,
   )
 where
 
 import Calc.Build
 import Calc.ExprUtils
+import Calc.Lsp
 import Calc.Parser
 import Calc.PrettyPrint
 import Calc.Repl

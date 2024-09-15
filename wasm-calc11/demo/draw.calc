@@ -4,7 +4,7 @@ import imports.draw as draw(
   x: Int64, y: Int64, r: Int64, g: Int64, b: Int64
 ) -> Void
 
-function min(floor: Int64, value: Int64) -> Int64 { 
+function min(floor: Int64, value: Int64) -> Int64 {
   if value > floor then value else floor
 }
 
@@ -55,3 +55,4 @@ export function test() -> Void {
   else
     set(index, 0)
 }
+
