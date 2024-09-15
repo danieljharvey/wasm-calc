@@ -2,15 +2,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Lsp (lsp) where
 
 import Calc.Build.Steps
 import Calc.Test
-import Calc.Types.Annotation
-import Calc.Types.Module
-import Calc.Types.Type
+import Calc.TypeUtils
+import Calc.Types
 import Control.Lens hiding (Iso)
 import Control.Monad.Except
 import Control.Monad.IO.Class
@@ -76,6 +76,8 @@ handlers =
         case res of
           Right (_tests, typedModule) -> do
             doLog (show typedModule)
+            let annotations = extractModuleAnnotations typedModule
+            doLog (show annotations)
           Left _e -> doLog ("error")
 
         let LSP.Position _l _c' = pos
@@ -84,6 +86,14 @@ handlers =
             range = LSP.Range pos pos
         responder (Right $ LSP.InL rsp)
     ]
+
+extractModuleAnnotations :: Module (Type ann) -> [(ann, Type ann)]
+extractModuleAnnotations (Module {mdFunctions}) =
+  concatMap extractFunctionAnnotations mdFunctions
+
+extractFunctionAnnotations :: Function (Type ann) -> [(ann, Type ann)]
+extractFunctionAnnotations (Function {fnBody}) =
+  foldMap (\ty -> [(getOuterTypeAnnotation ty, ty)]) fnBody
 
 findFile :: LSP.Uri -> LSP.LspM config T.Text
 findFile doc = do
