@@ -3,6 +3,7 @@
 module Calc.Parser.Identifier
   ( identifierParser,
     functionNameParser,
+    moduleNameParser,
     typeVarParser,
     dataNameParser,
     constructorParserInternal,
@@ -74,6 +75,12 @@ functionNameParser :: Parser FunctionName
 functionNameParser = do
   (Identifier fnName) <- identifierParser
   pure (FunctionName fnName)
+
+moduleNameParser :: Parser ModuleName
+moduleNameParser = do
+  (Identifier moduleName) <- identifierParser
+  pure (ModuleName moduleName)
+
 
 -- typeVar
 typeVarParser :: Parser TypeVar

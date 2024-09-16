@@ -48,4 +48,5 @@ resolveModule parts =
             Nothing -> pure $ newModule {mdMemory = Just mem}
             Just oldMem ->
               throwError (MultipleMemoryItems (imAnn oldMem) (imAnn mem))
+        ModuleNested _ _ -> error "resolveModule nested"
    in foldM withPart emptyModule parts

@@ -90,6 +90,16 @@ testParser = myLexeme
     stringLiteral "="
     (,) tesName <$> exprParser
 
+-- `module moduleName { .. moreitems .. }`
+nestedParser :: Parser (ModuleItem Annotation)
+nestedParser = myLexeme $ do
+  stringLiteral "module"
+  moduleName <- moduleNameParser
+  stringLiteral "{"
+  items <- some moduleItemParser
+  stringLiteral "}"
+  pure (ModuleNested moduleName items)
+
 moduleItemParser :: Parser (ModuleItem Annotation)
 moduleItemParser =
   ModuleData
@@ -103,3 +113,4 @@ moduleItemParser =
       <|> try (ModuleMemory <$> memoryParser)
       <|> ModuleImport
     <$> importParser
+    <|> nestedParser

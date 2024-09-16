@@ -114,6 +114,7 @@ common shared
     Calc.Types.Memory
     Calc.Types.Module
     Calc.Types.ModuleAnnotations
+    Calc.Types.ModuleName
     Calc.Types.Op
     Calc.Types.Pattern
     Calc.Types.Prim

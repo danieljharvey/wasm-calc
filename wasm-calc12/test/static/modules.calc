@@ -1,17 +1,14 @@
 module either {
-    type Either<e,a>
-      = Left(e)
-      | Right(a)
+  type Either<e,a>
+    = Left(e)
+    | Right(a)
 
-    function isLeft<e,a>(either: Either<e,a>) -> Boolean {
-        case either {
-          Right(_) -> False,
-          Left(_) -> True
-        }
-    }
 
+  function isLeft<e,a>(either: Either(e, a)) -> Boolean { 
+    case either { Right(_) -> False, Left(_) -> True }
+  } 
 }
 
-function main() -> Int32 {
-    if either:isLeft(either:Right((True,False))) then 1 else 2
+function main() -> Int32 { 
+  if isLeft(Right((True, False))) then 1 else 2
 }
