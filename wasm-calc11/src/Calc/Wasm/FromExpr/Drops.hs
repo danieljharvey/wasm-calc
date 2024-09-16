@@ -37,7 +37,6 @@ import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import GHC.Natural
-import Calc.Wasm.FromExpr.Patterns.Predicates
 
 -- | for a variable, describe how to get it
 data DropPath
