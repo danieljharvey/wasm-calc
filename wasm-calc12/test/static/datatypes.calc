@@ -1,0 +1,39 @@
+type Colour
+  = Blue
+  | Green
+  | Red
+
+type Maybe<a>
+  = Just(a)
+  | Nothing
+
+type Either<e,a>
+  = Left(e)
+  | Right(a)
+
+type These<a,b>
+  = That(b)
+  | These(a, b)
+  | This(a)
+
+type Expr<ann>
+  = EBool(ann, Boolean)
+  | EInt(ann, Int32)
+
+type List<a>
+  = Cons(a, List(a))
+  | Nil
+
+function matchList() -> Boolean { 
+  let list = Cons(True, Cons(False, Cons(True, Nil))); 
+  case list {
+    Cons(a, Cons(b, Cons(c, Nil))) -> a && b && c, 
+    _ -> False 
+  }
+}
+
+function listId<a>(list: List(a)) -> List(a) { list}
+
+function nextColour(colour: Colour) -> Colour { 
+  case colour { Red -> Green, Green -> Blue, Blue -> Red }
+}
