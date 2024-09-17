@@ -121,6 +121,7 @@ common shared
     Calc.Types.Test
     Calc.Types.Type
     Calc.Types.TypeVar
+    Calc.Types.WithPath
     Calc.TypeUtils
     Calc.Utils
     Calc.Wasm

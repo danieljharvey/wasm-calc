@@ -229,7 +229,7 @@ spec = do
       describe "Successfully typechecking modules" $ do
         traverse_ testSucceedingModule succeeding
 
-      fdescribe "Successfully typechecking modules" $ do
+      describe "Successfully typechecking modules" $ do
         traverse_ (uncurry testModuleTypechecks) testInputs
 
       let failing =
@@ -397,10 +397,10 @@ testSucceedingModule (input, md) =
     case parseModuleAndFormatError input of
       Left e -> error (show e)
       Right parsedModuleItems ->
-        case resolveModule parsedModuleItems of
+        case resolveModules parsedModuleItems of
           Left e -> error (show e)
           Right parsedMod ->
-            getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void parsedMod)
+            getOuterAnnotation . fnBody . getMainFunction <$> elaborateModule (void (mainModule parsedMod))
               `shouldBe` Right md
 
 testModuleTypechecks :: String -> Text -> Spec
@@ -409,10 +409,10 @@ testModuleTypechecks fileName input =
     case parseModuleAndFormatError input of
       Left e -> error (show e)
       Right parsedModuleItems ->
-        case resolveModule parsedModuleItems of
+        case resolveModules parsedModuleItems of
           Left e -> error (show e)
-          Right parsedMod -> do
-            let result = elaborateModule (void parsedMod)
+          Right parsedModules -> do
+            let result = elaborateModules (void <$> parsedModules)
             case result of
               Right _ -> pure ()
               Left e -> error (show e)
@@ -431,8 +431,8 @@ testFailingModule input =
     case parseModuleAndFormatError input of
       Left e -> error (show e)
       Right parsedModuleItems ->
-        case resolveModule parsedModuleItems of
+        case resolveModules parsedModuleItems of
           Left e -> error (show e)
           Right parsedMod ->
-            elaborateModule (void parsedMod)
+            elaborateModule (void (mainModule parsedMod))
               `shouldSatisfy` isLeft

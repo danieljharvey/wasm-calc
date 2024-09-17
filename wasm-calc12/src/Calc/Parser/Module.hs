@@ -113,4 +113,4 @@ moduleItemParser =
       <|> try (ModuleMemory <$> memoryParser)
       <|> ModuleImport
     <$> importParser
-    <|> nestedParser
+      <|> nestedParser

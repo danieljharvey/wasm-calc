@@ -513,9 +513,9 @@ compile input =
   case parseModuleAndFormatError input of
     Left e -> error (show e)
     Right parsedModuleItems ->
-      case resolveModule parsedModuleItems of
+      case resolveModules parsedModuleItems of
         Left resolveError -> error (show resolveError)
-        Right parsedMod -> case treeShakeModule <$> elaborateModule parsedMod of
+        Right parsedMod -> case treeShakeModule <$> elaborateModule (mainModule parsedMod) of
           Left typeErr -> error (show typeErr)
           Right typedMod ->
             case validateModule typedMod of
@@ -576,9 +576,9 @@ runTestsWithInterpreter (input, result) = it (show input) $ do
   case parseModuleAndFormatError input of
     Left e -> error (show e)
     Right parsedModuleItems ->
-      case resolveModule parsedModuleItems of
+      case resolveModules parsedModuleItems of
         Left e -> error (show e)
-        Right parsedModule -> case elaborateModule parsedModule of
+        Right parsedModule -> case elaborateModule (mainModule parsedModule)  of
           Left typeErr -> error (show typeErr)
           Right typedMod -> do
             resp <- testModule typedMod

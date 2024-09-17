@@ -29,7 +29,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Foldable (traverse_)
-import qualified Data.HashMap.Strict as HM
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import Data.Maybe (mapMaybe)
@@ -64,16 +63,17 @@ arrangeDataTypes =
 
 storeFunction ::
   FunctionName ->
+  ModulePath ->
   S.Set TypeVar ->
   Type ann ->
   TypecheckM ann ()
-storeFunction fnName generics ty =
+storeFunction fnName modulePath generics ty =
   modify
     ( \tcs ->
         tcs
           { tcsFunctions =
-              HM.insert
-                fnName
+              M.insert
+                (WithPath modulePath fnName)
                 (TypeScheme ty generics)
                 (tcsFunctions tcs)
           }
@@ -84,48 +84,48 @@ storeGlobal ident mutable ty =
   modify
     ( \tcs ->
         tcs
-          { tcsGlobals = HM.insert ident (TypecheckGlobal ty mutable) (tcsGlobals tcs)
+          { tcsGlobals = M.insert ident (TypecheckGlobal ty mutable) (tcsGlobals tcs)
           }
     )
 
 -- | look up a saved identifier "in the environment"
-lookupFunction :: ann -> FunctionName -> TypecheckM ann (Type ann)
-lookupFunction ann fnName = do
-  maybeType <- gets (HM.lookup fnName . tcsFunctions)
+lookupFunction :: ann -> (WithPath FunctionName) -> TypecheckM ann (Type ann)
+lookupFunction ann withPath@(WithPath _ fnName) = do
+  maybeType <- gets (M.lookup withPath . tcsFunctions)
 
   case maybeType of
     Just (TypeScheme {tsType, tsGenerics}) ->
       generalise tsGenerics tsType
     Nothing -> do
-      allFunctions <- gets (HM.keysSet . tcsFunctions)
+      allFunctions <- gets (M.keysSet . tcsFunctions)
       throwError (FunctionNotFound ann fnName allFunctions)
 
 -- | look up a saved identifier "in the environment"
 lookupVar :: ann -> Identifier -> TypecheckM ann (Type ann)
 lookupVar ann identifier = do
   -- is it a var?
-  maybeVarType <- asks (HM.lookup identifier . tceVars)
+  maybeVarType <- asks (M.lookup identifier . tceVars)
   case maybeVarType of
     Just found -> pure found
     Nothing -> do
       -- if not, is a global maybe?
-      maybeGlobalType <- gets (HM.lookup identifier . tcsGlobals)
+      maybeGlobalType <- gets (M.lookup identifier . tcsGlobals)
       case maybeGlobalType of
         Just (TypecheckGlobal ty _) -> pure ty
         Nothing -> do
-          allVarIdentifiers <- asks (HM.keysSet . tceVars)
-          allGlobalIdentifiers <- gets (HM.keysSet . tcsGlobals)
+          allVarIdentifiers <- asks (M.keysSet . tceVars)
+          allGlobalIdentifiers <- gets (M.keysSet . tcsGlobals)
           throwError (VarNotFound ann identifier (allVarIdentifiers <> allGlobalIdentifiers))
 
 -- | look up a saved identifier "in the environment"
 lookupGlobal :: ann -> Identifier -> TypecheckM ann (TypecheckGlobal ann)
 lookupGlobal ann identifier = do
   -- if not, is a global maybe?
-  maybeGlobalType <- gets (HM.lookup identifier . tcsGlobals)
+  maybeGlobalType <- gets (M.lookup identifier . tcsGlobals)
   case maybeGlobalType of
     Just tg -> pure tg
     Nothing -> do
-      allGlobalIdentifiers <- gets (HM.keysSet . tcsGlobals)
+      allGlobalIdentifiers <- gets (M.keysSet . tcsGlobals)
       throwError (VarNotFound ann identifier allGlobalIdentifiers)
 
 identifiersFromPattern :: Pattern ann -> Type ann -> TypecheckM ann [(Identifier, Type ann)]
@@ -156,7 +156,7 @@ identifiersFromPattern pat ty =
 -- | add identifiers to the environment
 withVar :: Pattern ann -> Type ann -> TypecheckM ann a -> TypecheckM ann a
 withVar pat ty action = do
-  idents <- HM.fromList <$> identifiersFromPattern pat ty
+  idents <- M.fromList <$> identifiersFromPattern pat ty
   local
     ( \tce ->
         tce
@@ -179,7 +179,7 @@ withFunctionEnv args generics =
    in local
         ( \tce ->
             tce
-              { tceVars = tceVars tce <> HM.fromList identifiers,
+              { tceVars = tceVars tce <> M.fromList identifiers,
                 tceGenerics = generics
               }
         )
@@ -204,7 +204,7 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
               Just tv -> M.singleton tv a
               Nothing -> mempty
           )
-          (HM.toList unified)
+          (M.toList unified)
       fromTv tv =
         case M.lookup tv mapped of
           Just a -> Just (tv, a)

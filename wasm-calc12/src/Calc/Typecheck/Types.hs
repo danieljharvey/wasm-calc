@@ -16,7 +16,6 @@ import Calc.Types
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
-import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import GHC.Natural
@@ -31,7 +30,7 @@ data TCDataType ann = TCDataType
 
 -- | temporary read-only state
 data TypecheckEnv ann = TypecheckEnv
-  { tceVars :: HM.HashMap Identifier (Type ann),
+  { tceVars :: M.Map Identifier (Type ann),
     tceGenerics :: S.Set TypeVar,
     tceMemoryLimit :: Natural,
     tceDataTypes :: M.Map Constructor (TCDataType ann)
@@ -45,10 +44,10 @@ data TypecheckGlobal ann = TypecheckGlobal
   deriving stock (Eq, Ord, Show)
 
 data TypecheckState ann = TypecheckState
-  { tcsFunctions :: HM.HashMap FunctionName (TypeScheme ann),
-    tcsGlobals :: HM.HashMap Identifier (TypecheckGlobal ann),
+  { tcsFunctions :: M.Map (WithPath FunctionName) (TypeScheme ann),
+    tcsGlobals :: M.Map Identifier (TypecheckGlobal ann),
     tcsUnique :: Natural,
-    tcsUnified :: HM.HashMap Natural (Type ann)
+    tcsUnified :: M.Map Natural (Type ann)
   }
   deriving stock (Eq, Ord, Show)
 

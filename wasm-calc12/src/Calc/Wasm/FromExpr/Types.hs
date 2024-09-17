@@ -19,8 +19,8 @@ import GHC.Natural
 -- | take our regular module and do the book keeping to get it ready for Wasm
 -- town
 data FromExprState = FromExprState
-  { fesFunctions :: M.Map FunctionName FromExprFunc,
-    fesImports :: M.Map FunctionName FromExprImport,
+  { fesFunctions :: M.Map (WithPath FunctionName) FromExprFunc,
+    fesImports :: M.Map (WithPath FunctionName) FromExprImport,
     fesGlobals :: M.Map Identifier FromExprGlobal,
     fesVars :: [(Maybe Identifier, WasmType)],
     fesArgs :: [(Identifier, WasmType)],
@@ -54,7 +54,7 @@ newtype FromExprImport = FromExprImport {feiIndex :: Natural}
 data FromWasmError
   = FunctionTypeNotScalar
   | IdentifierNotFound Identifier
-  | FunctionNotFound FunctionName
+  | FunctionNotFound (WithPath FunctionName)
   | PrimWithNonNumberType Prim (Type ())
   | FunctionAbilityLookupFailed FunctionName
   deriving stock (Eq, Ord, Show)

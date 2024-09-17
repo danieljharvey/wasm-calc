@@ -11,6 +11,8 @@ module Calc.Repl
   )
 where
 
+import Calc.Types.WithPath
+import qualified Data.Map.Strict as M
 import Calc.Build.Print
 import Calc.Build.Steps
 import Calc.Wasm.Run
@@ -51,8 +53,12 @@ replSteps input = do
   parsedModuleItems <-
     liftEither (parseModuleStep (wrapInputInFunction input))
 
-  parsedModule <-
+  parsedModules <-
     liftEither (resolveModuleStep parsedModuleItems)
+
+  let parsedModule = case M.lookup (ModulePath []) parsedModules of
+                       Just a -> a
+                       Nothing -> error "can't find root module"
 
   typedModule <-
     liftEither (typecheckModuleStep input parsedModule)

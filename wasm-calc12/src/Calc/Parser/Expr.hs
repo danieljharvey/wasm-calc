@@ -2,6 +2,7 @@
 
 module Calc.Parser.Expr (exprParser) where
 
+import Calc.Types.WithPath
 import Calc.Parser.Identifier
 import Calc.Parser.Pattern
 import Calc.Parser.Primitives
@@ -137,11 +138,21 @@ varParser =
 
 applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do
-  fnName <- functionNameParser
+  fnName <- withPathParser functionNameParser
   stringLiteral "("
   args <- sepEndBy exprParserInternal (stringLiteral ",")
   stringLiteral ")"
   pure (EApply mempty fnName args)
+
+withPathParser :: Parser a -> Parser (WithPath a)
+withPathParser innerParser = do
+  let parseModulePaths =  do
+          path <- sepBy1 moduleNameParser (stringLiteral "::")
+          stringLiteral "::"
+          pure path
+  path <- try parseModulePaths <|> pure mempty
+  inner <- innerParser
+  pure $ WithPath (ModulePath path) inner
 
 tupleParser :: Parser (Expr Annotation)
 tupleParser = label "tuple" $

@@ -3,10 +3,12 @@
 
 module Calc.Typecheck.Elaborate
   ( elaborateFunction,
-    elaborateModule,
+    elaborateModule,elaborateModules
   )
 where
 
+import Calc.Types.WithPath
+import qualified Data.Map as M
 import Calc.ExprUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
@@ -23,8 +25,15 @@ import Calc.Types.Module
 import Calc.Types.Test
 import Calc.Types.Type
 import Control.Monad.State
+import Data.Foldable (traverse_)
 import Data.Functor
 import qualified Data.Set as S
+
+elaborateModules :: M.Map ModulePath (Module ann) -> Either (TypeError ann) (M.Map ModulePath (Module (Type ann)))
+elaborateModules = 
+  traverse elaborateModule 
+
+
 
 elaborateModule ::
   forall ann.
@@ -52,6 +61,18 @@ elaborateModule
             }
 
     runTypecheckM typecheckEnv $ do
+      -- first store all the function's unchecked types
+      -- TODO: include ALL available functions for this module
+      traverse_
+        ( \fn ->
+            storeFunction
+              (fnFunctionName fn)
+              mempty
+              (S.fromList $ fnGenerics fn)
+              (TFunction (fnAnn fn) (faType <$> fnArgs fn) (fnReturnType fn))
+        )
+        mdFunctions
+
       globals <-
         traverse
           ( \global -> do
@@ -65,17 +86,20 @@ elaborateModule
         traverse
           ( \imp -> do
               elabImport <- elaborateImport imp
-              storeFunction (impImportName elabImport) mempty (impAnn elabImport)
+              storeFunction (impImportName elabImport) mempty mempty (impAnn elabImport)
               pure elabImport
           )
           mdImports
 
+      -- actually typecheck functions
+      -- we don't need to store these as we go anymore
       functions <-
         traverse
           ( \fn -> do
               elabFn <- elaborateFunction fn
               storeFunction
                 (fnFunctionName elabFn)
+                mempty
                 (S.fromList $ fnGenerics fn)
                 (fnAnn elabFn)
               pure elabFn
@@ -188,8 +212,11 @@ elaborateFunction
       }
     ) = do
     -- store current function so we can recursively call ourselves
+    -- TODO: don't think this is required anymore as we statically add all
+    -- function type signatures before starting elaboration 
     storeFunction
       fnFunctionName
+      mempty
       (S.fromList fnGenerics)
       (TFunction fnAnn (faType <$> fnArgs) fnReturnType)
 

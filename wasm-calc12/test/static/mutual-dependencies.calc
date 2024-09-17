@@ -1,0 +1,20 @@
+
+
+function isOdd(i: Int64) -> Boolean {
+    if isEven(i) then False else True
+}
+
+function isEven(i: Int64) -> Boolean {
+    if i == 0 then True else isOdd(i - 1)
+}
+
+test oneIsOdd = isOdd(1)
+
+test twoIsEven = isEven(2)
+
+test threeIsOdd = isOdd(3)
+
+test fourIsEven = isEven(4)
+
+test oneHundredIsEven = isEven(100)
+

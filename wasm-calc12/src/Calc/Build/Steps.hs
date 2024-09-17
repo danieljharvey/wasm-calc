@@ -19,10 +19,12 @@ module Calc.Build.Steps
   )
 where
 
+import Calc.Types.WithPath
+import qualified Data.Map.Strict as M
 import Calc.Ability.Check
 import Calc.Dependencies
 import qualified Calc.Linearity as Linearity
-import Calc.Module (resolveModule)
+import Calc.Module (resolveModules)
 import Calc.Parser
 import Calc.Parser.Types
 import Calc.Typecheck
@@ -54,9 +56,9 @@ parseModuleStep input =
     Right a -> pure a
     Left bundle -> throwError $ BuildDiagnostic (fromErrorBundle bundle (T.unpack input))
 
-resolveModuleStep :: [ModuleItem Annotation] -> Either BuildError (Module Annotation)
+resolveModuleStep :: [ModuleItem Annotation] -> Either BuildError (M.Map ModulePath (Module Annotation))
 resolveModuleStep parsedModuleItems =
-  case resolveModule parsedModuleItems of
+  case resolveModules parsedModuleItems of
     Right a -> pure a
     Left err -> throwError $ BuildMessage (T.pack $ show err)
 
@@ -74,7 +76,8 @@ linearityCheckStep input typedModule =
     Left linearityError ->
       throwError $ BuildDiagnostic (Linearity.linearityErrorDiagnostic input linearityError)
 
-abilityCheckStep :: T.Text -> Module Annotation -> Either BuildError (ModuleAnnotations (S.Set (Ability Annotation)))
+abilityCheckStep :: T.Text -> Module Annotation ->
+      Either BuildError (ModuleAnnotations (S.Set (Ability Annotation)))
 abilityCheckStep input parsedModule =
   case abilityCheckModule parsedModule of
     Right a -> pure a

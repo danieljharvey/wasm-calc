@@ -11,6 +11,7 @@ import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type
+import Calc.Types.WithPath
 import qualified Data.List.NonEmpty as NE
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
@@ -22,7 +23,7 @@ data Expr ann
   | EInfix ann Op (Expr ann) (Expr ann)
   | EIf ann (Expr ann) (Expr ann) (Expr ann)
   | EVar ann Identifier
-  | EApply ann FunctionName [Expr ann]
+  | EApply ann (WithPath FunctionName) [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
   | EConstructor ann Constructor [Expr ann]

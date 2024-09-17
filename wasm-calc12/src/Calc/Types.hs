@@ -18,6 +18,7 @@ module Calc.Types
     module Calc.Types.Test,
     module Calc.Types.Type,
     module Calc.Types.TypeVar,
+  module Calc.Types.WithPath
   )
 where
 
@@ -40,3 +41,4 @@ import Calc.Types.Prim
 import Calc.Types.Test
 import Calc.Types.Type
 import Calc.Types.TypeVar
+import Calc.Types.WithPath

@@ -241,10 +241,10 @@ spec = do
             case parseModuleAndFormatError str of
               Left e -> error (T.unpack e)
               Right parsedModuleItems ->
-                case resolveModule parsedModuleItems of
+                case resolveModules parsedModuleItems of
                   Left e -> error (show e)
                   Right parsedMod ->
-                    parsedMod $> () `shouldBe` module'
+                    (mainModule parsedMod) $> () `shouldBe` module'
         )
         strings
 
@@ -430,8 +430,8 @@ spec = do
               ("True || False", EInfix () OpOr (bool True) (bool False)),
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
-              ("add(1,2,)", EApply () "add" [int 1, int 2]),
-              ("go()", EApply () "go" []),
+              ("add(1,2,)", EApply () (WithPath mempty "add") [int 1, int 2]),
+              ("go()", EApply () (WithPath mempty "go") []),
               ("Box(1)", EBox () (int 1)),
               ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),
               ( "let (a,b) = (1,2); a + b",
@@ -444,7 +444,8 @@ spec = do
               ( "let a : Int64 = 1; True",
                 ELet () (PVar () "a") (EAnn () tyInt64 (int 1)) (bool True)
               ),
-              ("dogs(); 100", ELet () (PWildcard ()) (EApply () "dogs" []) (int 100)),
+              ("dogs(); 100", ELet () (PWildcard ()) (EApply () (WithPath mempty "dogs") []) (int 100)),
+              ("nice:pets:dogs(); 100", ELet () (PWildcard ()) (EApply () (WithPath (ModulePath ["nice","pets"]) "dogs") []) (int 100)),
               ("100; 100", ELet () (PWildcard ()) (int 100) (int 100)),
               ("(100 : Int32)", EAnn () tyInt32 (int 100)),
               ("load(100)", ELoad () (int 100)),

@@ -4,11 +4,11 @@ module either {
     | Right(a)
 
 
-  function isLeft<e,a>(either: Either(e, a)) -> Boolean { 
+  export function isLeft<e,a>(either: Either(e, a)) -> Boolean {
     case either { Right(_) -> False, Left(_) -> True }
   } 
 }
 
 function main() -> Int32 { 
-  if isLeft(Right((True, False))) then 1 else 2
+  if either:isLeft(either:Right((True, False))) then 1 else 2
 }

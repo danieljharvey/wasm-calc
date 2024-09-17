@@ -285,7 +285,7 @@ checkReturnType _ ty = pure ty
 checkApply ::
   Maybe (Type ann) ->
   ann ->
-  FunctionName ->
+    (WithPath FunctionName) ->
   [Expr ann] ->
   TypecheckM ann (Expr (Type ann))
 checkApply maybeTy ann fnName args = do

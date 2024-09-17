@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NamedFieldPuns #-}
-  {-# LANGUAGE OverloadedStrings #-}
-module Calc.Types.Module (Module (..), ModuleItem (..)) where
+{-# LANGUAGE OverloadedStrings #-}
+  {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+module Calc.Types.Module (Module (..), ModuleItem (..) ) where
 
-import Calc.Utils
 import Calc.Types.Data
 import Calc.Types.Function
 import Calc.Types.Global
@@ -12,9 +12,10 @@ import Calc.Types.Import
 import Calc.Types.Memory
 import Calc.Types.ModuleName
 import Calc.Types.Test
+import Calc.Utils
 import Data.Maybe (maybeToList)
-import qualified Prettyprinter as PP
 import Prettyprinter ((<+>))
+import qualified Prettyprinter as PP
 
 -- | in order to parse these items in any order, we parse zero or more items
 -- and then turn them into a `Module` later
@@ -38,9 +39,10 @@ instance PP.Pretty (ModuleItem ann) where
   pretty (ModuleGlobal glob) = PP.pretty glob
   pretty (ModuleTest test) = PP.pretty test
   pretty (ModuleData dt) = PP.pretty dt
-  pretty (ModuleNested moduleName items)
-    = "module" <+> PP.pretty moduleName <+>
-      "{"
+  pretty (ModuleNested moduleName items) =
+    "module"
+      <+> PP.pretty moduleName
+      <+> "{"
       <> PP.group
         ( PP.line
             <> indentMulti

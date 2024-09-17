@@ -14,6 +14,7 @@ module Calc.Ability.Check
   )
 where
 
+import Calc.Types.WithPath
 import Calc.Ability.Error
 import Calc.ExprUtils
 import Calc.Types.Ability
@@ -159,7 +160,8 @@ abilityExpr (EBox ann a) = do
 abilityExpr (EConstructor ann constructor as) = do
   tell (S.singleton $ AllocateMemory ann)
   EConstructor ann constructor <$> traverse abilityExpr as
-abilityExpr (EApply ann fn args) = do
+abilityExpr (EApply ann (WithPath (ModulePath []) fn) args) = do
+  -- local call
   isImport <- asks (S.member fn . aeImportNames)
   if isImport
     then tell (S.singleton $ CallImportedFunction ann fn)
@@ -167,5 +169,8 @@ abilityExpr (EApply ann fn args) = do
       -- whatever abilities this function uses, we now use
       functionAbilities <- lookupFunctionAbilities fn
       tell functionAbilities
-  EApply ann fn <$> traverse abilityExpr args
+  EApply ann (WithPath (ModulePath []) fn) <$> traverse abilityExpr args
+abilityExpr (EApply ann otherFn args) = do
+  EApply ann otherFn <$> traverse abilityExpr args
+
 abilityExpr other = bindExpr abilityExpr other

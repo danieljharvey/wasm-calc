@@ -90,10 +90,10 @@ spec = do
           ( \(str, abilityResult) -> it (T.unpack str) $ do
               case parseModuleAndFormatError str of
                 Right parsedModuleItems ->
-                  case resolveModule parsedModuleItems of
+                  case resolveModules parsedModuleItems of
                     Left e -> error (show e)
                     Right parsedModule ->
-                      voidModuleAbilities (fromRight (abilityCheckModule parsedModule))
+                      voidModuleAbilities (fromRight (abilityCheckModule (mainModule parsedModule)))
                         `shouldBe` abilityResult
                 Left e -> error (T.unpack e)
           )
@@ -130,10 +130,10 @@ spec = do
           ( \(str, abilityError) -> it (T.unpack str) $ do
               case parseModuleAndFormatError str of
                 Right parsedModuleItems ->
-                  case resolveModule parsedModuleItems of
+                  case resolveModules parsedModuleItems of
                     Left e -> error (show e)
                     Right parsedModule ->
-                      void (fromLeft (abilityCheckModule parsedModule))
+                      void (fromLeft (abilityCheckModule (mainModule parsedModule)))
                         `shouldBe` abilityError
                 Left e -> error (T.unpack e)
           )

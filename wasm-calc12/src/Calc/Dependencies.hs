@@ -13,6 +13,7 @@ import qualified Data.Map.Strict as M
 import Data.Maybe (mapMaybe)
 import qualified Data.Set as S
 
+-- we're only thinking about deps within a module, this is likely insufficient
 data Dependency
   = DepFunction FunctionName
   | DepTest Identifier
@@ -87,10 +88,13 @@ getFunctionDependencies globalNames importNames (Function {fnFunctionName, fnBod
 getExprDependencies :: S.Set Identifier -> S.Set FunctionName -> Expr ann -> S.Set Dependency
 getExprDependencies globalNames importNames = snd . runWriter . go
   where
-    go (EApply ann fnName args) = do
+    go (EApply ann (WithPath (ModulePath []) fnName) args) = do
+      -- ie, a local function
       if S.member fnName importNames
         then tell (S.singleton $ DepImport fnName)
         else tell (S.singleton $ DepFunction fnName)
+      EApply ann (WithPath mempty  fnName) <$> traverse go args
+    go (EApply ann fnName args) = do
       EApply ann fnName <$> traverse go args
     go (ESet ann globalName value) = do
       tell (S.singleton $ DepGlobal globalName)

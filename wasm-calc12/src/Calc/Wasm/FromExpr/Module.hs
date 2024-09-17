@@ -49,7 +49,7 @@ fromImport
 -- | tests don't use imports
 fromTest ::
   (Eq ann, Show ann) =>
-  M.Map FunctionName FromExprFunc ->
+  M.Map (WithPath FunctionName) FromExprFunc ->
   M.Map Identifier FromExprGlobal ->
   M.Map DataName (Data ()) ->
   Test (Type ann) ->
@@ -80,8 +80,8 @@ fromTest funcMap globalMap dataTypeMap (Test {tesName = Identifier testName, tes
 fromFunction ::
   (Eq ann, Show ann) =>
   M.Map FunctionName (S.Set (Ability any)) ->
-  M.Map FunctionName FromExprFunc ->
-  M.Map FunctionName FromExprImport ->
+  M.Map (WithPath FunctionName) FromExprFunc ->
+  M.Map (WithPath FunctionName) FromExprImport ->
   M.Map Identifier FromExprGlobal ->
   M.Map DataName (Data ()) ->
   [WasmFunction] ->

@@ -81,7 +81,6 @@ moduleNameParser = do
   (Identifier moduleName) <- identifierParser
   pure (ModuleName moduleName)
 
-
 -- typeVar
 typeVarParser :: Parser TypeVar
 typeVarParser =

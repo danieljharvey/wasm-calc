@@ -22,7 +22,7 @@ module Test.Helpers
     patInt,
     patBool,
     patVar,
-    exprState,
+    exprState,mainModule
   )
 where
 
@@ -169,3 +169,10 @@ exprState =
               }
           )
         ]
+
+mainModule :: M.Map ModulePath (Module ann) -> Module ann
+mainModule modMap = case M.lookup (ModulePath []) modMap of
+                   Just a -> a
+                   Nothing -> error "could not find main"
+
+

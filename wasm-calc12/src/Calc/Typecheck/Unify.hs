@@ -10,7 +10,7 @@ import Control.Monad (zipWithM)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Functor
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Map.Strict as M
 import qualified Data.List.NonEmpty as NE
 import GHC.Natural
 
@@ -44,7 +44,7 @@ storeUnified nat ty =
     ( \tcs ->
         tcs
           { tcsUnified =
-              HM.insert nat ty (tcsUnified tcs)
+              M.insert nat ty (tcsUnified tcs)
           }
     )
 
@@ -56,7 +56,7 @@ unifyVariableWithType ::
   TypecheckM ann (Type ann)
 unifyVariableWithType nat ty =
   do
-    existing <- gets (HM.lookup nat . tcsUnified)
+    existing <- gets (M.lookup nat . tcsUnified)
     case existing of
       Nothing -> do
         -- this is the first match, store it and return the passed-in type

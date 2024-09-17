@@ -122,7 +122,7 @@ lookupIdent ident = do
 
 lookupFunction ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
-  FunctionName ->
+  (WithPath FunctionName) ->
   m (WasmFunctionRef, [TypeVar], [Type ()])
 lookupFunction functionName = do
   maybeFunc <- gets (M.lookup functionName . fesFunctions)
@@ -166,7 +166,7 @@ getFunctionMap ::
   [Function (Type ann)] ->
   Either
     FromWasmError
-    (M.Map FunctionName FromExprFunc)
+    (M.Map (WithPath FunctionName) FromExprFunc)
 getFunctionMap mdFunctions =
   M.fromList
     <$> traverse
@@ -174,7 +174,7 @@ getFunctionMap mdFunctions =
           fefArgs <- traverse (scalarFromType . faType) fnArgs
           fefReturnType <- scalarFromType (getOuterAnnotation fnBody)
           pure
-            ( fnFunctionName,
+            ( WithPath mempty fnFunctionName,
               FromExprFunc
                 { fefIndex = i,
                   fefArgs,
@@ -191,13 +191,13 @@ getImportMap ::
   [Import (Type ann)] ->
   Either
     FromWasmError
-    (M.Map FunctionName FromExprImport)
+    (M.Map (WithPath FunctionName) FromExprImport)
 getImportMap mdImports =
   M.fromList
     <$> traverse
       ( \(i, Import {impImportName}) -> do
           pure
-            ( impImportName,
+            ( WithPath mempty impImportName,
               FromExprImport {feiIndex = i}
             )
       )

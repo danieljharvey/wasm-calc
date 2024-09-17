@@ -9,8 +9,7 @@ import Calc.SourceSpan
 import Calc.TypeUtils
 import Calc.Typecheck.Error.PatternMatchError
 import Calc.Types
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HS
+import qualified Data.Set as S
 import qualified Data.List as List
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Text (Text)
@@ -24,8 +23,8 @@ data TypeError ann
   = PredicateIsNotBoolean ann (Type ann)
   | InfixTypeMismatch Op (Type ann) (Type ann)
   | TypeMismatch (Type ann) (Type ann)
-  | VarNotFound ann Identifier (HashSet Identifier)
-  | FunctionNotFound ann FunctionName (HashSet FunctionName)
+  | VarNotFound ann Identifier (S.Set Identifier)
+  | FunctionNotFound ann FunctionName (S.Set (WithPath FunctionName))
   | FunctionArgumentLengthMismatch ann Int Int -- expected, actual
   | NonFunctionTypeFound ann (Type ann)
   | AccessingNonTuple ann (Type ann)
@@ -579,11 +578,11 @@ typeErrorDiagnostic input e =
               [Diag.Note $ "Perhaps increase the limit by adding \"memory " <> T.pack (show (limit + 1)) <> "\""]
 
 -- | becomes "a, b, c, d"
-prettyHashset :: (PP.Pretty a) => HashSet a -> PP.Doc ann
+prettyHashset :: (PP.Pretty a) => S.Set a -> PP.Doc ann
 prettyHashset hs =
   PP.concatWith
     (PP.surround PP.comma)
-    (PP.pretty <$> HS.toList hs)
+    (PP.pretty <$> S.toList hs)
 
 renderWithWidth :: Int -> PP.Doc ann -> Text
 renderWithWidth w doc = PP.renderStrict (PP.layoutPretty layoutOptions (PP.unAnnotate doc))
