@@ -51,7 +51,7 @@ run-build-drawing-demo-11:
 
 # run with `make watch version=9` to run tests / ghci for wasm-calc9
 .PHONY: watch
-version = 11
+version = 12
 watch:
 	ghciwatch --watch wasm-calc$(version) \
 		--command "cabal repl wasm-calc$(version)-tests" \
@@ -59,19 +59,19 @@ watch:
 
 # run with `make run version=8` to run wasm-calc8
 .PHONY: run
-version = 11
+version = 12
 run:
 	cabal run wasm-calc$(version) -- repl
 
 # run with `make test version=7` to run wasm-calc7 tests
 .PHONY: test
-version = 11
+version = 12
 test:
 	cabal run wasm-calc$(version):tests
 
 # run with `make format-all-files version=7` to format all static `.calc` files for wasm-calc7
 .PHONY: format-all-files
-version = 11
+version = 12
 STATIC_FILES = "./wasm-calc$(version)/test/static/"
 format-all-files:
 	find $(STATIC_FILES) -maxdepth 1 -type f -exec cabal run wasm-calc$(version) -- format {} \;
@@ -79,7 +79,7 @@ format-all-files:
 # run with `make build-malloc version=9` to build and diff malloc.calc for
 # wasm-calc9
 .PHONY: build-malloc
-version = 11
+version = 12
 build-malloc:
 	nix run .#wasm-calc$(version) build wasm-calc$(version)/static/malloc.calc > wasm-calc$(version)/static/malloc-new.wasm
 	diff wasm-calc$(version)/static/malloc-new.wasm wasm-calc$(version)/static/malloc.wasm
