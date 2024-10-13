@@ -39,7 +39,7 @@ jobs:
       contents: "read"
     strategy:
       matrix:
-        version: [9, 10, 11]
+        version: [9, 10, 11, 12]
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
