@@ -503,6 +503,16 @@ infer (EPrim ann prim) =
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
 infer (EMatch ann matchExpr pats) =
   checkMatch Nothing ann matchExpr pats
+infer (ELambda ann args returnTy body) = do
+  let ty = TFunction ann (snd <$> args) returnTy
+      typedArgs =
+        ( \(ident, argTy) ->
+            (ident, argTy $> argTy)
+        )
+          <$> args
+      typedReturn = returnTy $> returnTy
+  ELambda ty typedArgs typedReturn
+    <$> withLambdaEnv args (check returnTy body)
 infer (EBox ann inner) = do
   typedInner <- infer inner
   pure $

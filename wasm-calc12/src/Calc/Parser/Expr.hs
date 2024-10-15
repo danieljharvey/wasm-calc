@@ -10,8 +10,10 @@ import Calc.Parser.Type
 import Calc.Parser.Types
 import Calc.Types.Annotation
 import Calc.Types.Expr
+import Calc.Types.Identifier
 import Calc.Types.Op
 import Calc.Types.Pattern
+import Calc.Types.Type
 import Control.Monad.Combinators.Expr
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -51,9 +53,30 @@ exprParserInternal =
           <|> try applyParser
           <|> try varParser
           <|> blockParser
+          <|> lambdaParser
           <|> inBrackets (addLocation exprParserInternal)
           <?> "term"
    in addLocation (makeExprParser parser table) <?> "expression"
+
+argTypeParser :: Parser (Identifier, Type Annotation)
+argTypeParser = label "argument" $ do
+  arg <- identifierParser
+  stringLiteral ":"
+  (,) arg <$> typeParser
+
+-- `\(a:Int32, b: Boolean) -> Boolean { True }`
+lambdaParser :: Parser (Expr Annotation)
+lambdaParser = label "lambda" $ addLocation $ do
+  stringLiteral "\\"
+  stringLiteral "("
+  args <- sepEndBy argTypeParser (stringLiteral ",")
+  stringLiteral ")"
+  stringLiteral "->"
+  ty <- typeParser
+  stringLiteral "{"
+  expr <- exprParser
+  stringLiteral "}"
+  pure $ ELambda mempty args ty expr
 
 -- `{ let a = 1; True }`
 blockParser :: Parser (Expr Annotation)

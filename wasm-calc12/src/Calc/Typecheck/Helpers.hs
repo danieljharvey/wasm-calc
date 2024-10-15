@@ -8,6 +8,7 @@ module Calc.Typecheck.Helpers
     withVar,
     lookupFunction,
     withFunctionEnv,
+    withLambdaEnv,
     storeFunction,
     storeGlobal,
     lookupGlobal,
@@ -90,15 +91,15 @@ storeGlobal ident mutable ty =
 
 -- | look up a saved identifier "in the environment"
 lookupFunction :: ann -> FunctionName -> TypecheckM ann (Type ann)
-lookupFunction ann fnName = do
+lookupFunction ann fnName@(FunctionName inner) = do
   maybeType <- gets (HM.lookup fnName . tcsFunctions)
 
   case maybeType of
     Just (TypeScheme {tsType, tsGenerics}) ->
       generalise tsGenerics tsType
-    Nothing -> do
-      allFunctions <- gets (HM.keysSet . tcsFunctions)
-      throwError (FunctionNotFound ann fnName allFunctions)
+    Nothing ->
+      -- it might be a lambda
+      lookupVar ann (Identifier inner)
 
 -- | look up a saved identifier "in the environment"
 lookupVar :: ann -> Identifier -> TypecheckM ann (Type ann)
@@ -164,6 +165,19 @@ withVar pat ty action = do
           }
     )
     action
+
+-- | temporarily add lambda arguments and generics into the Reader env
+withLambdaEnv ::
+  [(Identifier, Type ann)] ->
+  TypecheckM ann a ->
+  TypecheckM ann a
+withLambdaEnv args =
+  local
+    ( \tce ->
+        tce
+          { tceVars = tceVars tce <> HM.fromList args
+          }
+    )
 
 -- | temporarily add function arguments and generics into the Reader env
 withFunctionEnv ::

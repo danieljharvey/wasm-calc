@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
@@ -19,6 +20,7 @@ import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
 import GHC.Natural
 
 patternBindings ::
@@ -179,6 +181,42 @@ fromExprWithDrops expr = do
 
   addDropsToWasmExpr drops wasmExpr
 
+fromFunctionApply ::
+  ( MonadState FromExprState m,
+    MonadError FromWasmError m,
+    Show ann,
+    Eq ann
+  ) =>
+  FunctionName ->
+  [Expr (Type ann, Maybe (Drops ann))] ->
+  m WasmExpr
+fromFunctionApply funcName args = do
+  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
+  let types =
+        monomorphiseTypes
+          fGenerics
+          fArgTypes
+          (void . fst . getOuterAnnotation <$> args)
+  dropArgs <- traverse (dropFunctionForType . snd) types
+  wasmArgs <- traverse fromExpr args
+  pure $ WApply fIndex (wasmArgs <> dropArgs)
+
+fromLambdaApply ::
+  ( MonadState FromExprState m,
+    MonadError FromWasmError m,
+    Show ann,
+    Eq ann
+  ) =>
+  FunctionName ->
+  [Expr (Type ann, Maybe (Drops ann))] ->
+  m WasmExpr
+fromLambdaApply (FunctionName inner) args = do
+  let identifier = Identifier inner
+  fIndex <- lookupIdent identifier
+  wasmArgs <- traverse fromExpr args
+
+  pure $ WApplyIndirect (WVar fIndex) wasmArgs
+
 fromExpr ::
   ( MonadError FromWasmError m,
     MonadState FromExprState m,
@@ -191,6 +229,32 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
+fromExpr (ELambda _ args returnTy body) = do
+  wasmArgs <-
+    traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
+
+  wasmBody <- withArgs wasmArgs (fromExpr body)
+  wasmReturnType <- liftEither $ scalarFromType returnTy
+
+  index <- gets (length . fesGenerated)
+
+  -- create function
+  let fn =
+        WasmFunction
+          { wfName = FunctionName ("fresh_lambda_" <> T.pack (show index)),
+            wfExpr = wasmBody,
+            wfPublic = False,
+            wfArgs = snd <$> wasmArgs,
+            wfReturnType = wasmReturnType,
+            wfLocals = mempty,
+            wfAbilities = mempty
+          }
+
+  -- store it in heaven
+  wasmFnRef <- addGeneratedFunction fn
+
+  -- return it as a value
+  pure $ WFunctionPointer wasmFnRef
 fromExpr (EConstructor (ty, _) constructor args) = do
   -- what is the underlying discriminator value?
   constructorNumber <- fmap (WPrim . WPInt32 . fromIntegral) <$> getConstructorNumber ty constructor
@@ -240,16 +304,9 @@ fromExpr (EIf (ty, _) predE thenE elseE) = do
 fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _ funcName args) = do
-  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
-  let types =
-        monomorphiseTypes
-          fGenerics
-          fArgTypes
-          (void . fst . getOuterAnnotation <$> args)
-  dropArgs <- traverse (dropFunctionForType . snd) types
-  wasmArgs <- traverse fromExpr args
-  pure $ WApply fIndex (wasmArgs <> dropArgs)
+fromExpr (EApply _ funcName args) =
+  fromFunctionApply funcName args
+    `catchError` \_ -> fromLambdaApply funcName args
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

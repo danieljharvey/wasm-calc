@@ -39,7 +39,13 @@ spec = do
               ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
               ("Box(a)", tyContainer [tyVar "a"]),
               ("Colour", tyConstructor "Colour" mempty),
-              ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"])
+              ("Maybe(a)", tyConstructor "Maybe" [tyVar "a"]),
+              ( "Fn() -> Int32",
+                TFunction () mempty tyInt32
+              ),
+              ( "Fn(Boolean,Int64) -> Int32",
+                TFunction () [tyBool, tyInt64] tyInt32
+              )
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -433,6 +439,36 @@ spec = do
               ("add(1,2,)", EApply () "add" [int 1, int 2]),
               ("go()", EApply () "go" []),
               ("Box(1)", EBox () (int 1)),
+              ( "\\() -> Int32 { 3 }",
+                ELambda () mempty tyInt32 (int 3)
+              ),
+              ( "\\(a: Int32,b: Boolean) -> Int32 { 3 }",
+                ELambda () [("a", tyInt32), ("b", tyBool)] tyInt32 (int 3)
+              ),
+              ( "let f = \\() -> Boolean { True }; f",
+                ELet
+                  ()
+                  (PVar () "f")
+                  ( ELambda
+                      ()
+                      []
+                      tyBool
+                      (bool True)
+                  )
+                  (var "f")
+              ),
+              ( "let f = \\() -> Boolean { let a = True; a }; f",
+                ELet
+                  ()
+                  (PVar () "f")
+                  ( ELambda
+                      ()
+                      []
+                      tyBool
+                      (ELet () (PVar () "a") (bool True) (var "a"))
+                  )
+                  (var "f")
+              ),
               ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),
               ( "let (a,b) = (1,2); a + b",
                 ELet

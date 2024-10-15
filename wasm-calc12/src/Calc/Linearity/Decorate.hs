@@ -13,14 +13,16 @@ import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
 import Calc.Types.Expr
+import Calc.Types.FunctionName
 import Calc.Types.Identifier
 import Calc.Types.Pattern
 import Calc.Types.Type
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor (second)
 import Data.Foldable (traverse_)
+import Data.Functor (($>))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
@@ -190,6 +192,15 @@ decorate (EVar ty ident) = do
   pure (EVar (ty, Nothing) ident)
 decorate (EConstructor ty constructor args) = do
   EConstructor (ty, Nothing) constructor <$> traverse decorate args
+decorate (ELambda ty args returnTy body) = do
+  let decorateArg ident tyArg =
+        (ident, tyArg $> (getOuterTypeAnnotation tyArg, Nothing))
+      decoratedArgs =
+        uncurry decorateArg <$> args
+      decoratedReturnType =
+        returnTy $> (getOuterTypeAnnotation returnTy, Nothing)
+  ELambda (ty, Nothing) decoratedArgs decoratedReturnType
+    <$> decorate body
 decorate (ELet ty pat expr rest) = do
   -- get all idents mentioned in `expr`
   decoratedExpr <- decorate expr
@@ -254,7 +265,12 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
     <$> decorate predExpr
     <*> pure (mapOuterExprAnnotation (second (const uniqueToElse)) decoratedThen)
     <*> pure (mapOuterExprAnnotation (second (const uniqueToThen)) decoratedElse)
-decorate (EApply ty fnName args) =
+decorate (EApply ty fnName@(FunctionName inner) args) = do
+  -- if we know about the var, assume it's a lambda not a built in function
+  let identifier = Identifier inner
+  isVar <- gets (M.member (UserDefined identifier) . lsVars)
+  when isVar $
+    recordUse (Identifier inner) ty
   EApply (ty, Nothing) fnName <$> traverse decorate args
 decorate (ETuple ty a as) =
   ETuple (ty, Nothing) <$> decorate a <*> traverse decorate as

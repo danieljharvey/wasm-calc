@@ -11,6 +11,7 @@ import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type
+import Calc.Utils
 import qualified Data.List.NonEmpty as NE
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
@@ -31,12 +32,8 @@ data Expr ann
   | EStore ann (Expr ann) (Expr ann) -- index, value
   | ESet ann Identifier (Expr ann)
   | EBlock ann (Expr ann)
+  | ELambda ann [(Identifier, Type ann)] (Type ann) (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
-
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc =
-  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
 
 -- | this instance defines how to nicely print `Expr`
 instance PP.Pretty (Expr ann) where
@@ -44,6 +41,24 @@ instance PP.Pretty (Expr ann) where
     PP.pretty prim
   pretty (EAnn _ ty expr) =
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
+  pretty (ELambda _ fnArgs fnReturnType fnBody) =
+    "\\"
+      <> PP.group
+        ( "("
+            <> newlines
+              ( indentMulti
+                  2
+                  (PP.cat (PP.punctuate ", " (prettyArg <$> fnArgs)))
+              )
+        )
+      <> ")"
+      <+> "->"
+      <+> PP.pretty fnReturnType
+      <+> "{"
+      <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
+      <> "}"
+    where
+      prettyArg (ident, ty) = PP.pretty ident <> ":" <> PP.pretty ty
   pretty (ELet _ (PWildcard _) body rest) =
     PP.pretty body
       <> ";"

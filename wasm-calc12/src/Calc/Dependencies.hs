@@ -10,7 +10,7 @@ import Calc.Types.ModuleAnnotations
 import Control.Monad (when)
 import Control.Monad.Writer
 import qualified Data.Map.Strict as M
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as S
 
 data Dependency
@@ -55,9 +55,8 @@ trimDependencies deps moduleAnnotations wholeMod =
 combineDependencies :: S.Set Dependency -> ModuleAnnotations (S.Set Dependency) -> S.Set Dependency
 combineDependencies deps _ | S.null deps = mempty
 combineDependencies deps annotatedModule =
-  let getChildDeps (DepFunction fnName) = case M.lookup fnName (maFunctions annotatedModule) of
-        Just functionDeps -> functionDeps
-        Nothing -> error $ "Internal error looking up " <> show fnName
+  let getChildDeps (DepFunction fnName) =
+        fromMaybe mempty (M.lookup fnName (maFunctions annotatedModule))
       getChildDeps (DepTest identifier) = case M.lookup identifier (maTests annotatedModule) of
         Just testDeps -> testDeps
         Nothing -> error $ "Internal error looking up " <> show identifier

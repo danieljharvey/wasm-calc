@@ -49,7 +49,8 @@ protectedTypeNames =
       "Boolean",
       "Box",
       "True",
-      "False"
+      "False",
+      "Fn"
     ]
 
 filterProtectedTypeNames :: T.Text -> Maybe T.Text

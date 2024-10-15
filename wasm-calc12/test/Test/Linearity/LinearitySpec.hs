@@ -271,6 +271,13 @@ spec = do
                     lsUses = NE.singleton (M.fromList [("a", NE.fromList [Whole (), Whole ()])]),
                     lsFresh = 0
                   }
+              ),
+              ( "function useLambda() -> Int64 { let f = \\() -> Int64 { 100 }; f() }",
+                LinearState
+                  { lsVars = M.fromList [(UserDefined "f", (LTBoxed, ()))],
+                    lsUses = NE.singleton (M.fromList [("f", NE.fromList [Whole ()])]),
+                    lsFresh = 0
+                  }
               )
             ]
       traverse_
