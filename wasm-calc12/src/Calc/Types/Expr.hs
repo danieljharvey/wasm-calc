@@ -4,7 +4,6 @@
 
 module Calc.Types.Expr (Expr (..)) where
 
-import Calc.Utils
 import Calc.Types.Constructor
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
@@ -12,6 +11,7 @@ import Calc.Types.Op
 import Calc.Types.Pattern
 import Calc.Types.Prim
 import Calc.Types.Type
+import Calc.Utils
 import qualified Data.List.NonEmpty as NE
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
@@ -43,21 +43,20 @@ instance PP.Pretty (Expr ann) where
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
   pretty (ELambda _ fnArgs fnReturnType fnBody) =
     "\\"
-        <> PP.group
-                    ( "("
-                        <> newlines
-                          ( indentMulti
-                              2
-                              (PP.cat (PP.punctuate ", " (prettyArg <$> fnArgs)))
-                          )
-                    )
-                  <> ")"
-
-          <+> "->"
-          <+> PP.pretty fnReturnType
-          <+> "{"
-          <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
-          <> "}"
+      <> PP.group
+        ( "("
+            <> newlines
+              ( indentMulti
+                  2
+                  (PP.cat (PP.punctuate ", " (prettyArg <$> fnArgs)))
+              )
+        )
+      <> ")"
+      <+> "->"
+      <+> PP.pretty fnReturnType
+      <+> "{"
+      <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
+      <> "}"
     where
       prettyArg (ident, ty) = PP.pretty ident <> ":" <> PP.pretty ty
   pretty (ELet _ (PWildcard _) body rest) =

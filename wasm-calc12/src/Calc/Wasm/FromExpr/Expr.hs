@@ -3,7 +3,6 @@
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import qualified Data.Text as T
 import Calc.ExprUtils
 import Calc.Linearity (Drops (..))
 import Calc.Types
@@ -21,6 +20,7 @@ import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import qualified Data.Text as T
 import GHC.Natural
 
 patternBindings ::
@@ -230,8 +230,8 @@ fromExpr (EPrim (ty, _) prim) =
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
 fromExpr (ELambda _ args returnTy body) = do
-  wasmArgs <- 
-    traverse (\(k,a) -> (,) k <$> liftEither (scalarFromType a)) args
+  wasmArgs <-
+    traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
 
   wasmBody <- withArgs wasmArgs (fromExpr body)
   wasmReturnType <- liftEither $ scalarFromType returnTy

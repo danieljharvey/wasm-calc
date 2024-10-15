@@ -7,7 +7,7 @@ module Calc.Wasm.FromExpr.Helpers
     scalarFromType,
     lookupDataType,
     addLocal,
-  withArgs,
+    withArgs,
     lookupGlobal,
     lookupIdent,
     addGeneratedFunction,
@@ -75,12 +75,12 @@ addLocal maybeIdent ty = do
 -- save old args
 -- do things with provided args
 -- put old args back
-withArgs :: (MonadState FromExprState m) => [(Identifier,WasmType)] -> m a -> m a
+withArgs :: (MonadState FromExprState m) => [(Identifier, WasmType)] -> m a -> m a
 withArgs args action = do
   oldArgs <- gets fesArgs
-  modify (\fes -> fes { fesArgs = args })
+  modify (\fes -> fes {fesArgs = args})
   result <- action
-  modify (\fes -> fes { fesArgs = oldArgs })
+  modify (\fes -> fes {fesArgs = oldArgs})
   pure result
 
 lookupGlobal ::

@@ -54,8 +54,7 @@ tyFunctionParser =
         args <- try argsParser <|> pure mempty
         stringLiteral ")"
         stringLiteral "->"
-        ty <- typeParser
-        pure $ TFunction mempty args ty
+        TFunction mempty args <$> typeParser
 
 tyBoxParser :: Parser ParserType
 tyBoxParser = label "box" $
