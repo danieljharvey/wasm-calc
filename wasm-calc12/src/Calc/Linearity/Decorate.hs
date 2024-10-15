@@ -18,7 +18,7 @@ import Calc.Types.Expr
 import Calc.Types.Identifier
 import Calc.Types.Pattern
 import Calc.Types.Type
-import Control.Monad (unless)
+import Control.Monad (when, unless)
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor (second)
@@ -266,7 +266,11 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
     <*> pure (mapOuterExprAnnotation (second (const uniqueToElse)) decoratedThen)
     <*> pure (mapOuterExprAnnotation (second (const uniqueToThen)) decoratedElse)
 decorate (EApply ty fnName@(FunctionName inner) args) = do
-  recordUse (Identifier inner) ty
+  -- if we know about the var, assume it's a lambda not a built in function
+  let identifier = Identifier inner
+  isVar <- gets (M.member (UserDefined identifier) . lsVars)
+  when isVar $
+    recordUse (Identifier inner) ty
   EApply (ty, Nothing) fnName <$> traverse decorate args
 decorate (ETuple ty a as) =
   ETuple (ty, Nothing) <$> decorate a <*> traverse decorate as

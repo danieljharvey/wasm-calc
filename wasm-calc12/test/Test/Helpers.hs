@@ -107,6 +107,7 @@ exprState =
       fesVars = mempty,
       fesArgs = mempty,
       fesGenerated = mempty,
+      fesLambdas = mempty,
       fesDataTypes
     }
   where
