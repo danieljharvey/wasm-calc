@@ -94,4 +94,3 @@ tyConstructorParser =
         dtName <- dataNameParser
         args <- try argsParser <|> pure mempty
         pure $ TConstructor mempty dtName args
-

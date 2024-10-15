@@ -11,9 +11,9 @@ import Calc.Parser.Types
 import Calc.Types.Annotation
 import Calc.Types.Expr
 import Calc.Types.Identifier
-import Calc.Types.Type
 import Calc.Types.Op
 import Calc.Types.Pattern
+import Calc.Types.Type
 import Control.Monad.Combinators.Expr
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -60,9 +60,9 @@ exprParserInternal =
 
 argTypeParser :: Parser (Identifier, Type Annotation)
 argTypeParser = label "argument" $ do
-    arg <- identifierParser
-    stringLiteral ":"
-    (,) arg <$> typeParser
+  arg <- identifierParser
+  stringLiteral ":"
+  (,) arg <$> typeParser
 
 -- `\(a:Int32, b: Boolean) -> Boolean { True }`
 lambdaParser :: Parser (Expr Annotation)

@@ -279,7 +279,6 @@ spec = do
                     lsFresh = 0
                   }
               )
-
             ]
       traverse_
         ( \(str, linearState) -> it (T.unpack str) $ do

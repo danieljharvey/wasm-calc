@@ -30,7 +30,7 @@ getOuterAnnotation (ELoad ann _) = ann
 getOuterAnnotation (EStore ann _ _) = ann
 getOuterAnnotation (ESet ann _ _) = ann
 getOuterAnnotation (EBlock ann _) = ann
-getOuterAnnotation (ELambda ann _ _ _ ) = ann
+getOuterAnnotation (ELambda ann _ _ _) = ann
 
 -- | modify the outer annotation of an expression
 -- useful for adding line numbers during parsing

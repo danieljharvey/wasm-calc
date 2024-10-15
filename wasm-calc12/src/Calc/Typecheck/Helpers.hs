@@ -8,7 +8,7 @@ module Calc.Typecheck.Helpers
     withVar,
     lookupFunction,
     withFunctionEnv,
-  withLambdaEnv,
+    withLambdaEnv,
     storeFunction,
     storeGlobal,
     lookupGlobal,
@@ -172,13 +172,12 @@ withLambdaEnv ::
   TypecheckM ann a ->
   TypecheckM ann a
 withLambdaEnv args =
-   local
-        ( \tce ->
-            tce
-              { tceVars = tceVars tce <> HM.fromList args
-              }
-        )
-
+  local
+    ( \tce ->
+        tce
+          { tceVars = tceVars tce <> HM.fromList args
+          }
+    )
 
 -- | temporarily add function arguments and generics into the Reader env
 withFunctionEnv ::
