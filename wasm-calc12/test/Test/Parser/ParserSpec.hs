@@ -445,6 +445,18 @@ spec = do
               ( "\\(a: Int32,b: Boolean) -> Int32 { 3 }",
                 ELambda () [("a", tyInt32), ("b", tyBool)] tyInt32 (int 3)
               ),
+              ( "let f = \\() -> Boolean { True }; f",
+                  ELet () (PVar () "f")
+                    (ELambda () [] tyBool
+                        (bool True) )
+                        (var "f")
+              ),
+              ( "let f = \\() -> Boolean { let a = True; a }; f",
+                  ELet () (PVar () "f")
+                    (ELambda () [] tyBool
+                        (ELet () (PVar () "a") (bool True) (var "a")))
+                        (var "f")
+            ),
               ("let a = 100; a", ELet () (PVar () "a") (int 100) (var "a")),
               ( "let (a,b) = (1,2); a + b",
                 ELet

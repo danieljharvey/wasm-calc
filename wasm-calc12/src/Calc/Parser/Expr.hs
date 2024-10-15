@@ -74,7 +74,7 @@ lambdaParser = label "lambda" $ addLocation $ do
   stringLiteral "->"
   ty <- typeParser
   stringLiteral "{"
-  expr <- exprParserInternal
+  expr <- exprParser
   stringLiteral "}"
   pure $ ELambda mempty args ty expr
 

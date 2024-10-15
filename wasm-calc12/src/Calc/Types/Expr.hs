@@ -4,6 +4,7 @@
 
 module Calc.Types.Expr (Expr (..)) where
 
+import Calc.Utils
 import Calc.Types.Constructor
 import Calc.Types.FunctionName
 import Calc.Types.Identifier
@@ -34,30 +35,30 @@ data Expr ann
   | ELambda ann [(Identifier, Type ann)] (Type ann) (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
--- when on multilines, indent by `i`, if not then nothing
-indentMulti :: Integer -> PP.Doc style -> PP.Doc style
-indentMulti i doc =
-  PP.flatAlt (PP.indent (fromIntegral i) doc) doc
-
 -- | this instance defines how to nicely print `Expr`
 instance PP.Pretty (Expr ann) where
   pretty (EPrim _ prim) =
     PP.pretty prim
   pretty (EAnn _ ty expr) =
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
-  pretty (ELambda _ args tyReturn body) =
-    "\\("
-      <> PP.cat prettyArgs
-      <> ")"
-      <+> "->"
-      <+> PP.pretty tyReturn
-      <+> "{"
-      <> PP.pretty body
-      <> "}"
-    where
-      prettyArgs =
-        PP.punctuate ", " (prettyArg <$> args)
+  pretty (ELambda _ fnArgs fnReturnType fnBody) =
+    "\\"
+        <> PP.group
+                    ( "("
+                        <> newlines
+                          ( indentMulti
+                              2
+                              (PP.cat (PP.punctuate ", " (prettyArg <$> fnArgs)))
+                          )
+                    )
+                  <> ")"
 
+          <+> "->"
+          <+> PP.pretty fnReturnType
+          <+> "{"
+          <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
+          <> "}"
+    where
       prettyArg (ident, ty) = PP.pretty ident <> ":" <> PP.pretty ty
   pretty (ELet _ (PWildcard _) body rest) =
     PP.pretty body

@@ -1,0 +1,9 @@
+function main() -> Int64 { 
+  let f = \(a:Int64, b:Int64, c:Int64) -> Int64 { 
+    let total = a + 100; 
+    total + 1 + b + c
+  }; 
+  let g = \() -> Boolean { False}; 
+  let a = f(100, 2, 3); 
+  if g() then a else 200
+}

@@ -1,4 +1,5 @@
-module Calc.Utils (prettyShow, ltrace, ltraceM, neZipWith, neZipWithM, neUnzip, indentMulti, newlines) where
+module Calc.Utils (prettyShow,
+    ltrace, ltraceM, neZipWith, neZipWithM, neUnzip, indentMulti, newlines) where
 
 -- useful junk goes here
 
