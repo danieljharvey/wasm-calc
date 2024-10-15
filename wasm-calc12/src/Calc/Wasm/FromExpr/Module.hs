@@ -65,7 +65,6 @@ fromTest funcMap globalMap dataTypeMap (Test {tesName = Identifier testName, tes
             fesImports = mempty,
             fesFunctions = funcMap,
             fesGenerated = mempty,
-            fesLambdas = mempty,
             fesDataTypes = dataTypeMap
           }
       )
@@ -118,7 +117,6 @@ fromFunction functionAbilities funcMap importMap globalMap dataTypeMap generated
             fesImports = importMap,
             fesFunctions = funcMap,
             fesGenerated = generatedFns,
-            fesLambdas = mempty, -- we might need to populate this with stuff coming from args
             fesDataTypes = dataTypeMap
           }
       )
@@ -169,7 +167,6 @@ fromGlobal (Global {glbExpr, glbMutability}) = do
             fesImports = mempty,
             fesFunctions = mempty,
             fesGenerated = mempty,
-            fesLambdas = mempty,
             fesDataTypes = mempty
           }
       )
