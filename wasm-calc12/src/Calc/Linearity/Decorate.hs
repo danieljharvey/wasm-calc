@@ -9,6 +9,8 @@ module Calc.Linearity.Decorate
   )
 where
 
+import Calc.Types.FunctionName
+import Data.Functor (($>))
 import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
@@ -190,6 +192,15 @@ decorate (EVar ty ident) = do
   pure (EVar (ty, Nothing) ident)
 decorate (EConstructor ty constructor args) = do
   EConstructor (ty, Nothing) constructor <$> traverse decorate args
+decorate (ELambda ty args returnTy body) = do
+  let decorateArg ident tyArg = 
+        (ident, tyArg $> (getOuterTypeAnnotation tyArg,Nothing))
+      decoratedArgs = 
+        uncurry decorateArg <$> args 
+      decoratedReturnType = 
+        returnTy $> (getOuterTypeAnnotation returnTy, Nothing)
+  ELambda (ty,Nothing) decoratedArgs decoratedReturnType 
+    <$> decorate body
 decorate (ELet ty pat expr rest) = do
   -- get all idents mentioned in `expr`
   decoratedExpr <- decorate expr
@@ -254,7 +265,8 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
     <$> decorate predExpr
     <*> pure (mapOuterExprAnnotation (second (const uniqueToElse)) decoratedThen)
     <*> pure (mapOuterExprAnnotation (second (const uniqueToThen)) decoratedElse)
-decorate (EApply ty fnName args) =
+decorate (EApply ty fnName@(FunctionName inner) args) = do
+  recordUse (Identifier inner) ty
   EApply (ty, Nothing) fnName <$> traverse decorate args
 decorate (ETuple ty a as) =
   ETuple (ty, Nothing) <$> decorate a <*> traverse decorate as

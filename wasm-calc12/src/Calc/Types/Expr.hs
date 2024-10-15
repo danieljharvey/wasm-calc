@@ -31,6 +31,7 @@ data Expr ann
   | EStore ann (Expr ann) (Expr ann) -- index, value
   | ESet ann Identifier (Expr ann)
   | EBlock ann (Expr ann)
+  | ELambda ann [(Identifier,Type ann)] (Type ann) (Expr ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- when on multilines, indent by `i`, if not then nothing
@@ -44,6 +45,15 @@ instance PP.Pretty (Expr ann) where
     PP.pretty prim
   pretty (EAnn _ ty expr) =
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
+  pretty (ELambda _ args tyReturn body) =
+    "\\(" <> PP.cat prettyArgs <> ")" <+> "->" <+>
+      PP.pretty tyReturn <+> "{" <>
+        PP.pretty body <> "}"
+    where
+      prettyArgs =
+        PP.punctuate ", " (prettyArg <$> args)
+
+      prettyArg (ident,ty) = PP.pretty ident <> ":" <> PP.pretty ty
   pretty (ELet _ (PWildcard _) body rest) =
     PP.pretty body
       <> ";"

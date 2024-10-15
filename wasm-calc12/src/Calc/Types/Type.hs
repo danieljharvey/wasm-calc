@@ -46,7 +46,7 @@ instance PP.Pretty (Type ann) where
   pretty (TPrim _ prim) = PP.pretty prim
   pretty (TVar _ var) = PP.pretty var
   pretty (TFunction _ args ret) =
-    "(" <> prettyArgs <> ") -> " <> PP.pretty ret
+    "Fn(" <> prettyArgs <> ") -> " <> PP.pretty ret
     where
       prettyArgs = PP.concatWith (PP.surround PP.comma) (PP.pretty <$> args)
   pretty (TUnificationVar _ i) = "U" <> PP.pretty i

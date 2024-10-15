@@ -57,7 +57,7 @@ combineDependencies deps _ | S.null deps = mempty
 combineDependencies deps annotatedModule =
   let getChildDeps (DepFunction fnName) = case M.lookup fnName (maFunctions annotatedModule) of
         Just functionDeps -> functionDeps
-        Nothing -> error $ "Internal error looking up " <> show fnName
+        Nothing -> mempty -- this could be a lambda function
       getChildDeps (DepTest identifier) = case M.lookup identifier (maTests annotatedModule) of
         Just testDeps -> testDeps
         Nothing -> error $ "Internal error looking up " <> show identifier

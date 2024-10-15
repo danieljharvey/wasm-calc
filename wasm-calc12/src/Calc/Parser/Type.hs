@@ -24,6 +24,7 @@ typeParser :: Parser ParserType
 typeParser =
   tyPrimitiveParser
     <|> tyTupleParser
+    <|> tyFunctionParser
     <|> tyConstructorParser
     <|> tyBoxParser
     <|> tyVarParser
@@ -41,6 +42,20 @@ tyPrimitiveParser = myLexeme $ addTypeLocation $ TPrim mempty <$> tyPrimParser
         <|> (stringLiteral "Float64" $> TFloat64)
         <|> stringLiteral "Void"
         $> TVoid
+
+-- `Fn(Int32,Boolean) -> Int64`
+tyFunctionParser :: Parser ParserType
+tyFunctionParser =
+  let argsParser =
+        sepEndBy1 typeParser (stringLiteral ",")
+   in label "function" $ addTypeLocation $ do
+        stringLiteral "Fn"
+        stringLiteral "("
+        args <- try argsParser <|> pure mempty
+        stringLiteral ")"
+        stringLiteral "->"
+        ty <- typeParser
+        pure $ TFunction mempty args ty
 
 tyBoxParser :: Parser ParserType
 tyBoxParser = label "box" $
@@ -79,3 +94,4 @@ tyConstructorParser =
         dtName <- dataNameParser
         args <- try argsParser <|> pure mempty
         pure $ TConstructor mempty dtName args
+

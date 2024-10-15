@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
@@ -191,6 +192,23 @@ fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
+fromExpr (ELambda (ty,_) args returnTy body) = do
+  wasmBody <- fromExpr body
+  wasmReturnType <- liftEither $ scalarFromType returnTy
+  -- create function
+  let fn = WasmFunction {
+      wfName = FunctionName "generate_something_fresh",
+      wfExpr = wasmBody,
+      wfPublic = False,
+      wfArgs = mempty,
+      wfReturnType = wasmReturnType,
+      wfLocals = mempty,
+      wfAbilities = mempty
+                        }
+  -- store
+  wasmFnRef <- addGeneratedFunction fn
+  -- return it as a value
+  error "explode"
 fromExpr (EConstructor (ty, _) constructor args) = do
   -- what is the underlying discriminator value?
   constructorNumber <- fmap (WPrim . WPInt32 . fromIntegral) <$> getConstructorNumber ty constructor

@@ -453,6 +453,12 @@ spec = do
                       "}"
                     ],
                 Wasm.VI64 101
+              ),
+              ( joinLines [
+                    "function apply(f: Fn() -> Int64) -> Int64 { f() }",
+                    asTest "let f = \\() -> Int64 { 42 }; apply(f)"
+                          ],
+                          Wasm.VI64 42
               )
             ]
 

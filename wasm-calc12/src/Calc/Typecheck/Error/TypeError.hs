@@ -25,7 +25,6 @@ data TypeError ann
   | InfixTypeMismatch Op (Type ann) (Type ann)
   | TypeMismatch (Type ann) (Type ann)
   | VarNotFound ann Identifier (HashSet Identifier)
-  | FunctionNotFound ann FunctionName (HashSet FunctionName)
   | FunctionArgumentLengthMismatch ann Int Int -- expected, actual
   | NonFunctionTypeFound ann (Type ann)
   | AccessingNonTuple ann (Type ann)
@@ -488,23 +487,6 @@ typeErrorDiagnostic input e =
                         ann
                       <*> pure
                         ( Diag.This (prettyPrint $ "Could not find identifier " <> PP.pretty identifier)
-                        )
-                  ]
-              )
-              [Diag.Note $ "Available in scope: " <> prettyPrint (prettyHashset existing)]
-        (FunctionNotFound ann fnName existing) ->
-          Diag.addReport diag $
-            Diag.Err
-              Nothing
-              "Function not found!"
-              ( catMaybes
-                  [ (,)
-                      <$> positionFromAnnotation
-                        filename
-                        input
-                        ann
-                      <*> pure
-                        ( Diag.This (prettyPrint $ "Could not find function " <> PP.pretty fnName)
                         )
                   ]
               )

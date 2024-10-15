@@ -305,7 +305,11 @@ spec = do
               ( "let Box(outer) = Box(Box((100: Int64))); let Box(inner) = outer; inner",
                 "Int64"
               ),
-              ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64")
+              ("case True { True -> (1: Int64), False -> (2: Int64) }", "Int64"),
+              ("\\() -> Int32 { 3 }","Fn() -> Int32"),
+              ("\\(a: Int32,b:Int32) -> Int32 { a + b }",
+                  "Fn(Int32,Int32) -> Int32"),
+              ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32")
             ]
 
       describe "Successfully typechecking expressions" $ do

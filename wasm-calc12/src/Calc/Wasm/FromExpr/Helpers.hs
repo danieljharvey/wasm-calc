@@ -212,7 +212,7 @@ scalarFromType (TPrim _ TInt32) = pure I32
 scalarFromType (TPrim _ TInt64) = pure I64
 scalarFromType (TPrim _ TFloat32) = pure F32
 scalarFromType (TPrim _ TFloat64) = pure F64
-scalarFromType (TFunction {}) = Left FunctionTypeNotScalar
+scalarFromType (TFunction {}) = pure Pointer
 scalarFromType (TContainer {}) = pure Pointer
 scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer

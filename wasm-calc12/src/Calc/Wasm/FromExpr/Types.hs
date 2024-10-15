@@ -52,8 +52,8 @@ newtype FromExprImport = FromExprImport {feiIndex :: Natural}
   deriving newtype (Eq, Ord, Show)
 
 data FromWasmError
-  = FunctionTypeNotScalar
-  | IdentifierNotFound Identifier
+  =
+   IdentifierNotFound Identifier
   | FunctionNotFound FunctionName
   | PrimWithNonNumberType Prim (Type ())
   | FunctionAbilityLookupFailed FunctionName
