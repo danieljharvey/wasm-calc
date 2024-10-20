@@ -435,9 +435,11 @@ spec = do
               ("True && True", EInfix () OpAnd (bool True) (bool True)),
               ("True || False", EInfix () OpOr (bool True) (bool False)),
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
+              ("variable", var "variable"),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
-              ("add(1,2,)", EApply () "add" [int 1, int 2]),
-              ("go()", EApply () "go" []),
+              ("add(1,2,)", EApply () (var "add") [int 1, int 2]),
+              ("go()", EApply () (var "go") []),
+              ("go()()", EApply () (EApply () (var "go") []) []),
               ("Box(1)", EBox () (int 1)),
               ( "\\() -> Int32 { 3 }",
                 ELambda () mempty tyInt32 (int 3)
@@ -480,7 +482,7 @@ spec = do
               ( "let a : Int64 = 1; True",
                 ELet () (PVar () "a") (EAnn () tyInt64 (int 1)) (bool True)
               ),
-              ("dogs(); 100", ELet () (PWildcard ()) (EApply () "dogs" []) (int 100)),
+              ("dogs(); 100", ELet () (PWildcard ()) (EApply () (var "dogs") []) (int 100)),
               ("100; 100", ELet () (PWildcard ()) (int 100) (int 100)),
               ("(100 : Int32)", EAnn () tyInt32 (int 100)),
               ("load(100)", ELoad () (int 100)),

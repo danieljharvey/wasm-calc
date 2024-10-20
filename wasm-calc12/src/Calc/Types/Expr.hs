@@ -5,7 +5,6 @@
 module Calc.Types.Expr (Expr (..)) where
 
 import Calc.Types.Constructor
-import Calc.Types.FunctionName
 import Calc.Types.Identifier
 import Calc.Types.Op
 import Calc.Types.Pattern
@@ -23,7 +22,7 @@ data Expr ann
   | EInfix ann Op (Expr ann) (Expr ann)
   | EIf ann (Expr ann) (Expr ann) (Expr ann)
   | EVar ann Identifier
-  | EApply ann FunctionName [Expr ann]
+  | EApply ann (Expr ann) [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
   | EConstructor ann Constructor [Expr ann]

@@ -9,13 +9,13 @@ import Calc.Types
 import Calc.Wasm.FromExpr.Drops
   ( addDropsFromPath,
     addDropsToWasmExpr,
-    dropFunctionForType,
+    --dropFunctionForType,
   )
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Patterns
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
+-- import Control.Monad (void)
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
@@ -304,9 +304,19 @@ fromExpr (EIf (ty, _) predE thenE elseE) = do
 fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _ funcName args) =
-  fromFunctionApply funcName args
-    `catchError` \_ -> fromLambdaApply funcName args
+fromExpr (EApply _ fnExpr _args) = do
+  error ("fromExpr " <> show fnExpr)
+  {-
+  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
+  let types =
+        monomorphiseTypes
+          fGenerics
+          fArgTypes
+          (void . fst . getOuterAnnotation <$> args)
+  dropArgs <- traverse (dropFunctionForType . snd) types
+  wasmArgs <- traverse fromExpr args
+  pure $ WApply fIndex (wasmArgs <> dropArgs)
+  -}
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

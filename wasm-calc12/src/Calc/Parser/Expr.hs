@@ -158,13 +158,23 @@ varParser =
     addLocation $
       EVar mempty <$> identifierParser
 
+applyFuncParser :: Parser (Expr Annotation)
+applyFuncParser = do
+  varParser <?> "term"
+
 applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do
-  fnName <- functionNameParser
-  stringLiteral "("
-  args <- sepEndBy exprParserInternal (stringLiteral ",")
-  stringLiteral ")"
-  pure (EApply mempty fnName args)
+  func <- applyFuncParser
+  let argParser = do
+          stringLiteral "("
+          args <- sepEndBy exprParserInternal (stringLiteral ",")
+          stringLiteral ")"
+          pure args
+  let argParser' :: Parser [[ParserExpr]]
+      argParser' = (: []) <$> argParser
+  args <- chainl1 argParser' (pure (<>))
+  pure $ foldl (EApply mempty) func args
+
 
 tupleParser :: Parser (Expr Annotation)
 tupleParser = label "tuple" $

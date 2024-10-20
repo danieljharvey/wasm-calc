@@ -86,11 +86,11 @@ getFunctionDependencies globalNames importNames (Function {fnFunctionName, fnBod
 getExprDependencies :: S.Set Identifier -> S.Set FunctionName -> Expr ann -> S.Set Dependency
 getExprDependencies globalNames importNames = snd . runWriter . go
   where
-    go (EApply ann fnName args) = do
-      if S.member fnName importNames
-        then tell (S.singleton $ DepImport fnName)
-        else tell (S.singleton $ DepFunction fnName)
-      EApply ann fnName <$> traverse go args
+    go (EApply ann fnExpr@(EVar _ (Identifier fnName)) args) = do
+      if S.member (FunctionName fnName) importNames
+        then tell (S.singleton $ DepImport (FunctionName fnName))
+        else tell (S.singleton $ DepFunction (FunctionName fnName))
+      EApply ann <$> go fnExpr <*> traverse go args
     go (ESet ann globalName value) = do
       tell (S.singleton $ DepGlobal globalName)
       ESet ann globalName <$> go value

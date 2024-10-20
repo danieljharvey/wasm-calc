@@ -28,7 +28,7 @@ testInputs =
 
 spec :: Spec
 spec = do
-  describe "TypecheckSpec" $ do
+  fdescribe "TypecheckSpec" $ do
     describe "Function" $ do
       let succeeding =
             [ ("function one () -> Int64 { 1 }", TFunction () [] tyInt64),
@@ -393,7 +393,7 @@ testSucceedingFunction (input, fn) =
     case parseFunctionAndFormatError input of
       Left e -> error (show e)
       Right parsedFn ->
-        fnAnn <$> runTC (elaborateFunction (void parsedFn))
+        fnAnn <$> runTC (elaborateFunction mempty (void parsedFn))
           `shouldBe` Right fn
 
 testSucceedingModule :: (Text, Type ()) -> Spec

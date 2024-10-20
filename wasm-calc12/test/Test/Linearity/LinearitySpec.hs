@@ -226,7 +226,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> do
-                case runTC (elaborateFunction parsedFn) of
+                case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
                     let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn))
@@ -284,7 +284,7 @@ spec = do
         ( \(str, linearState) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> do
-                case runTC (elaborateFunction parsedFn) of
+                case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
                     void (snd $ getFunctionUses typedFn) `shouldBe` linearState
@@ -307,7 +307,7 @@ spec = do
           ( \str -> it (T.unpack str) $ do
               case parseFunctionAndFormatError str of
                 Right parsedFn -> do
-                  case runTC (elaborateFunction parsedFn) of
+                  case runTC (elaborateFunction mempty parsedFn) of
                     Left e -> error (show e)
                     Right typedFn ->
                       validateFunction typedFn `shouldSatisfy` isRight
@@ -337,7 +337,7 @@ spec = do
           ( \(str, err) -> it (T.unpack str) $ do
               case parseFunctionAndFormatError str of
                 Right parsedFn -> do
-                  case runTC (elaborateFunction (void parsedFn)) of
+                  case runTC (elaborateFunction mempty (void parsedFn)) of
                     Left e -> error (show e)
                     Right typedFn ->
                       validateFunction typedFn `shouldBe` Left err

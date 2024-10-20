@@ -14,6 +14,7 @@ module Calc.Ability.Check
   )
 where
 
+import Calc.Types.Identifier
 import Calc.Ability.Error
 import Calc.ExprUtils
 import Calc.Types.Ability
@@ -159,13 +160,15 @@ abilityExpr (EBox ann a) = do
 abilityExpr (EConstructor ann constructor as) = do
   tell (S.singleton $ AllocateMemory ann)
   EConstructor ann constructor <$> traverse abilityExpr as
-abilityExpr (EApply ann fn args) = do
-  isImport <- asks (S.member fn . aeImportNames)
+abilityExpr (EApply ann fn@(EVar _ (Identifier fnVar)) args) = do
+  let functionName = FunctionName fnVar
+  isImport <- asks (S.member functionName  . aeImportNames)
   if isImport
-    then tell (S.singleton $ CallImportedFunction ann fn)
+    then tell (S.singleton $ CallImportedFunction ann functionName)
     else do
-      -- whatever abilities this function uses, we now use
-      functionAbilities <- lookupFunctionAbilities fn
+      -- if this name points at a function, whatever abilities
+      -- that function uses, we use
+      functionAbilities <- lookupFunctionAbilities functionName
       tell functionAbilities
-  EApply ann fn <$> traverse abilityExpr args
+  EApply ann <$> abilityExpr fn <*> traverse abilityExpr args
 abilityExpr other = bindExpr abilityExpr other

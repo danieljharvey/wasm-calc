@@ -7,6 +7,7 @@ module Calc.Typecheck.Elaborate
   )
 where
 
+import qualified Data.Map.Strict as M
 import Calc.ExprUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
@@ -51,6 +52,16 @@ elaborateModule
               tceDataTypes = arrangeDataTypes mdDataTypes
             }
 
+    -- statically provide types of all functions in scope
+    let functionsInScope = foldMap (\(Function {fnFunctionName,fnAnn,fnArgs,fnReturnType}) ->
+
+          M.singleton fnFunctionName (
+
+                     TFunction fnAnn (faType <$> fnArgs) fnReturnType
+
+                                     )) mdFunctions
+
+
     runTypecheckM typecheckEnv $ do
       globals <-
         traverse
@@ -73,7 +84,7 @@ elaborateModule
       functions <-
         traverse
           ( \fn -> do
-              elabFn <- elaborateFunction fn
+              elabFn <- elaborateFunction functionsInScope fn
               storeFunction
                 (fnFunctionName elabFn)
                 (S.fromList $ fnGenerics fn)
@@ -173,9 +184,10 @@ checkAndSubstitute ty expr = do
   pure $ substitute unified <$> exprA
 
 elaborateFunction ::
+  M.Map FunctionName (Type ann) ->
   Function ann ->
   TypecheckM ann (Function (Type ann))
-elaborateFunction
+elaborateFunction functionsInScope
   ( Function
       { fnPublic,
         fnAnn,
@@ -187,15 +199,14 @@ elaborateFunction
         fnBody
       }
     ) = do
-    -- store current function so we can recursively call ourselves
-    storeFunction
-      fnFunctionName
-      (S.fromList fnGenerics)
-      (TFunction fnAnn (faType <$> fnArgs) fnReturnType)
+    -- include current function with arguments so we can recursively call ourselves
+    let tyCurrentFunction =
+                        TFunction fnAnn (faType <$> fnArgs) fnReturnType
 
     exprA <-
       withFunctionEnv
         fnArgs
+        (M.insert fnFunctionName tyCurrentFunction functionsInScope)
         (S.fromList fnGenerics)
         (checkAndSubstitute fnReturnType fnBody)
 

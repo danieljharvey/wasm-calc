@@ -282,15 +282,24 @@ checkReturnType (TUnificationVar {}) p@(TPrim ann _) =
   throwError (NonBoxedGenericValue ann p)
 checkReturnType _ ty = pure ty
 
+freeVars :: Type ann -> S.Set TypeVar
+freeVars ty
+  = go ty
+    where
+      go (TVar _ var) = S.singleton var
+      go other = monoidType go other
+
 checkApply ::
   Maybe (Type ann) ->
   ann ->
-  FunctionName ->
+  Expr ann ->
   [Expr ann] ->
   TypecheckM ann (Expr (Type ann))
-checkApply maybeTy ann fnName args = do
-  fn <- lookupFunction ann fnName
-  (ty, elabArgs) <- case fn of
+checkApply maybeTy ann fnExpr args = do
+  typedFnExpr <- infer fnExpr
+  let tyFn = getOuterAnnotation typedFnExpr
+  generalisedTyFn <- generalise (freeVars tyFn) tyFn
+  (ty, elabArgs) <- case generalisedTyFn of
     TFunction _ tyFnArgs tyFnReturn -> do
       when
         (length args /= length tyFnArgs)
@@ -321,11 +330,11 @@ checkApply maybeTy ann fnName args = do
           tyFnReturn
           (substitute moreUnified tyFnReturn)
       pure (actualTyReturn, elabArgs)
-    _ ->
+    ty ->
       throwError $
-        NonFunctionTypeFound ann fn
+        NonFunctionTypeFound ann ty
 
-  pure (EApply (ty $> ann) fnName elabArgs)
+  pure (EApply (ty $> ann) typedFnExpr elabArgs)
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)

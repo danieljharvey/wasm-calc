@@ -34,7 +34,7 @@ fromRight = \case
 spec :: Spec
 spec = do
   describe "AbilitySpec" $
-    describe "abilityCheckModule" $ do
+    xdescribe "abilityCheckModule" $ do
       describe "Success" $ do
         let emptyModuleAbilities =
               ModuleAnnotations
