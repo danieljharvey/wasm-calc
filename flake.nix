@@ -23,21 +23,12 @@
               "${compilerVersion}" =
                 pkgs.haskell.packages."${compilerVersion}".override {
                   overrides = self: super: {
-                    # try and remove cycle
-                    cabal-fmt = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.cabal-fmt (drv: {
-                      enableSeparateBinOutput = false;
-                    }));
-                    # try and remove cycle
-                    ormolu = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.overrideCabal super.ormolu (drv: {
-                      enableSeparateBinOutput = false;
-                    }));
 
                     diagnose = (pkgs.haskell.lib.doJailbreak
                       (pkgs.haskell.lib.appendConfigureFlags (pkgs.haskell.lib.markUnbroken super.diagnose) [ "-f +megaparsec-compat" "-f parsec-compat" ])).overrideAttrs
                       (oldAttrs: rec {
                         buildInputs = [ super.megaparsec ];
                       });
-
 
                     # allow slippery version bounds and don't run tests
                     wasm = pkgs.haskell.lib.markUnbroken (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.doJailbreak super.wasm));
