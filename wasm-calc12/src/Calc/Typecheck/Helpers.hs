@@ -196,8 +196,10 @@ withFunctionEnv args functionsInScope generics =
    in local
         ( \tce ->
             tce
-              { tceVars = tceVars tce <> HM.fromList identifiersFromFunctions <>
-                  HM.fromList identifiersFromArgs,
+              { tceVars =
+                  tceVars tce
+                    <> HM.fromList identifiersFromFunctions
+                    <> HM.fromList identifiersFromArgs,
                 tceGenerics = generics
               }
         )

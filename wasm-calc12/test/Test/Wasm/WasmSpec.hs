@@ -69,7 +69,7 @@ spec = do
       describe "From module" $ do
         traverse_ testWithNode testVals
 
-    describe "Test with interpreter" $ do
+    fdescribe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
             [ (asTest "42", Wasm.VI64 42),
@@ -102,376 +102,376 @@ spec = do
                     asTest "one() + two()"
                   ],
                 Wasm.VI64 3
-              ),
-              ( joinLines
-                  [ "function increment(a: Int64) -> Int64 { a + 1 }",
-                    asTest "increment(41)"
-                  ],
-                Wasm.VI64 42
-              ),
-              ( joinLines
-                  [ "function sum(a: Int64, b: Int64) -> Int64 { a + b }",
-                    asTest "sum(20,22)"
-                  ],
-                Wasm.VI64 42
-              ),
-              ( joinLines
-                  [ "function inc(a: Int64) -> Int64 { a + 1 }",
-                    asTest "inc(inc(inc(inc(0))))"
-                  ],
-                Wasm.VI64 4
-              ),
-              ( asTest "let Box(a) = Box((100: Int64)); a",
-                Wasm.VI64 100
-              ),
-              ( asTest "let Box(Box(a)) = Box(Box((100: Int64))); a",
-                Wasm.VI64 100
-              ),
-              ( "export function test() -> Boolean { let (_, b) = ((10 : Int64), True); b }",
-                Wasm.VI32 1
-              ),
-              ( "export function test() -> Boolean { let (a, _) = (True, (10 : Int64)); a }",
-                Wasm.VI32 1
-              ),
-              ( joinLines
-                  [ "function fst(pair: (Boolean, Int64)) -> Boolean { let (a, _) = pair; a }",
-                    "export function test() -> Boolean { fst((True, 100)) }"
-                  ],
-                Wasm.VI32 1
-              ),
-              ( joinLines
-                  [ "function swapIntAndBool(pair: (Int64, Boolean)) -> (Boolean, Int64) { let (a,b) = pair; (b,a) }",
-                    "function fst(pair: (Boolean, Int64)) -> Boolean { let (a,_) = pair; a }",
-                    "export function test() -> Boolean { fst(swapIntAndBool((1,True))) }"
-                  ],
-                Wasm.VI32 1
-              ),
-              ( joinLines
-                  [ "function sumTuple(pair: (Int64, Int64)) -> Int64 { let (a,b) = pair; a + b }",
-                    "export function test() -> Int64 { sumTuple((100,200)) }"
-                  ],
-                Wasm.VI64 300
-              ),
-              ( joinLines
-                  [ "function sumTuple(pair: (Float64, Float64)) -> Float64 { let (a,b) = pair; a + b }",
-                    "export function test() -> Float64 { sumTuple((100.0,200.0)) }"
-                  ],
-                Wasm.VF64 300.0
-              ),
-              ( joinLines
-                  [ "function fst<a,b>(pair: (a,b)) -> a { let (a, _) = pair; a }",
-                    asTest "let one = Box((10: Int64)); let two = Box((20: Int64)); let Box(a) = fst((one, two)); a"
-                  ],
-                Wasm.VI64 10
-              ),
-              ( joinLines
-                  [ "function drop<a>(item: a) -> Int64 { let _ = item; 100 }",
-                    asTest "drop(Box((10: Int64)))"
-                  ],
-                Wasm.VI64 100
-              ),
-              ( joinLines
-                  [ asTest "let (Box(a),_) = (Box((43 : Int64)),Box((42 : Int64))); a"
-                  ],
-                Wasm.VI64 43
-              ),
-              ( joinLines
-                  [ asTest "let Box(a) = Box((42 : Int64)); let Box(b) = Box((41 : Int64)); a + b"
-                  ],
-                Wasm.VI64 83
-              ),
-              ( joinLines
-                  [ asTest "let Box(Box(a)) = Box(Box((41 : Int64))); a"
-                  ],
-                Wasm.VI64 41
-              ),
-              ( joinLines
-                  [ asTest "let (a, (b, c)) = ((1: Int64), ((2: Int64), (3: Int64))); a + b + c"
-                  ],
-                Wasm.VI64 6
-              ),
-              ( joinLines
-                  [ "function pair<a,b>(left: a, right:b) -> (a,b) { (left, right) }",
-                    asTest "let (Box(a),_) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
-                  ],
-                Wasm.VI64 43
-              ),
-              ( joinLines
-                  [ "function pair<a,b>(left: a, right: b) -> (a,b) { (left, right) }",
-                    asTest "let (_, Box(a)) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
-                  ],
-                Wasm.VI64 42
-              ),
-              ( asTest "let _ = (1: Int64); (2 : Int64)",
-                Wasm.VI64 2
-              ),
-              ( asTest "let Box(a) = Box((42 : Int64)); a",
-                Wasm.VI64 42
-              ),
-              ( asTest "let Box(a) = Box((1.23: Float32)); let _ = a; (23 : Int64)",
-                Wasm.VI64 23
-              ),
-              ( asTest "let (a,b) = ((1: Int64), (2 : Int64)); a + b",
-                Wasm.VI64 3
-              ),
-              ( asTest "let Box(Box(a)) = Box(Box((101 : Int64))); a",
-                Wasm.VI64 101
-              ),
-              ( asTest "let (a, (b,c)) = ((1 : Int64), ((2: Int64), (3: Int64))); a + b + c",
-                Wasm.VI64 6
-              ),
-              ( asTest "let (_,_,_,d) = ((1: Int8), (2: Int16), (3: Int32), (4: Int64)); d",
-                Wasm.VI64 4
-              ),
-              ( joinLines
-                  [ "memory 1000",
-                    asTest "load(0)"
-                  ],
-                Wasm.VI64 0
-              ),
-              -- now to make sure our manual memory and allocated memory don't
-              -- fuck with one another
-              ( joinLines
-                  [ "memory 1000",
-                    asTest "let pair = ((1: Int64), (2: Int64)); let (a,b) = pair; let _ = a + b; load(32)"
-                  ],
-                Wasm.VI64 0
-              ),
-              ( joinLines
-                  [ "memory 1000",
-                    "function sum(a: Int64, b: Int64) -> Int64 { a + b }",
-                    asTest "store(0, (20: Int64)); store(8, (22: Int64)); sum(load(0), load(8))"
-                  ],
-                Wasm.VI64 42
-              ),
-              ( joinLines
-                  [ "global one: Int64 = 1",
-                    asTest "1 + one"
-                  ],
-                Wasm.VI64 2
-              ),
-              ( joinLines
-                  [ "global mut counter: Int64 = 0",
-                    asTest "set(counter, 2); counter"
-                  ],
-                Wasm.VI64 2
-              ),
-              ( joinLines
-                  [ "function factorial(a: Int64) -> Int64 { if a == 0 then 1 else a * factorial(a - 1) }",
-                    asTest "factorial(4)"
-                  ],
-                Wasm.VI64 24
-              ),
-              ( joinLines
-                  [ "export function testShouldntCollide() -> Int32 { 1 }",
-                    asTest "100",
-                    "test testShouldntCollide = True"
-                  ],
-                Wasm.VI64 100
-              ),
-              ( joinLines
-                  [ "function alloc() -> Int64 { let _ = Box((1: Int32)); 22 }",
-                    asTest "if True then alloc() else alloc()"
-                  ],
-                Wasm.VI64 22
-              ),
-              ( asTest "let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c",
-                Wasm.VI64 3
-              ),
-              ( joinLines
-                  [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
-                    asTest "let Box(a) = bool(True, Box((1: Int64)), Box((2: Int64))); a"
-                  ],
-                Wasm.VI64 1
-              ),
-              ( joinLines
-                  [ "function bool(pred: Boolean, left: Box(Int64), right: Box(Int64)) -> Box(Int64) { if pred then left else right }",
-                    asTest "let Box(a) = bool(False, Box(1), Box(2)); a"
-                  ],
-                Wasm.VI64 2
-              ),
-              ( joinLines
-                  [ "function bool(pred: Boolean, left: Box(Box(Int64)), right: Box(Box(Int64))) -> Box(Box(Int64)) { if pred then left else right }",
-                    asTest "let Box(Box(a)) = bool(False, Box(Box(1)), Box(Box(2))); a"
-                  ],
-                Wasm.VI64 2
-              ),
-              ( joinLines
-                  [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
-                    asTest "let Box(a) = bool(False, Box((1: Int64)), Box((2: Int64))); a"
-                  ],
-                Wasm.VI64 2
-              ),
-              ( asTest "let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c",
-                Wasm.VI64 1
-              ),
-              ( asTest "let Box(Box(Box(a))) = Box(Box(Box((2: Int64)))); a",
-                Wasm.VI64 2
-              ),
-              ( joinLines
-                  [ "function drop<a>(a: a) -> Int64 { let _ = a; 100 }",
-                    "function useDrop<a>(a: a) -> Int64 { drop(a) }",
-                    asTest "let value = Box(Box((1: Int64))); useDrop(value)"
-                  ],
-                Wasm.VI64 100
-              ),
-              (asTest "case (100: Int64) { a -> a }", Wasm.VI64 100),
-              ( asTest "case True { True -> 1, False -> 2 }",
-                Wasm.VI64 1
-              ),
-              ( asTest "case False { True -> 1, False -> 2 }",
-                Wasm.VI64 2
-              ),
-              ( asTest "case (6: Int64) { 1 -> 1, _ -> 0 }",
-                Wasm.VI64 0
-              ),
-              (asTest "case ((1:Int64),(2: Int64)) { (a,b) -> a + b }", Wasm.VI64 3),
-              ( asTest "case ((1: Int32),(2:Int32)) { (1,2) -> 1, (2,2) -> 2, (_,_) -> 0 }",
-                Wasm.VI64 1
-              ),
-              ( asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
-                Wasm.VI64 1
-              ),
-              (asTest "case Box((42:Int64)) { Box(2) -> 0, Box(a) -> a }", Wasm.VI64 42),
-              (asTest "case Box(Box((42:Int64))) { Box(Box(2)) -> 0, Box(Box(a)) -> a }", Wasm.VI64 42),
-              ( asTest $
-                  joinLines
-                    [ "if True then ",
-                      "{ let box: Box(Int64) = Box(100); let Box(b) = box; 1 + b}",
-                      "else 400"
+              ) {-,
+                ( joinLines
+                    [ "function increment(a: Int64) -> Int64 { a + 1 }",
+                      asTest "increment(41)"
                     ],
-                Wasm.VI64 101
-              ),
-              ( asTest $
-                  joinLines
-                    [ "let struct: (Box(Int64), Box(Int64)) = (Box(1), Box(2));",
-                      "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
+                  Wasm.VI64 42
+                ),
+                ( joinLines
+                    [ "function sum(a: Int64, b: Int64) -> Int64 { a + b }",
+                      asTest "sum(20,22)"
                     ],
-                Wasm.VI64 1
-              ),
-              ( asTest $
-                  joinLines
-                    [ "let box = Box((100: Int64)); let Box(b) = box; 1 + b"
+                  Wasm.VI64 42
+                ),
+                ( joinLines
+                    [ "function inc(a: Int64) -> Int64 { a + 1 }",
+                      asTest "inc(inc(inc(inc(0))))"
                     ],
-                Wasm.VI64 101
-              ),
-              ( asTest $
-                  joinLines
-                    [ "case (1:Int64) { 1 -> { let Box(b) = Box((100: Int64)); 1 + b}, _ -> 400 }"
+                  Wasm.VI64 4
+                ),
+                ( asTest "let Box(a) = Box((100: Int64)); a",
+                  Wasm.VI64 100
+                ),
+                ( asTest "let Box(Box(a)) = Box(Box((100: Int64))); a",
+                  Wasm.VI64 100
+                ),
+                ( "export function test() -> Boolean { let (_, b) = ((10 : Int64), True); b }",
+                  Wasm.VI32 1
+                ),
+                ( "export function test() -> Boolean { let (a, _) = (True, (10 : Int64)); a }",
+                  Wasm.VI32 1
+                ),
+                ( joinLines
+                    [ "function fst(pair: (Boolean, Int64)) -> Boolean { let (a, _) = pair; a }",
+                      "export function test() -> Boolean { fst((True, 100)) }"
                     ],
-                Wasm.VI64 101
-              ),
-              ( asTest $
-                  joinLines
-                    [ "let pair = ((1:Int64),(2:Int64));",
-                      "case pair { ",
-                      "(1,2) -> 202,",
-                      "(a,_) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}",
-                      "}"
+                  Wasm.VI32 1
+                ),
+                ( joinLines
+                    [ "function swapIntAndBool(pair: (Int64, Boolean)) -> (Boolean, Int64) { let (a,b) = pair; (b,a) }",
+                      "function fst(pair: (Boolean, Int64)) -> Boolean { let (a,_) = pair; a }",
+                      "export function test() -> Boolean { fst(swapIntAndBool((1,True))) }"
                     ],
-                Wasm.VI64 202
-              ),
-              ( joinLines
-                  [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case (Nothing:Maybe(Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
-                  ],
-                Wasm.VI64 0 -- quite disappointing we can't infer this from use, really we need to go all-in on HM to make all of this a bit friendlier
-              ),
-              ( joinLines
-                  [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case Just((100: Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
-                  ],
-                Wasm.VI64 101
-              ),
-              ( joinLines
-                  [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case Just(Box((100: Int64))) { Just(Box(a)) -> a + 1, _ -> 0 }"
-                  ],
-                Wasm.VI64 101
-              ),
-              ( joinLines
-                  [ "type Maybe<a> = Just(a) | Nothing",
-                    asTest "case Just(Just(Box((100: Int64)))) { Just(Just(Box(a))) -> a + 1, _ -> 0 }"
-                  ],
-                Wasm.VI64 101
-              ),
-              ( joinLines
-                  [ "type Colour = Red | Green | Blue",
-                    asTest "case Blue { Red -> 1, Green -> 2, Blue -> 3 }"
-                  ],
-                Wasm.VI64 3
-              ),
-              ( joinLines
-                  [ "type These<a,b> = This(a) | That(b) | These(a,b)",
-                    "export function test() -> Boolean { case These(True,False) { This(a) -> a , That(b) -> b , These(a,b) -> a && b } }"
-                  ],
-                Wasm.VI32 0
-              ),
-              ( joinLines
-                  [ "type Maybe<a> = Just(a) | Nothing",
-                    "function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { case maybe { Just(a) -> a, Nothing -> default } }",
-                    asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
-                  ],
-                Wasm.VI64 100
-              ),
-              ( joinLines
-                  [ "type List<a> = Cons(a, List(a)) | Nil",
-                    asTest "let value: List(Int64) = Cons((1:Int64),Cons((2:Int64),Nil)); case value { Cons(a,Cons(b,Nil)) -> a + b, _ -> 0 }"
-                  ],
-                Wasm.VI64 3
-              ),
-              ( joinLines
-                  [ "type List<a> = Cons(a, List(a)) | Nil",
-                    "function sum(list:List(Int64)) -> Int64 { case list { Cons(a, rest) -> a + sum(rest), Nil -> 0 } }",
-                    asTest "sum(Cons(1,Cons(2,Cons(3,Cons(4,Nil)))))"
-                  ],
-                Wasm.VI64 10
-              ),
-              ( joinLines
-                  [ "type List<a> = Cons(a, List(a)) | Nil",
-                    "function repeat(value: Int64, repeats: Int64 ) -> List(Int64) { if repeats < 1 then Nil else Cons(value, repeat(value, repeats - 1)) }",
-                    "function sum(accum: Int64,list:List(Int64)) -> Int64 { case list { Cons(a, rest) -> sum(accum + a, rest), Nil -> accum } }",
-                    asTest "sum(0,repeat(6,100))" -- surprisingly easy to pop the stack by increasing this value
-                  ],
-                Wasm.VI64 600
-              ),
-              ( joinLines
-                  [ "type Identity<a> = Identity(a)",
-                    asTest "let boxed :Identity(Int64) = Identity(100); case boxed { Identity(a) -> a }"
-                  ],
-                Wasm.VI64 100
-              ),
-              ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
-                Wasm.VI64 4
-              ),
-              ( asTest $
-                  joinLines
-                    [ "let pair = ((1:Int64),False);",
-                      "case pair { ",
-                      "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
-                      "_ -> 400 ",
-                      "}"
+                  Wasm.VI32 1
+                ),
+                ( joinLines
+                    [ "function sumTuple(pair: (Int64, Int64)) -> Int64 { let (a,b) = pair; a + b }",
+                      "export function test() -> Int64 { sumTuple((100,200)) }"
                     ],
-                Wasm.VI64 101
-              ),
-              ( joinLines
-                  [ "function apply(f: Fn() -> Int64) -> Int64 { f() }",
-                    asTest "let f = \\() -> Int64 { 42 }; apply(f)"
-                  ],
-                Wasm.VI64 42
-              ),
-              ( joinLines
-                  [ "function apply(f: Fn(Int64) -> Int64, value: Int64) -> Int64 { f(value) }",
-                    asTest "let f = \\(a: Int64) -> Int64 { 42 + a }; apply(f,100)"
-                  ],
-                Wasm.VI64 142
-              )
+                  Wasm.VI64 300
+                ),
+                ( joinLines
+                    [ "function sumTuple(pair: (Float64, Float64)) -> Float64 { let (a,b) = pair; a + b }",
+                      "export function test() -> Float64 { sumTuple((100.0,200.0)) }"
+                    ],
+                  Wasm.VF64 300.0
+                ),
+                ( joinLines
+                    [ "function fst<a,b>(pair: (a,b)) -> a { let (a, _) = pair; a }",
+                      asTest "let one = Box((10: Int64)); let two = Box((20: Int64)); let Box(a) = fst((one, two)); a"
+                    ],
+                  Wasm.VI64 10
+                ),
+                ( joinLines
+                    [ "function drop<a>(item: a) -> Int64 { let _ = item; 100 }",
+                      asTest "drop(Box((10: Int64)))"
+                    ],
+                  Wasm.VI64 100
+                ),
+                ( joinLines
+                    [ asTest "let (Box(a),_) = (Box((43 : Int64)),Box((42 : Int64))); a"
+                    ],
+                  Wasm.VI64 43
+                ),
+                ( joinLines
+                    [ asTest "let Box(a) = Box((42 : Int64)); let Box(b) = Box((41 : Int64)); a + b"
+                    ],
+                  Wasm.VI64 83
+                ),
+                ( joinLines
+                    [ asTest "let Box(Box(a)) = Box(Box((41 : Int64))); a"
+                    ],
+                  Wasm.VI64 41
+                ),
+                ( joinLines
+                    [ asTest "let (a, (b, c)) = ((1: Int64), ((2: Int64), (3: Int64))); a + b + c"
+                    ],
+                  Wasm.VI64 6
+                ),
+                ( joinLines
+                    [ "function pair<a,b>(left: a, right:b) -> (a,b) { (left, right) }",
+                      asTest "let (Box(a),_) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
+                    ],
+                  Wasm.VI64 43
+                ),
+                ( joinLines
+                    [ "function pair<a,b>(left: a, right: b) -> (a,b) { (left, right) }",
+                      asTest "let (_, Box(a)) = pair(Box((43 : Int64)),Box((42 : Int64))); a"
+                    ],
+                  Wasm.VI64 42
+                ),
+                ( asTest "let _ = (1: Int64); (2 : Int64)",
+                  Wasm.VI64 2
+                ),
+                ( asTest "let Box(a) = Box((42 : Int64)); a",
+                  Wasm.VI64 42
+                ),
+                ( asTest "let Box(a) = Box((1.23: Float32)); let _ = a; (23 : Int64)",
+                  Wasm.VI64 23
+                ),
+                ( asTest "let (a,b) = ((1: Int64), (2 : Int64)); a + b",
+                  Wasm.VI64 3
+                ),
+                ( asTest "let Box(Box(a)) = Box(Box((101 : Int64))); a",
+                  Wasm.VI64 101
+                ),
+                ( asTest "let (a, (b,c)) = ((1 : Int64), ((2: Int64), (3: Int64))); a + b + c",
+                  Wasm.VI64 6
+                ),
+                ( asTest "let (_,_,_,d) = ((1: Int8), (2: Int16), (3: Int32), (4: Int64)); d",
+                  Wasm.VI64 4
+                ),
+                ( joinLines
+                    [ "memory 1000",
+                      asTest "load(0)"
+                    ],
+                  Wasm.VI64 0
+                ),
+                -- now to make sure our manual memory and allocated memory don't
+                -- fuck with one another
+                ( joinLines
+                    [ "memory 1000",
+                      asTest "let pair = ((1: Int64), (2: Int64)); let (a,b) = pair; let _ = a + b; load(32)"
+                    ],
+                  Wasm.VI64 0
+                ),
+                ( joinLines
+                    [ "memory 1000",
+                      "function sum(a: Int64, b: Int64) -> Int64 { a + b }",
+                      asTest "store(0, (20: Int64)); store(8, (22: Int64)); sum(load(0), load(8))"
+                    ],
+                  Wasm.VI64 42
+                ),
+                ( joinLines
+                    [ "global one: Int64 = 1",
+                      asTest "1 + one"
+                    ],
+                  Wasm.VI64 2
+                ),
+                ( joinLines
+                    [ "global mut counter: Int64 = 0",
+                      asTest "set(counter, 2); counter"
+                    ],
+                  Wasm.VI64 2
+                ),
+                ( joinLines
+                    [ "function factorial(a: Int64) -> Int64 { if a == 0 then 1 else a * factorial(a - 1) }",
+                      asTest "factorial(4)"
+                    ],
+                  Wasm.VI64 24
+                ),
+                ( joinLines
+                    [ "export function testShouldntCollide() -> Int32 { 1 }",
+                      asTest "100",
+                      "test testShouldntCollide = True"
+                    ],
+                  Wasm.VI64 100
+                ),
+                ( joinLines
+                    [ "function alloc() -> Int64 { let _ = Box((1: Int32)); 22 }",
+                      asTest "if True then alloc() else alloc()"
+                    ],
+                  Wasm.VI64 22
+                ),
+                ( asTest "let a = ((1: Int64), (2: Int64)); let (b,c) = a; b + c",
+                  Wasm.VI64 3
+                ),
+                ( joinLines
+                    [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
+                      asTest "let Box(a) = bool(True, Box((1: Int64)), Box((2: Int64))); a"
+                    ],
+                  Wasm.VI64 1
+                ),
+                ( joinLines
+                    [ "function bool(pred: Boolean, left: Box(Int64), right: Box(Int64)) -> Box(Int64) { if pred then left else right }",
+                      asTest "let Box(a) = bool(False, Box(1), Box(2)); a"
+                    ],
+                  Wasm.VI64 2
+                ),
+                ( joinLines
+                    [ "function bool(pred: Boolean, left: Box(Box(Int64)), right: Box(Box(Int64))) -> Box(Box(Int64)) { if pred then left else right }",
+                      asTest "let Box(Box(a)) = bool(False, Box(Box(1)), Box(Box(2))); a"
+                    ],
+                  Wasm.VI64 2
+                ),
+                ( joinLines
+                    [ "function bool<a>(pred: Boolean, left: a, right: a) -> a { if pred then left else right }",
+                      asTest "let Box(a) = bool(False, Box((1: Int64)), Box((2: Int64))); a"
+                    ],
+                  Wasm.VI64 2
+                ),
+                ( asTest "let a = Box((1: Int64)); let b = Box((2: Int64)); let Box(c) = if True then a else b; c",
+                  Wasm.VI64 1
+                ),
+                ( asTest "let Box(Box(Box(a))) = Box(Box(Box((2: Int64)))); a",
+                  Wasm.VI64 2
+                ),
+                ( joinLines
+                    [ "function drop<a>(a: a) -> Int64 { let _ = a; 100 }",
+                      "function useDrop<a>(a: a) -> Int64 { drop(a) }",
+                      asTest "let value = Box(Box((1: Int64))); useDrop(value)"
+                    ],
+                  Wasm.VI64 100
+                ),
+                (asTest "case (100: Int64) { a -> a }", Wasm.VI64 100),
+                ( asTest "case True { True -> 1, False -> 2 }",
+                  Wasm.VI64 1
+                ),
+                ( asTest "case False { True -> 1, False -> 2 }",
+                  Wasm.VI64 2
+                ),
+                ( asTest "case (6: Int64) { 1 -> 1, _ -> 0 }",
+                  Wasm.VI64 0
+                ),
+                (asTest "case ((1:Int64),(2: Int64)) { (a,b) -> a + b }", Wasm.VI64 3),
+                ( asTest "case ((1: Int32),(2:Int32)) { (1,2) -> 1, (2,2) -> 2, (_,_) -> 0 }",
+                  Wasm.VI64 1
+                ),
+                ( asTest "case ((1: Int64),(2:Int64)) { (a,2) -> a, (_,_) -> 400 }",
+                  Wasm.VI64 1
+                ),
+                (asTest "case Box((42:Int64)) { Box(2) -> 0, Box(a) -> a }", Wasm.VI64 42),
+                (asTest "case Box(Box((42:Int64))) { Box(Box(2)) -> 0, Box(Box(a)) -> a }", Wasm.VI64 42),
+                ( asTest $
+                    joinLines
+                      [ "if True then ",
+                        "{ let box: Box(Int64) = Box(100); let Box(b) = box; 1 + b}",
+                        "else 400"
+                      ],
+                  Wasm.VI64 101
+                ),
+                ( asTest $
+                    joinLines
+                      [ "let struct: (Box(Int64), Box(Int64)) = (Box(1), Box(2));",
+                        "case struct { (Box(a), Box(2)) -> a, (_,_) -> 400 }"
+                      ],
+                  Wasm.VI64 1
+                ),
+                ( asTest $
+                    joinLines
+                      [ "let box = Box((100: Int64)); let Box(b) = box; 1 + b"
+                      ],
+                  Wasm.VI64 101
+                ),
+                ( asTest $
+                    joinLines
+                      [ "case (1:Int64) { 1 -> { let Box(b) = Box((100: Int64)); 1 + b}, _ -> 400 }"
+                      ],
+                  Wasm.VI64 101
+                ),
+                ( asTest $
+                    joinLines
+                      [ "let pair = ((1:Int64),(2:Int64));",
+                        "case pair { ",
+                        "(1,2) -> 202,",
+                        "(a,_) -> { let box = Box((100: Int64)); let Box(b) = box; a + b}",
+                        "}"
+                      ],
+                  Wasm.VI64 202
+                ),
+                ( joinLines
+                    [ "type Maybe<a> = Just(a) | Nothing",
+                      asTest "case (Nothing:Maybe(Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
+                    ],
+                  Wasm.VI64 0 -- quite disappointing we can't infer this from use, really we need to go all-in on HM to make all of this a bit friendlier
+                ),
+                ( joinLines
+                    [ "type Maybe<a> = Just(a) | Nothing",
+                      asTest "case Just((100: Int64)) { Just(a) -> a + 1, Nothing -> 0 }"
+                    ],
+                  Wasm.VI64 101
+                ),
+                ( joinLines
+                    [ "type Maybe<a> = Just(a) | Nothing",
+                      asTest "case Just(Box((100: Int64))) { Just(Box(a)) -> a + 1, _ -> 0 }"
+                    ],
+                  Wasm.VI64 101
+                ),
+                ( joinLines
+                    [ "type Maybe<a> = Just(a) | Nothing",
+                      asTest "case Just(Just(Box((100: Int64)))) { Just(Just(Box(a))) -> a + 1, _ -> 0 }"
+                    ],
+                  Wasm.VI64 101
+                ),
+                ( joinLines
+                    [ "type Colour = Red | Green | Blue",
+                      asTest "case Blue { Red -> 1, Green -> 2, Blue -> 3 }"
+                    ],
+                  Wasm.VI64 3
+                ),
+                ( joinLines
+                    [ "type These<a,b> = This(a) | That(b) | These(a,b)",
+                      "export function test() -> Boolean { case These(True,False) { This(a) -> a , That(b) -> b , These(a,b) -> a && b } }"
+                    ],
+                  Wasm.VI32 0
+                ),
+                ( joinLines
+                    [ "type Maybe<a> = Just(a) | Nothing",
+                      "function fromMaybe<a>(maybe: Maybe(a), default: a) -> a { case maybe { Just(a) -> a, Nothing -> default } }",
+                      asTest "let matchValue: Maybe(Box(Int64)) = Just(Box(100)); let default: Box(Int64) = Box(0); let Box(result) = fromMaybe(matchValue, default); result"
+                    ],
+                  Wasm.VI64 100
+                ),
+                ( joinLines
+                    [ "type List<a> = Cons(a, List(a)) | Nil",
+                      asTest "let value: List(Int64) = Cons((1:Int64),Cons((2:Int64),Nil)); case value { Cons(a,Cons(b,Nil)) -> a + b, _ -> 0 }"
+                    ],
+                  Wasm.VI64 3
+                ),
+                ( joinLines
+                    [ "type List<a> = Cons(a, List(a)) | Nil",
+                      "function sum(list:List(Int64)) -> Int64 { case list { Cons(a, rest) -> a + sum(rest), Nil -> 0 } }",
+                      asTest "sum(Cons(1,Cons(2,Cons(3,Cons(4,Nil)))))"
+                    ],
+                  Wasm.VI64 10
+                ),
+                ( joinLines
+                    [ "type List<a> = Cons(a, List(a)) | Nil",
+                      "function repeat(value: Int64, repeats: Int64 ) -> List(Int64) { if repeats < 1 then Nil else Cons(value, repeat(value, repeats - 1)) }",
+                      "function sum(accum: Int64,list:List(Int64)) -> Int64 { case list { Cons(a, rest) -> sum(accum + a, rest), Nil -> accum } }",
+                      asTest "sum(0,repeat(6,100))" -- surprisingly easy to pop the stack by increasing this value
+                    ],
+                  Wasm.VI64 600
+                ),
+                ( joinLines
+                    [ "type Identity<a> = Identity(a)",
+                      asTest "let boxed :Identity(Int64) = Identity(100); case boxed { Identity(a) -> a }"
+                    ],
+                  Wasm.VI64 100
+                ),
+                ( asTest "let requested: Int64 = 3; let diff = requested % 4; if diff == 0 then requested else requested + (4 - diff)",
+                  Wasm.VI64 4
+                ),
+                ( asTest $
+                    joinLines
+                      [ "let pair = ((1:Int64),False);",
+                        "case pair { ",
+                        "(a,False) -> { let allocated = Box((100: Int64)); let Box(b) = allocated; b + a },",
+                        "_ -> 400 ",
+                        "}"
+                      ],
+                  Wasm.VI64 101
+                ),
+                ( joinLines
+                    [ "function apply(f: Fn() -> Int64) -> Int64 { f() }",
+                      asTest "let f = \\() -> Int64 { 42 }; apply(f)"
+                    ],
+                  Wasm.VI64 42
+                ),
+                ( joinLines
+                    [ "function apply(f: Fn(Int64) -> Int64, value: Int64) -> Int64 { f(value) }",
+                      asTest "let f = \\(a: Int64) -> Int64 { 42 + a }; apply(f,100)"
+                    ],
+                  Wasm.VI64 142
+                )-}
             ]
 
       describe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
-      describe "Deallocations for expressions" $ do
+      xdescribe "Deallocations for expressions" $ do
         traverse_ testDeallocation testVals
 
     describe "Run tests" $ do

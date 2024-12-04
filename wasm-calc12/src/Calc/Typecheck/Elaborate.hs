@@ -7,7 +7,6 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import qualified Data.Map.Strict as M
 import Calc.ExprUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
@@ -25,6 +24,7 @@ import Calc.Types.Test
 import Calc.Types.Type
 import Control.Monad.State
 import Data.Functor
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
 elaborateModule ::
@@ -53,14 +53,20 @@ elaborateModule
             }
 
     -- statically provide types of all functions in scope
-    let functionsInScope = foldMap (\(Function {fnFunctionName,fnAnn,fnArgs,fnReturnType}) ->
+    let functionsInScope =
+          foldMap
+            ( \(Function {fnFunctionName, fnAnn, fnArgs, fnReturnType}) ->
+                M.singleton
+                  fnFunctionName
+                  ( TFunction fnAnn (faType <$> fnArgs) fnReturnType
+                  )
+            )
+            mdFunctions
 
-          M.singleton fnFunctionName (
-
-                     TFunction fnAnn (faType <$> fnArgs) fnReturnType
-
-                                     )) mdFunctions
-
+    let importsInScope =
+          foldMap
+            (\(Import {impImportName, impAnn, impArgs, impReturnType}) -> M.singleton impImportName (TFunction impAnn (iaType <$> impArgs) impReturnType))
+            mdImports
 
     runTypecheckM typecheckEnv $ do
       globals <-
@@ -84,7 +90,7 @@ elaborateModule
       functions <-
         traverse
           ( \fn -> do
-              elabFn <- elaborateFunction functionsInScope fn
+              elabFn <- elaborateFunction (functionsInScope <> importsInScope) fn
               storeFunction
                 (fnFunctionName elabFn)
                 (S.fromList $ fnGenerics fn)
@@ -187,7 +193,8 @@ elaborateFunction ::
   M.Map FunctionName (Type ann) ->
   Function ann ->
   TypecheckM ann (Function (Type ann))
-elaborateFunction functionsInScope
+elaborateFunction
+  functionsInScope
   ( Function
       { fnPublic,
         fnAnn,
@@ -201,7 +208,7 @@ elaborateFunction functionsInScope
     ) = do
     -- include current function with arguments so we can recursively call ourselves
     let tyCurrentFunction =
-                        TFunction fnAnn (faType <$> fnArgs) fnReturnType
+          TFunction fnAnn (faType <$> fnArgs) fnReturnType
 
     exprA <-
       withFunctionEnv

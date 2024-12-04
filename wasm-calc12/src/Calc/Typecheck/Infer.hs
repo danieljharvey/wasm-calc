@@ -283,11 +283,11 @@ checkReturnType (TUnificationVar {}) p@(TPrim ann _) =
 checkReturnType _ ty = pure ty
 
 freeVars :: Type ann -> S.Set TypeVar
-freeVars ty
-  = go ty
-    where
-      go (TVar _ var) = S.singleton var
-      go other = monoidType go other
+freeVars ty =
+  go ty
+  where
+    go (TVar _ var) = S.singleton var
+    go other = monoidType go other
 
 checkApply ::
   Maybe (Type ann) ->

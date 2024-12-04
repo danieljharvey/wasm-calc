@@ -28,7 +28,7 @@ testInputs =
 
 spec :: Spec
 spec = do
-  fdescribe "TypecheckSpec" $ do
+  describe "TypecheckSpec" $ do
     describe "Function" $ do
       let succeeding =
             [ ("function one () -> Int64 { 1 }", TFunction () [] tyInt64),

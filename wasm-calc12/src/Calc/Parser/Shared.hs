@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Parser.Shared
-  ( chainl1,inBrackets,
+  ( chainl1,
+    inBrackets,
     myLexeme,
     withLocation,
     stringLiteral,
@@ -60,7 +61,6 @@ maybePred parser predicate' = try $ do
     Just b -> pure b
     _ -> fail $ T.unpack $ "Predicate did not hold for " <> T.pack (show a)
 
-
 -- | stolen from Parsec, allows parsing infix expressions without recursion
 -- death
 chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
@@ -72,4 +72,3 @@ chainl1 p op = do x <- p; rest x
         y <- p
         rest (f x y)
         <|> return x
-

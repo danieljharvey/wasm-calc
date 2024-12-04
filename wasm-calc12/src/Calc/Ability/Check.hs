@@ -14,12 +14,12 @@ module Calc.Ability.Check
   )
 where
 
-import Calc.Types.Identifier
 import Calc.Ability.Error
 import Calc.ExprUtils
 import Calc.Types.Ability
 import Calc.Types.Expr
 import Calc.Types.Function
+import Calc.Types.Identifier
 import Calc.Types.Import
 import Calc.Types.Module
 import Calc.Types.ModuleAnnotations
@@ -162,7 +162,7 @@ abilityExpr (EConstructor ann constructor as) = do
   EConstructor ann constructor <$> traverse abilityExpr as
 abilityExpr (EApply ann fn@(EVar _ (Identifier fnVar)) args) = do
   let functionName = FunctionName fnVar
-  isImport <- asks (S.member functionName  . aeImportNames)
+  isImport <- asks (S.member functionName . aeImportNames)
   if isImport
     then tell (S.singleton $ CallImportedFunction ann functionName)
     else do

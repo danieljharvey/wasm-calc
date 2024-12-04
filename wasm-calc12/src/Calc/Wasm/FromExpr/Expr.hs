@@ -9,13 +9,13 @@ import Calc.Types
 import Calc.Wasm.FromExpr.Drops
   ( addDropsFromPath,
     addDropsToWasmExpr,
-    --dropFunctionForType,
+    dropFunctionForType,
   )
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Patterns
 import Calc.Wasm.FromExpr.Types
 import Calc.Wasm.ToWasm.Types
--- import Control.Monad (void)
+import Control.Monad (void)
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
@@ -181,7 +181,7 @@ fromExprWithDrops expr = do
 
   addDropsToWasmExpr drops wasmExpr
 
-fromFunctionApply ::
+_fromFunctionApply ::
   ( MonadState FromExprState m,
     MonadError FromWasmError m,
     Show ann,
@@ -190,7 +190,7 @@ fromFunctionApply ::
   FunctionName ->
   [Expr (Type ann, Maybe (Drops ann))] ->
   m WasmExpr
-fromFunctionApply funcName args = do
+_fromFunctionApply funcName args = do
   (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
   let types =
         monomorphiseTypes
@@ -201,6 +201,7 @@ fromFunctionApply funcName args = do
   wasmArgs <- traverse fromExpr args
   pure $ WApply fIndex (wasmArgs <> dropArgs)
 
+{-
 fromLambdaApply ::
   ( MonadState FromExprState m,
     MonadError FromWasmError m,
@@ -216,6 +217,7 @@ fromLambdaApply (FunctionName inner) args = do
   wasmArgs <- traverse fromExpr args
 
   pure $ WApplyIndirect (WVar fIndex) wasmArgs
+-}
 
 fromExpr ::
   ( MonadError FromWasmError m,
@@ -306,17 +308,17 @@ fromExpr (EVar _ ident) = do
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
 fromExpr (EApply _ fnExpr _args) = do
   error ("fromExpr " <> show fnExpr)
-  {-
-  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
-  let types =
-        monomorphiseTypes
-          fGenerics
-          fArgTypes
-          (void . fst . getOuterAnnotation <$> args)
-  dropArgs <- traverse (dropFunctionForType . snd) types
-  wasmArgs <- traverse fromExpr args
-  pure $ WApply fIndex (wasmArgs <> dropArgs)
-  -}
+{-
+(fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
+let types =
+      monomorphiseTypes
+        fGenerics
+        fArgTypes
+        (void . fst . getOuterAnnotation <$> args)
+dropArgs <- traverse (dropFunctionForType . snd) types
+wasmArgs <- traverse fromExpr args
+pure $ WApply fIndex (wasmArgs <> dropArgs)
+-}
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

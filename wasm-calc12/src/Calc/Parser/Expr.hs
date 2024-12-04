@@ -166,15 +166,14 @@ applyParser :: Parser (Expr Annotation)
 applyParser = addLocation $ do
   func <- applyFuncParser
   let argParser = do
-          stringLiteral "("
-          args <- sepEndBy exprParserInternal (stringLiteral ",")
-          stringLiteral ")"
-          pure args
+        stringLiteral "("
+        args <- sepEndBy exprParserInternal (stringLiteral ",")
+        stringLiteral ")"
+        pure args
   let argParser' :: Parser [[ParserExpr]]
       argParser' = (: []) <$> argParser
   args <- chainl1 argParser' (pure (<>))
   pure $ foldl (EApply mempty) func args
-
 
 tupleParser :: Parser (Expr Annotation)
 tupleParser = label "tuple" $
