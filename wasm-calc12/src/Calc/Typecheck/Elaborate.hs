@@ -210,10 +210,13 @@ elaborateFunction
     let tyCurrentFunction =
           TFunction fnAnn (faType <$> fnArgs) fnReturnType
 
+    let functionsWithCurrent =
+          (M.insert fnFunctionName tyCurrentFunction functionsInScope)
+
     exprA <-
       withFunctionEnv
         fnArgs
-        (M.insert fnFunctionName tyCurrentFunction functionsInScope)
+        functionsWithCurrent
         (S.fromList fnGenerics)
         (checkAndSubstitute fnReturnType fnBody)
 
@@ -226,11 +229,13 @@ elaborateFunction
                 }
           )
             <$> fnArgs
+
     let tyFn =
           TFunction
             fnAnn
             (faType <$> fnArgs)
             (getOuterAnnotation exprA)
+
     pure
       ( Function
           { fnAnn = tyFn,

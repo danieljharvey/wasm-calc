@@ -16,6 +16,7 @@ import Calc.Types.Identifier
 import Calc.Types.Type
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
+import qualified Data.Set as S
 import GHC.Natural
 
 data Drops ann
@@ -40,6 +41,7 @@ data UserDefined a = UserDefined a | Internal a
 data LinearState ann = LinearState
   { lsVars :: M.Map (UserDefined Identifier) (LinearityType, ann),
     lsUses :: NE.NonEmpty (M.Map Identifier (NE.NonEmpty (Linearity ann))),
-    lsFresh :: Natural
+    lsFresh :: Natural,
+    lsIgnoreVars :: S.Set Identifier
   }
   deriving stock (Eq, Ord, Show, Functor)

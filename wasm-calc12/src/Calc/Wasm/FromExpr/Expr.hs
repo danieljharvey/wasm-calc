@@ -219,6 +219,8 @@ fromLambdaApply (FunctionName inner) args = do
   pure $ WApplyIndirect (WVar fIndex) wasmArgs
 -}
 
+data FunctionApply = TopLevelFunction WasmExpr | Lambda WasmExpr
+
 fromExpr ::
   ( MonadError FromWasmError m,
     MonadState FromExprState m,
@@ -306,19 +308,31 @@ fromExpr (EIf (ty, _) predE thenE elseE) = do
 fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _ fnExpr _args) = do
-  error ("fromExpr " <> show fnExpr)
-{-
-(fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
-let types =
-      monomorphiseTypes
-        fGenerics
-        fArgTypes
-        (void . fst . getOuterAnnotation <$> args)
-dropArgs <- traverse (dropFunctionForType . snd) types
-wasmArgs <- traverse fromExpr args
-pure $ WApply fIndex (wasmArgs <> dropArgs)
--}
+fromExpr (EApply _ fnExpr args) = do
+  wasmFn <-
+    ( Lambda
+        <$> fromExpr fnExpr
+      )
+      `catchError` \_ ->
+        case fnExpr of
+          EVar _ (Identifier ident) -> do
+            -- maybe it's a function
+            (fIndex, fGenerics, fArgTypes) <- lookupFunction (FunctionName ident)
+            let types =
+                  monomorphiseTypes
+                    fGenerics
+                    fArgTypes
+                    (void . fst . getOuterAnnotation <$> args)
+            dropArgs <- traverse (dropFunctionForType . snd) types
+            wasmArgs <- traverse fromExpr args
+            let allArgs = wasmArgs <> dropArgs
+            pure (TopLevelFunction (WApply fIndex allArgs))
+          _ -> error "what"
+  case wasmFn of
+    TopLevelFunction wasmExpr -> pure wasmExpr
+    Lambda fn -> do
+      wasmArgs <- traverse fromExpr args
+      pure $ WApplyIndirect fn wasmArgs
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

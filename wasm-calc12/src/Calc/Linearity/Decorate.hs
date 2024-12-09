@@ -39,7 +39,7 @@ pushUses ::
   (MonadState (LinearState ann) m) =>
   M.Map Identifier (NE.NonEmpty (Linearity ann)) ->
   m ()
-pushUses uses =
+pushUses uses = do
   let pushForIdent ident =
         traverse_ (\(Whole ann) -> recordUsesInState ident ann)
    in traverse_ (uncurry pushForIdent) (M.toList uses)
@@ -53,7 +53,7 @@ recordUsesInState ::
   Identifier ->
   ann ->
   m ()
-recordUsesInState ident ann =
+recordUsesInState ident ann = do
   modify
     ( \ls ->
         let f =
@@ -77,7 +77,9 @@ recordUse ::
   m ()
 recordUse ident ty = do
   recordUsesInState ident (getOuterTypeAnnotation ty)
-  unless (isPrimitive ty) $ tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+  ignoreVars <- gets lsIgnoreVars
+  unless (S.member ident ignoreVars || isPrimitive ty) $
+    tell (M.singleton ident ty) -- we only want to track use of non-primitive types
 
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them

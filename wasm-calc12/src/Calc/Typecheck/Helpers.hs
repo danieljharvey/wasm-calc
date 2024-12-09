@@ -189,10 +189,15 @@ withFunctionEnv ::
 withFunctionEnv args functionsInScope generics =
   let identifiersFromArgs =
         fmap
-          (\FunctionArg {faName = ArgumentName arg, faType} -> (Identifier arg, faType))
+          ( \FunctionArg {faName = ArgumentName arg, faType} ->
+              (Identifier arg, faType)
+          )
           args
       identifiersFromFunctions =
-        (\(FunctionName fnName, fnType) -> (Identifier fnName, fnType)) <$> M.toList functionsInScope
+        ( \(FunctionName fnName, fnType) ->
+            (Identifier fnName, fnType)
+        )
+          <$> M.toList functionsInScope
    in local
         ( \tce ->
             tce
