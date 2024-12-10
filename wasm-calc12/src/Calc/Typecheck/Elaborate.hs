@@ -216,7 +216,7 @@ elaborateFunction
           TFunction fnAnn (faType <$> fnArgs) fnReturnType
 
     let functionsWithCurrent =
-          (M.insert fnFunctionName tyCurrentFunction functionsInScope)
+          M.insert fnFunctionName tyCurrentFunction functionsInScope
 
     exprA <-
       withFunctionEnv
