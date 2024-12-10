@@ -20,7 +20,9 @@ import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 import qualified Data.Text as T
+import Debug.Trace
 import GHC.Natural
 
 patternBindings ::
@@ -181,25 +183,47 @@ fromExprWithDrops expr = do
 
   addDropsToWasmExpr drops wasmExpr
 
-data FunctionApply = TopLevelFunction WasmExpr | Lambda WasmExpr
+allVars :: Expr (Type ann, Maybe (Drops ann)) -> S.Set Identifier
+allVars =
+  go
+  where
+    go (EVar _ ident) = S.singleton ident
+    go other = monoidExpr go other
 
-fromExpr ::
+fromLambda ::
   ( MonadError FromWasmError m,
     MonadState FromExprState m,
     Show ann,
     Eq ann
   ) =>
+  [(Identifier, Type (Type ann, Maybe (Drops ann)))] ->
+  Type (Type ann, Maybe (Drops ann)) ->
   Expr (Type ann, Maybe (Drops ann)) ->
   m WasmExpr
-fromExpr (EPrim (ty, _) prim) =
-  WPrim <$> fromPrim ty prim
-fromExpr (EMatch _ expr pats) =
-  fromMatch expr pats
-fromExpr (ELambda _ args returnTy body) = do
+fromLambda args returnTy body = do
+  -- can we do capture here?
+
+  let capturedIdentifiers = S.difference (allVars body) (S.fromList (fst <$> args))
+
+  traceShowM capturedIdentifiers
+
+  capturedArgs <-
+    traverse
+      (\k -> (,) k <$> (snd <$> lookupIdent k))
+      (S.toList capturedIdentifiers)
+
+  -- we need to get types for these
+  -- add captured arg types to generated function
+  traceShowM capturedArgs
+
   wasmArgs <-
     traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
 
-  wasmBody <- withArgs wasmArgs (fromExpr body)
+  let allArgs = wasmArgs <> capturedArgs
+
+  traceShowM allArgs
+
+  wasmBody <- withArgs allArgs (fromExpr body)
   wasmReturnType <- liftEither $ scalarFromType returnTy
 
   index <- gets (length . fesGenerated)
@@ -210,7 +234,7 @@ fromExpr (ELambda _ args returnTy body) = do
           { wfName = FunctionName ("fresh_lambda_" <> T.pack (show index)),
             wfExpr = wasmBody,
             wfPublic = False,
-            wfArgs = snd <$> wasmArgs,
+            wfArgs = snd <$> allArgs,
             wfReturnType = wasmReturnType,
             wfLocals = mempty,
             wfAbilities = mempty
@@ -219,9 +243,24 @@ fromExpr (ELambda _ args returnTy body) = do
   -- store it in heaven
   wasmFnRef <- addGeneratedFunction fn
 
+  -- then we create a tuple of [WFunctionPointer, capturedArgA, capturedArgB,
+  -- etc...]
+  -- and return it
+
   -- return it as a value
   pure $ WFunctionPointer wasmFnRef
-fromExpr (EConstructor (ty, _) constructor args) = do
+
+fromConstructor ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m,
+    Show ann,
+    Eq ann
+  ) =>
+  Type ann ->
+  Constructor ->
+  [(Expr (Type ann, Maybe (Drops ann)))] ->
+  m WasmExpr
+fromConstructor ty constructor args = do
   -- what is the underlying discriminator value?
   constructorNumber <- fmap (WPrim . WPInt32 . fromIntegral) <$> getConstructorNumber ty constructor
 
@@ -246,31 +285,45 @@ fromExpr (EConstructor (ty, _) constructor args) = do
         Nothing -> wasmItems
 
   pure $ WSet index allocate allWasmItems
-fromExpr (EBlock (_, Just _) _) = do
-  error "found drops on block"
-fromExpr (EBlock _ expr) = do
-  fromExpr expr
-fromExpr (EAnn (_, Just _) _ _) = do
-  error "found drops on annotation"
-fromExpr (EAnn _ _ expr) =
-  fromExpr expr
-fromExpr (ELet _ pat expr rest) =
-  fromLet pat expr rest
-fromExpr (EInfix _ op a b) = do
-  -- we're assuming that the types of `a` and `b` are the same
-  -- we want the type of the args, not the result
-  scalar <- liftEither $ scalarFromType $ fst $ getOuterAnnotation a
-  WInfix scalar op <$> fromExpr a <*> fromExpr b
-fromExpr (EIf (ty, _) predE thenE elseE) = do
+
+fromTuple ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m,
+    Show ann,
+    Eq ann
+  ) =>
+  Type ann ->
+  Expr (Type ann, Maybe (Drops ann)) ->
+  NE.NonEmpty (Expr (Type ann, Maybe (Drops ann))) ->
+  m WasmExpr
+fromTuple ty a as = do
   wasmType <- liftEither $ scalarFromType ty
-  WIf wasmType
-    <$> fromExpr predE
-    <*> fromExprWithDrops thenE
-    <*> fromExprWithDrops elseE
-fromExpr (EVar _ ident) = do
-  (WVar <$> lookupIdent ident)
-    `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _ fnExpr args) = do
+  index <- addLocal Nothing wasmType
+  let allItems = zip [0 ..] (a : NE.toList as)
+  tupleLength <- memorySizeForType ty
+  let allocate = WAllocate (fromIntegral tupleLength)
+      offsetList = getOffsetList ty
+  WSet index allocate
+    <$> traverse
+      ( \(i, item) ->
+          (,,) (offsetList !! i)
+            <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
+            <*> fromExpr item
+      )
+      allItems
+
+data FunctionApply = TopLevelFunction WasmExpr | Lambda WasmExpr
+
+fromApply ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m,
+    Show ann,
+    Eq ann
+  ) =>
+  Expr (Type ann, Maybe (Drops ann)) ->
+  [Expr (Type ann, Maybe (Drops ann))] ->
+  m WasmExpr
+fromApply fnExpr args = do
   wasmFn <-
     ( Lambda
         <$> fromExpr fnExpr
@@ -295,21 +348,51 @@ fromExpr (EApply _ fnExpr args) = do
     Lambda fn -> do
       wasmArgs <- traverse fromExpr args
       pure $ WApplyIndirect fn wasmArgs
-fromExpr (ETuple (ty, _) a as) = do
+
+fromExpr ::
+  ( MonadError FromWasmError m,
+    MonadState FromExprState m,
+    Show ann,
+    Eq ann
+  ) =>
+  Expr (Type ann, Maybe (Drops ann)) ->
+  m WasmExpr
+fromExpr (EPrim (ty, _) prim) =
+  WPrim <$> fromPrim ty prim
+fromExpr (EMatch _ expr pats) =
+  fromMatch expr pats
+fromExpr (ELambda _ args returnTy body) = do
+  fromLambda args returnTy body
+fromExpr (EConstructor (ty, _) constructor args) = do
+  fromConstructor ty constructor args
+fromExpr (EBlock (_, Just _) _) = do
+  error "found drops on block"
+fromExpr (EBlock _ expr) = do
+  fromExpr expr
+fromExpr (EAnn (_, Just _) _ _) = do
+  error "found drops on annotation"
+fromExpr (EAnn _ _ expr) =
+  fromExpr expr
+fromExpr (ELet _ pat expr rest) =
+  fromLet pat expr rest
+fromExpr (EInfix _ op a b) = do
+  -- we're assuming that the types of `a` and `b` are the same
+  -- we want the type of the args, not the result
+  scalar <- liftEither $ scalarFromType $ fst $ getOuterAnnotation a
+  WInfix scalar op <$> fromExpr a <*> fromExpr b
+fromExpr (EIf (ty, _) predE thenE elseE) = do
   wasmType <- liftEither $ scalarFromType ty
-  index <- addLocal Nothing wasmType
-  let allItems = zip [0 ..] (a : NE.toList as)
-  tupleLength <- memorySizeForType ty
-  let allocate = WAllocate (fromIntegral tupleLength)
-      offsetList = getOffsetList ty
-  WSet index allocate
-    <$> traverse
-      ( \(i, item) ->
-          (,,) (offsetList !! i)
-            <$> liftEither (scalarFromType (fst $ getOuterAnnotation item))
-            <*> fromExpr item
-      )
-      allItems
+  WIf wasmType
+    <$> fromExpr predE
+    <*> fromExprWithDrops thenE
+    <*> fromExprWithDrops elseE
+fromExpr (EVar _ ident) = do
+  (WVar . fst <$> lookupIdent ident)
+    `catchError` \_ -> WGlobal <$> lookupGlobal ident
+fromExpr (EApply _ fnExpr args) = do
+  fromApply fnExpr args
+fromExpr (ETuple (ty, _) a as) = do
+  fromTuple ty a as
 fromExpr (EBox (ty, _) inner) = do
   innerWasmType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation inner
   containerWasmType <- liftEither $ scalarFromType ty

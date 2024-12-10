@@ -55,7 +55,7 @@ dropInstructionForType itemIdentifier ty =
   case ty of
     TVar _ typeVar -> do
       -- generics must have been passed in as function args
-      nat <- lookupIdent (genericArgName typeVar)
+      (nat, _) <- lookupIdent (genericArgName typeVar)
       pure (WApplyIndirect (WVar nat) [itemIdentifier])
     _ -> do
       -- generate a new fancy drop function
@@ -84,7 +84,7 @@ addDropsFromPath wholeExprIndex path = do
   case ty of
     TVar _ typeVar -> do
       -- generics must have been passed in as function args
-      nat <- lookupIdent (genericArgName typeVar)
+      (nat, _) <- lookupIdent (genericArgName typeVar)
       pure (WApplyIndirect (WVar nat) [wasmExpr])
     _ -> do
       pure $ WDrop wasmExpr
@@ -100,7 +100,7 @@ addDropsToWasmExpr drops wasmExpr =
   -- drop identifiers we will no longer need
   case drops of
     Just (DropIdentifiers idents) -> do
-      nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
+      nats <- traverse (\(ident, ty) -> (,) <$> (fst <$> lookupIdent ident) <*> pure ty) idents
       foldM
         ( \restExpr (index, ty) -> do
             dropWasm <- dropInstructionForType (WVar index) ty
@@ -154,7 +154,7 @@ dropFunctionForType ty =
   case ty of
     TVar _ typeVar -> do
       -- generics must have been passed in as function args
-      WVar <$> lookupIdent (genericArgName typeVar)
+      WVar . fst <$> lookupIdent (genericArgName typeVar)
     _ -> do
       dropFunc <- createDropFunction 1 ty
       WFunctionPointer <$> addGeneratedFunction dropFunc

@@ -104,7 +104,7 @@ lookupGlobal ident = do
 lookupIdent ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   Identifier ->
-  m Natural
+  m (Natural, WasmType)
 lookupIdent ident = do
   let matchVarIdent (_, (thisIdent, _)) = thisIdent == Just ident
       matchArgIdent (_, (thisIdent, _)) = thisIdent == ident
@@ -118,7 +118,7 @@ lookupIdent ident = do
           . fesVars
       )
   case maybeVarNat of
-    Just (nat, _) -> pure nat
+    Just (nat, (_, ty)) -> pure (nat, ty)
     Nothing -> do
       -- check in args
       maybeArgNat <-
@@ -128,7 +128,7 @@ lookupIdent ident = do
               . fesArgs
           )
       case maybeArgNat of
-        Just (nat, _) -> pure nat
+        Just (nat, (_, ty)) -> pure (nat, ty)
         Nothing ->
           throwError $ IdentifierNotFound ident
 

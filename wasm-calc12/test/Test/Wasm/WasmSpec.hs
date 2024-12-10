@@ -465,6 +465,9 @@ spec = do
                     asTest "let f = \\(a: Int64) -> Int64 { 42 + a }; apply(f,100)"
                   ],
                 Wasm.VI64 142
+              ),
+              ( asTest "let prim: Int64 = 100; let f = \\(a: Int64) -> Int64 { a + prim }; f(100)",
+                Wasm.VI64 200
               )
             ]
 

@@ -6,6 +6,7 @@ module Calc.ExprUtils
     bindExpr,
     mapExpr,
     getOuterPatternAnnotation,
+    monoidExpr,
   )
 where
 
@@ -94,3 +95,22 @@ getOuterPatternAnnotation (PTuple ann _ _) = ann
 getOuterPatternAnnotation (PLiteral ann _) = ann
 getOuterPatternAnnotation (PBox ann _) = ann
 getOuterPatternAnnotation (PConstructor ann _ _) = ann
+
+monoidExpr :: (Monoid m) => (Expr ann -> m) -> Expr ann -> m
+monoidExpr _ (EVar {}) = mempty
+monoidExpr _ (EPrim {}) = mempty
+monoidExpr f (ELet _ _ expr body) = f expr <> f body
+monoidExpr f (EMatch _ matchExpr pats) =
+  f matchExpr <> foldMap (f . snd) pats
+monoidExpr f (EInfix _ _ a b) = f a <> f b
+monoidExpr f (EIf _ p a b) = f p <> f a <> f b
+monoidExpr f (EApply _ fn args) = f fn <> foldMap f args
+monoidExpr f (ETuple _ a as) = f a <> foldMap f as
+monoidExpr f (EBox _ a) = f a
+monoidExpr f (EConstructor _ _ args) = foldMap f args
+monoidExpr f (EAnn _ _ a) = f a
+monoidExpr f (ELoad _ a) = f a
+monoidExpr f (EStore _ _ a) = f a
+monoidExpr f (ESet _ _ a) = f a
+monoidExpr f (EBlock _ a) = f a
+monoidExpr f (ELambda _ _ _ body) = f body
