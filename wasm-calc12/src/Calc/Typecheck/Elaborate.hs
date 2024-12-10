@@ -99,7 +99,7 @@ elaborateModule
           )
           mdFunctions
 
-      tests <- traverse elaborateTest mdTests
+      tests <- traverse (elaborateTest functionsInScope) mdTests
 
       pure $
         Module
@@ -117,9 +117,14 @@ elaborateDataType (Data dtName vars cons) =
 
 -- check a test expression has type `Bool`
 -- later we'll also check it does not use any imports
-elaborateTest :: Test ann -> TypecheckM ann (Test (Type ann))
-elaborateTest (Test {tesAnn, tesName, tesExpr}) = do
-  elabExpr <- check (TPrim tesAnn TBool) tesExpr
+elaborateTest :: M.Map FunctionName (Type ann) -> Test ann -> TypecheckM ann (Test (Type ann))
+elaborateTest functionsInScope (Test {tesAnn, tesName, tesExpr}) = do
+  elabExpr <-
+    withFunctionEnv
+      mempty
+      functionsInScope
+      mempty
+      (check (TPrim tesAnn TBool) tesExpr)
 
   pure $
     Test
