@@ -181,44 +181,6 @@ fromExprWithDrops expr = do
 
   addDropsToWasmExpr drops wasmExpr
 
-_fromFunctionApply ::
-  ( MonadState FromExprState m,
-    MonadError FromWasmError m,
-    Show ann,
-    Eq ann
-  ) =>
-  FunctionName ->
-  [Expr (Type ann, Maybe (Drops ann))] ->
-  m WasmExpr
-_fromFunctionApply funcName args = do
-  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
-  let types =
-        monomorphiseTypes
-          fGenerics
-          fArgTypes
-          (void . fst . getOuterAnnotation <$> args)
-  dropArgs <- traverse (dropFunctionForType . snd) types
-  wasmArgs <- traverse fromExpr args
-  pure $ WApply fIndex (wasmArgs <> dropArgs)
-
-{-
-fromLambdaApply ::
-  ( MonadState FromExprState m,
-    MonadError FromWasmError m,
-    Show ann,
-    Eq ann
-  ) =>
-  FunctionName ->
-  [Expr (Type ann, Maybe (Drops ann))] ->
-  m WasmExpr
-fromLambdaApply (FunctionName inner) args = do
-  let identifier = Identifier inner
-  fIndex <- lookupIdent identifier
-  wasmArgs <- traverse fromExpr args
-
-  pure $ WApplyIndirect (WVar fIndex) wasmArgs
--}
-
 data FunctionApply = TopLevelFunction WasmExpr | Lambda WasmExpr
 
 fromExpr ::
