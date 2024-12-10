@@ -182,18 +182,29 @@ withLambdaEnv args =
 -- | temporarily add function arguments and generics into the Reader env
 withFunctionEnv ::
   [FunctionArg ann] ->
+  M.Map FunctionName (Type ann) ->
   S.Set TypeVar ->
   TypecheckM ann a ->
   TypecheckM ann a
-withFunctionEnv args generics =
-  let identifiers =
+withFunctionEnv args functionsInScope generics =
+  let identifiersFromArgs =
         fmap
-          (\FunctionArg {faName = ArgumentName arg, faType} -> (Identifier arg, faType))
+          ( \FunctionArg {faName = ArgumentName arg, faType} ->
+              (Identifier arg, faType)
+          )
           args
+      identifiersFromFunctions =
+        ( \(FunctionName fnName, fnType) ->
+            (Identifier fnName, fnType)
+        )
+          <$> M.toList functionsInScope
    in local
         ( \tce ->
             tce
-              { tceVars = tceVars tce <> HM.fromList identifiers,
+              { tceVars =
+                  tceVars tce
+                    <> HM.fromList identifiersFromFunctions
+                    <> HM.fromList identifiersFromArgs,
                 tceGenerics = generics
               }
         )

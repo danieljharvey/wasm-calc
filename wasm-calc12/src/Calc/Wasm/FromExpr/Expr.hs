@@ -181,41 +181,7 @@ fromExprWithDrops expr = do
 
   addDropsToWasmExpr drops wasmExpr
 
-fromFunctionApply ::
-  ( MonadState FromExprState m,
-    MonadError FromWasmError m,
-    Show ann,
-    Eq ann
-  ) =>
-  FunctionName ->
-  [Expr (Type ann, Maybe (Drops ann))] ->
-  m WasmExpr
-fromFunctionApply funcName args = do
-  (fIndex, fGenerics, fArgTypes) <- lookupFunction funcName
-  let types =
-        monomorphiseTypes
-          fGenerics
-          fArgTypes
-          (void . fst . getOuterAnnotation <$> args)
-  dropArgs <- traverse (dropFunctionForType . snd) types
-  wasmArgs <- traverse fromExpr args
-  pure $ WApply fIndex (wasmArgs <> dropArgs)
-
-fromLambdaApply ::
-  ( MonadState FromExprState m,
-    MonadError FromWasmError m,
-    Show ann,
-    Eq ann
-  ) =>
-  FunctionName ->
-  [Expr (Type ann, Maybe (Drops ann))] ->
-  m WasmExpr
-fromLambdaApply (FunctionName inner) args = do
-  let identifier = Identifier inner
-  fIndex <- lookupIdent identifier
-  wasmArgs <- traverse fromExpr args
-
-  pure $ WApplyIndirect (WVar fIndex) wasmArgs
+data FunctionApply = TopLevelFunction WasmExpr | Lambda WasmExpr
 
 fromExpr ::
   ( MonadError FromWasmError m,
@@ -304,9 +270,31 @@ fromExpr (EIf (ty, _) predE thenE elseE) = do
 fromExpr (EVar _ ident) = do
   (WVar <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
-fromExpr (EApply _ funcName args) =
-  fromFunctionApply funcName args
-    `catchError` \_ -> fromLambdaApply funcName args
+fromExpr (EApply _ fnExpr args) = do
+  wasmFn <-
+    ( Lambda
+        <$> fromExpr fnExpr
+      )
+      `catchError` \_ ->
+        case fnExpr of
+          EVar _ (Identifier ident) -> do
+            -- maybe it's a function
+            (fIndex, fGenerics, fArgTypes) <- lookupFunction (FunctionName ident)
+            let types =
+                  monomorphiseTypes
+                    fGenerics
+                    fArgTypes
+                    (void . fst . getOuterAnnotation <$> args)
+            dropArgs <- traverse (dropFunctionForType . snd) types
+            wasmArgs <- traverse fromExpr args
+            let allArgs = wasmArgs <> dropArgs
+            pure (TopLevelFunction (WApply fIndex allArgs))
+          _ -> error "what"
+  case wasmFn of
+    TopLevelFunction wasmExpr -> pure wasmExpr
+    Lambda fn -> do
+      wasmArgs <- traverse fromExpr args
+      pure $ WApplyIndirect fn wasmArgs
 fromExpr (ETuple (ty, _) a as) = do
   wasmType <- liftEither $ scalarFromType ty
   index <- addLocal Nothing wasmType

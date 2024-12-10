@@ -24,6 +24,7 @@ import Calc.Types.Test
 import Calc.Types.Type
 import Control.Monad.State
 import Data.Functor
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
 elaborateModule ::
@@ -51,6 +52,22 @@ elaborateModule
               tceDataTypes = arrangeDataTypes mdDataTypes
             }
 
+    -- statically provide types of all functions in scope
+    let functionsInScope =
+          foldMap
+            ( \(Function {fnFunctionName, fnAnn, fnArgs, fnReturnType}) ->
+                M.singleton
+                  fnFunctionName
+                  ( TFunction fnAnn (faType <$> fnArgs) fnReturnType
+                  )
+            )
+            mdFunctions
+
+    let importsInScope =
+          foldMap
+            (\(Import {impImportName, impAnn, impArgs, impReturnType}) -> M.singleton impImportName (TFunction impAnn (iaType <$> impArgs) impReturnType))
+            mdImports
+
     runTypecheckM typecheckEnv $ do
       globals <-
         traverse
@@ -73,7 +90,7 @@ elaborateModule
       functions <-
         traverse
           ( \fn -> do
-              elabFn <- elaborateFunction fn
+              elabFn <- elaborateFunction (functionsInScope <> importsInScope) fn
               storeFunction
                 (fnFunctionName elabFn)
                 (S.fromList $ fnGenerics fn)
@@ -82,7 +99,7 @@ elaborateModule
           )
           mdFunctions
 
-      tests <- traverse elaborateTest mdTests
+      tests <- traverse (elaborateTest functionsInScope) mdTests
 
       pure $
         Module
@@ -100,9 +117,14 @@ elaborateDataType (Data dtName vars cons) =
 
 -- check a test expression has type `Bool`
 -- later we'll also check it does not use any imports
-elaborateTest :: Test ann -> TypecheckM ann (Test (Type ann))
-elaborateTest (Test {tesAnn, tesName, tesExpr}) = do
-  elabExpr <- check (TPrim tesAnn TBool) tesExpr
+elaborateTest :: M.Map FunctionName (Type ann) -> Test ann -> TypecheckM ann (Test (Type ann))
+elaborateTest functionsInScope (Test {tesAnn, tesName, tesExpr}) = do
+  elabExpr <-
+    withFunctionEnv
+      mempty
+      functionsInScope
+      mempty
+      (check (TPrim tesAnn TBool) tesExpr)
 
   pure $
     Test
@@ -173,9 +195,11 @@ checkAndSubstitute ty expr = do
   pure $ substitute unified <$> exprA
 
 elaborateFunction ::
+  M.Map FunctionName (Type ann) ->
   Function ann ->
   TypecheckM ann (Function (Type ann))
 elaborateFunction
+  functionsInScope
   ( Function
       { fnPublic,
         fnAnn,
@@ -187,15 +211,17 @@ elaborateFunction
         fnBody
       }
     ) = do
-    -- store current function so we can recursively call ourselves
-    storeFunction
-      fnFunctionName
-      (S.fromList fnGenerics)
-      (TFunction fnAnn (faType <$> fnArgs) fnReturnType)
+    -- include current function with arguments so we can recursively call ourselves
+    let tyCurrentFunction =
+          TFunction fnAnn (faType <$> fnArgs) fnReturnType
+
+    let functionsWithCurrent =
+          M.insert fnFunctionName tyCurrentFunction functionsInScope
 
     exprA <-
       withFunctionEnv
         fnArgs
+        functionsWithCurrent
         (S.fromList fnGenerics)
         (checkAndSubstitute fnReturnType fnBody)
 
@@ -208,11 +234,13 @@ elaborateFunction
                 }
           )
             <$> fnArgs
+
     let tyFn =
           TFunction
             fnAnn
             (faType <$> fnArgs)
             (getOuterAnnotation exprA)
+
     pure
       ( Function
           { fnAnn = tyFn,

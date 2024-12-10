@@ -12,6 +12,7 @@ import Data.Either (isRight)
 import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 import qualified Data.Text as T
 import Test.Hspec
 
@@ -226,7 +227,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> do
-                case runTC (elaborateFunction parsedFn) of
+                case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
                     let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn))
@@ -242,7 +243,8 @@ spec = do
                   { lsVars =
                       M.fromList [(UserDefined "a", (LTPrimitive, ())), (UserDefined "b", (LTPrimitive, ()))],
                     lsUses = NE.singleton (M.fromList [("b", NE.singleton $ Whole ()), ("a", NE.singleton $ Whole ())]),
-                    lsFresh = 0
+                    lsFresh = 0,
+                    lsIgnoreVars = S.singleton "sum"
                   }
               ),
               ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
@@ -255,28 +257,32 @@ spec = do
                               ("a", NE.singleton $ Whole ())
                             ]
                         ),
-                    lsFresh = 0
+                    lsFresh = 0,
+                    lsIgnoreVars = S.singleton "pair"
                   }
               ),
               ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
                     lsUses = NE.singleton (M.fromList [("b", NE.singleton $ Whole ())]),
-                    lsFresh = 0
+                    lsFresh = 0,
+                    lsIgnoreVars = S.singleton "dontUseA"
                   }
               ),
               ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ()))],
                     lsUses = NE.singleton (M.fromList [("a", NE.fromList [Whole (), Whole ()])]),
-                    lsFresh = 0
+                    lsFresh = 0,
+                    lsIgnoreVars = S.singleton "dup"
                   }
               ),
               ( "function useLambda() -> Int64 { let f = \\() -> Int64 { 100 }; f() }",
                 LinearState
                   { lsVars = M.fromList [(UserDefined "f", (LTBoxed, ()))],
                     lsUses = NE.singleton (M.fromList [("f", NE.fromList [Whole ()])]),
-                    lsFresh = 0
+                    lsFresh = 0,
+                    lsIgnoreVars = S.singleton "useLambda"
                   }
               )
             ]
@@ -284,7 +290,7 @@ spec = do
         ( \(str, linearState) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> do
-                case runTC (elaborateFunction parsedFn) of
+                case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
                     void (snd $ getFunctionUses typedFn) `shouldBe` linearState
@@ -307,7 +313,7 @@ spec = do
           ( \str -> it (T.unpack str) $ do
               case parseFunctionAndFormatError str of
                 Right parsedFn -> do
-                  case runTC (elaborateFunction parsedFn) of
+                  case runTC (elaborateFunction mempty parsedFn) of
                     Left e -> error (show e)
                     Right typedFn ->
                       validateFunction typedFn `shouldSatisfy` isRight
@@ -337,7 +343,7 @@ spec = do
           ( \(str, err) -> it (T.unpack str) $ do
               case parseFunctionAndFormatError str of
                 Right parsedFn -> do
-                  case runTC (elaborateFunction (void parsedFn)) of
+                  case runTC (elaborateFunction mempty (void parsedFn)) of
                     Left e -> error (show e)
                     Right typedFn ->
                       validateFunction typedFn `shouldBe` Left err

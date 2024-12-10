@@ -99,7 +99,7 @@ lookupGlobal ident = do
   case maybeGlobalNat of
     Just (FromExprGlobal {fegIndex}) -> pure fegIndex
     Nothing ->
-      throwError $ IdentifierNotFound ident
+      throwError $ GlobalNotFound ident
 
 lookupIdent ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>

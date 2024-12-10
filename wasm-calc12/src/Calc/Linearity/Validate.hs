@@ -26,6 +26,7 @@ import Data.Foldable (traverse_)
 import Data.Functor (($>))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 getLinearityAnnotation :: Linearity ann -> ann
 getLinearityAnnotation (Whole ann) = ann
@@ -74,7 +75,7 @@ getFunctionUses ::
   (Show ann) =>
   Function (Type ann) ->
   (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
-getFunctionUses (Function {fnBody, fnArgs}) =
+getFunctionUses (Function {fnFunctionName = FunctionName fnName, fnBody, fnArgs}) =
   fst $ runIdentity $ runWriterT $ runStateT action initialState
   where
     action = decorate fnBody
@@ -83,7 +84,8 @@ getFunctionUses (Function {fnBody, fnArgs}) =
       LinearState
         { lsVars = initialVars,
           lsUses = NE.singleton mempty,
-          lsFresh = 0
+          lsFresh = 0,
+          lsIgnoreVars = S.singleton (Identifier fnName) -- don't count recursive calls
         }
 
     initialVars =
@@ -108,5 +110,6 @@ getGlobalUses (Global {glbExpr}) =
       LinearState
         { lsVars = mempty,
           lsUses = NE.singleton mempty,
-          lsFresh = 0
+          lsFresh = 0,
+          lsIgnoreVars = mempty
         }

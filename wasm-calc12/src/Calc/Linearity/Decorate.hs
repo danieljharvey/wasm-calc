@@ -13,11 +13,10 @@ import Calc.ExprUtils
 import Calc.Linearity.Types
 import Calc.TypeUtils
 import Calc.Types.Expr
-import Calc.Types.FunctionName
 import Calc.Types.Identifier
 import Calc.Types.Pattern
 import Calc.Types.Type
-import Control.Monad (unless, when)
+import Control.Monad (unless)
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor (second)
@@ -40,7 +39,7 @@ pushUses ::
   (MonadState (LinearState ann) m) =>
   M.Map Identifier (NE.NonEmpty (Linearity ann)) ->
   m ()
-pushUses uses =
+pushUses uses = do
   let pushForIdent ident =
         traverse_ (\(Whole ann) -> recordUsesInState ident ann)
    in traverse_ (uncurry pushForIdent) (M.toList uses)
@@ -54,7 +53,7 @@ recordUsesInState ::
   Identifier ->
   ann ->
   m ()
-recordUsesInState ident ann =
+recordUsesInState ident ann = do
   modify
     ( \ls ->
         let f =
@@ -78,7 +77,9 @@ recordUse ::
   m ()
 recordUse ident ty = do
   recordUsesInState ident (getOuterTypeAnnotation ty)
-  unless (isPrimitive ty) $ tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+  ignoreVars <- gets lsIgnoreVars
+  unless (S.member ident ignoreVars || isPrimitive ty) $
+    tell (M.singleton ident ty) -- we only want to track use of non-primitive types
 
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them
@@ -265,13 +266,8 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
     <$> decorate predExpr
     <*> pure (mapOuterExprAnnotation (second (const uniqueToElse)) decoratedThen)
     <*> pure (mapOuterExprAnnotation (second (const uniqueToThen)) decoratedElse)
-decorate (EApply ty fnName@(FunctionName inner) args) = do
-  -- if we know about the var, assume it's a lambda not a built in function
-  let identifier = Identifier inner
-  isVar <- gets (M.member (UserDefined identifier) . lsVars)
-  when isVar $
-    recordUse (Identifier inner) ty
-  EApply (ty, Nothing) fnName <$> traverse decorate args
+decorate (EApply ty fn args) = do
+  EApply (ty, Nothing) <$> decorate fn <*> traverse decorate args
 decorate (ETuple ty a as) =
   ETuple (ty, Nothing) <$> decorate a <*> traverse decorate as
 decorate (EBox ty a) =

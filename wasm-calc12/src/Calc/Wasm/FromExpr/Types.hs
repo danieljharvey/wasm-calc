@@ -53,6 +53,7 @@ newtype FromExprImport = FromExprImport {feiIndex :: Natural}
 
 data FromWasmError
   = IdentifierNotFound Identifier
+  | GlobalNotFound Identifier
   | FunctionNotFound FunctionName
   | PrimWithNonNumberType Prim (Type ())
   | FunctionAbilityLookupFailed FunctionName
