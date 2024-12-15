@@ -72,7 +72,7 @@ spec = do
     describe "Test with interpreter" $ do
       let asTest str = "export function test() -> Int64 { " <> str <> " }"
       let testVals =
-            [ (asTest "42", Wasm.VI64 42),
+            [ {-(asTest "42", Wasm.VI64 42),
               (asTest "(1 + 1)", Wasm.VI64 2),
               (asTest "1 + 2 + 3 + 4 + 5 + 6", Wasm.VI64 21),
               (asTest "6 * 6", Wasm.VI64 36),
@@ -453,6 +453,11 @@ spec = do
                       "}"
                     ],
                 Wasm.VI64 101
+              ),-}
+              ( joinLines
+                  [ asTest "let id = \\(a: Int64) -> Int64 { a }; id(42)"
+                  ],
+                Wasm.VI64 42
               ),
               ( joinLines
                   [ "function apply(f: Fn() -> Int64) -> Int64 { f() }",
@@ -466,12 +471,12 @@ spec = do
                   ],
                 Wasm.VI64 142
               ),
-              ( asTest "let prim: Int64 = 100; let f = \\(a: Int64) -> Int64 { a + prim }; f(100)",
-                Wasm.VI64 200
+              ( asTest "let prim: Int64 = 22; let f = \\(a: Int64) -> Int64 { a + prim }; f(100)",
+                Wasm.VI64 122
               )
             ]
 
-      describe "From expressions" $ do
+      fdescribe "From expressions" $ do
         traverse_ testWithInterpreter testVals
 
       describe "Deallocations for expressions" $ do

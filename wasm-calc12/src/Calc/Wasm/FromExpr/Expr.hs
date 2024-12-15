@@ -205,23 +205,28 @@ fromLambda args returnTy body = do
 
   let capturedIdentifiers = S.difference (allVars body) (S.fromList (fst <$> args))
 
-  traceShowM capturedIdentifiers
-
   capturedArgs <-
     traverse
       (\k -> (,) k <$> (snd <$> lookupIdent k))
       (S.toList capturedIdentifiers)
 
+  capturedValues <-
+    traverse
+      ( \k -> do
+          (index, wasmTy) <- lookupIdent k
+          pure (wasmTy, WVar index)
+      )
+      (S.toList capturedIdentifiers)
+
   -- we need to get types for these
   -- add captured arg types to generated function
-  traceShowM capturedArgs
 
   wasmArgs <-
     traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
 
   let allArgs = wasmArgs <> capturedArgs
 
-  traceShowM allArgs
+  -- TODO: change body to unpack environment vars from `env` struct
 
   wasmBody <- withArgs allArgs (fromExpr body)
   wasmReturnType <- liftEither $ scalarFromType returnTy
@@ -243,12 +248,43 @@ fromLambda args returnTy body = do
   -- store it in heaven
   wasmFnRef <- addGeneratedFunction fn
 
-  -- then we create a tuple of [WFunctionPointer, capturedArgA, capturedArgB,
-  -- etc...]
-  -- and return it
+  let wasmItems = Pointer : (snd <$> capturedArgs)
 
-  -- return it as a value
-  pure $ WFunctionPointer wasmFnRef
+  let offsetList = getOffsetListForWasmType wasmItems
+
+  -- first, create a tuple of [capturedArgA, capturedArgB, .. ]
+
+  -- TODO that
+
+  -- then we create a tuple of [WFunctionPointer, pointerToEnv]
+  -- and return it
+  let allItems =
+        zip
+          [0 ..]
+          ( (Pointer, WFunctionPointer wasmFnRef)
+              : capturedValues
+          )
+
+  let wasmType = Pointer
+  allocIndex <- addLocal Nothing wasmType
+
+  -- total size of the tuple in memory
+  let tupleLength = getMemorySizeForWasmTuple wasmItems
+  let allocate = WAllocate tupleLength
+
+  wSet <-
+    WSet allocIndex allocate
+      <$> traverse
+        ( \(i, (wasmTy, wasmItem)) ->
+            (,,) (offsetList !! i)
+              <$> pure wasmTy
+              <*> pure wasmItem
+        )
+        allItems
+
+  traceShowM wSet
+
+  pure wSet
 
 fromConstructor ::
   ( MonadError FromWasmError m,
@@ -346,8 +382,16 @@ fromApply fnExpr args = do
   case wasmFn of
     TopLevelFunction wasmExpr -> pure wasmExpr
     Lambda fn -> do
+      -- get the functions out of the tuple
+      let wasmFunctionPointer = WTupleAccess Pointer fn 0
+      -- sort the user provided args
       wasmArgs <- traverse fromExpr args
-      pure $ WApplyIndirect fn wasmArgs
+      -- TODO: fetch the other args from `fn` and add them to `args` to send to
+      -- function
+      let wasm = WApplyIndirect wasmFunctionPointer wasmArgs
+      -- peek
+      traceShowM wasm
+      pure wasm
 
 fromExpr ::
   ( MonadError FromWasmError m,

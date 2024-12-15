@@ -20,8 +20,10 @@ module Calc.Wasm.FromExpr.Helpers
     fromPrim,
     getOffsetList,
     getOffsetListForConstructor,
+    getOffsetListForWasmType,
     boxed,
     memorySizeForType,
+    getMemorySizeForWasmTuple,
     getConstructorNumber,
   )
 where
@@ -278,6 +280,14 @@ getOffsetList :: Type ann -> [Natural]
 getOffsetList (TContainer _ items) =
   scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
 getOffsetList _ = []
+
+getOffsetListForWasmType :: [WasmType] -> [Natural]
+getOffsetListForWasmType =
+  scanl (\offset item -> offset + memorySize item) 0
+
+getMemorySizeForWasmTuple :: [WasmType] -> Natural
+getMemorySizeForWasmTuple =
+  getSum . foldMap (Sum . memorySize)
 
 lookupDataType :: (MonadState FromExprState m) => DataName -> m (Data ())
 lookupDataType dataTypeName = do
