@@ -10,6 +10,7 @@ module Calc.Wasm.FromExpr.Helpers
     withArgs,
     lookupGlobal,
     lookupIdent,
+    memorySize,
     addGeneratedFunction,
     getGlobalMap,
     getFunctionMap,

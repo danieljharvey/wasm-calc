@@ -218,17 +218,31 @@ fromLambda args returnTy body = do
       )
       (S.toList capturedIdentifiers)
 
+  let wasmItems = snd <$> capturedArgs
+
+  let offsetList = getOffsetListForWasmType wasmItems
+
   -- we need to get types for these
   -- add captured arg types to generated function
 
   wasmArgs <-
     traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
 
-  let allArgs = wasmArgs <> capturedArgs
+  let allArgs = wasmArgs <> [("_env", Pointer)]
 
   -- TODO: change body to unpack environment vars from `env` struct
 
   wasmBody <- withArgs allArgs (fromExpr body)
+
+  -- TODO: make it smash the right var numbers into the body
+  let wasmBodyWithGetters =
+        foldr
+          (\(i, (identifier, wasmTy)) wasmExpr' -> WLet (Just identifier) (fromIntegral $ length wasmArgs + i) (WTupleAccess wasmTy (WVar 0) 0) wasmExpr')
+          wasmBody
+          (zip [0 ..] capturedArgs)
+
+  traceShowM wasmBodyWithGetters
+
   wasmReturnType <- liftEither $ scalarFromType returnTy
 
   index <- gets (length . fesGenerated)
@@ -237,7 +251,7 @@ fromLambda args returnTy body = do
   let fn =
         WasmFunction
           { wfName = FunctionName ("fresh_lambda_" <> T.pack (show index)),
-            wfExpr = wasmBody,
+            wfExpr = wasmBodyWithGetters,
             wfPublic = False,
             wfArgs = snd <$> allArgs,
             wfReturnType = wasmReturnType,
@@ -248,39 +262,38 @@ fromLambda args returnTy body = do
   -- store it in heaven
   wasmFnRef <- addGeneratedFunction fn
 
-  let wasmItems = Pointer : (snd <$> capturedArgs)
-
-  let offsetList = getOffsetListForWasmType wasmItems
-
   -- first, create a tuple of [capturedArgA, capturedArgB, .. ]
-
-  -- TODO that
-
-  -- then we create a tuple of [WFunctionPointer, pointerToEnv]
-  -- and return it
-  let allItems =
-        zip
-          [0 ..]
-          ( (Pointer, WFunctionPointer wasmFnRef)
-              : capturedValues
-          )
-
-  let wasmType = Pointer
-  allocIndex <- addLocal Nothing wasmType
+  envIndex <- addLocal Nothing Pointer
 
   -- total size of the tuple in memory
-  let tupleLength = getMemorySizeForWasmTuple wasmItems
-  let allocate = WAllocate tupleLength
+  let envTupleLength = getMemorySizeForWasmTuple wasmItems
 
-  wSet <-
-    WSet allocIndex allocate
+  wasmEnv <-
+    WSet envIndex (WAllocate envTupleLength)
       <$> traverse
         ( \(i, (wasmTy, wasmItem)) ->
             (,,) (offsetList !! i)
               <$> pure wasmTy
               <*> pure wasmItem
         )
-        allItems
+        (zip [0 ..] capturedValues)
+
+  traceShowM wasmEnv
+
+  -- then we create a tuple of [WFunctionPointer, pointerToEnv]
+  -- and return it
+  allocIndex <- addLocal Nothing Pointer
+
+  -- total size of the tuple in memory
+  let tupleLength = getMemorySizeForWasmTuple [Pointer, Pointer]
+
+  let wSet =
+        WSet
+          allocIndex
+          (WAllocate tupleLength)
+          [ (0, Pointer, WFunctionPointer wasmFnRef),
+            (memorySize Pointer, Pointer, wasmEnv)
+          ]
 
   traceShowM wSet
 
@@ -388,7 +401,9 @@ fromApply fnExpr args = do
       wasmArgs <- traverse fromExpr args
       -- TODO: fetch the other args from `fn` and add them to `args` to send to
       -- function
-      let wasm = WApplyIndirect wasmFunctionPointer wasmArgs
+      let wasmEnv = WTupleAccess Pointer fn (memorySize Pointer)
+      let allArgs = wasmArgs <> [wasmEnv]
+      let wasm = WApplyIndirect wasmFunctionPointer allArgs
       -- peek
       traceShowM wasm
       pure wasm
