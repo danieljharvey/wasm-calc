@@ -6,6 +6,7 @@ module Calc.Wasm.FromExpr.Drops
   ( DropPath (..),
     dropFunctionForType,
     addDropsFromPath,
+    dropInstructionForType,
     typeToDropPaths,
     createDropFunction,
     addDropsToWasmExpr,
@@ -20,6 +21,7 @@ import Calc.Wasm.FromExpr.Helpers
     genericArgName,
     getOffsetList,
     lookupIdent,
+    memorySize,
     scalarFromType,
   )
 import Calc.Wasm.FromExpr.Patterns (Path (..))
@@ -135,6 +137,16 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
     )
 typeToDropPaths (TVar _ tyVar) addPath =
   pure [addPath (DropPathFetch (Just tyVar))]
+typeToDropPaths (TFunction ann _ _) addPath =
+  pure
+    [ addPath
+        ( DropPathSelect
+            (TPrim ann TInt32)
+            (memorySize Pointer)
+            (DropPathFetch Nothing)
+        ),
+      addPath (DropPathFetch Nothing)
+    ]
 typeToDropPaths _ _ = pure mempty
 
 typeVars :: Type ann -> S.Set TypeVar

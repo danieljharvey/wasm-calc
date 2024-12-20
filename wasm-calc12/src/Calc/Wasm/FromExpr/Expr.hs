@@ -10,6 +10,7 @@ import Calc.Wasm.FromExpr.Drops
   ( addDropsFromPath,
     addDropsToWasmExpr,
     dropFunctionForType,
+    dropInstructionForType,
   )
 import Calc.Wasm.FromExpr.Helpers
 import Calc.Wasm.FromExpr.Patterns
@@ -394,14 +395,35 @@ fromApply fnExpr args = do
   case wasmFn of
     TopLevelFunction wasmExpr -> pure wasmExpr
     Lambda fn -> do
+      let ty = (getOuterAnnotation fnExpr)
+
+      let returnType = case fst ty of
+            TFunction _ _ ret -> ret
+            _ -> error "argggh"
+
+      wasmReturnType <- liftEither $ scalarFromType returnType
+
+      dropFn <- dropInstructionForType fn (fst ty)
+
       -- get the functions out of the tuple
       let wasmFunctionPointer = WTupleAccess Pointer fn 0
+
       -- sort the user provided args
       wasmArgs <- traverse fromExpr args
 
       let wasmEnv = WTupleAccess Pointer fn (memorySize Pointer)
       let allArgs = wasmArgs <> [wasmEnv]
-      pure $ WApplyIndirect wasmFunctionPointer allArgs
+
+      index <- addLocal Nothing wasmReturnType
+
+      let wasm =
+            WLet
+              Nothing
+              index
+              (WApplyIndirect wasmFunctionPointer allArgs)
+              (WSequence Void dropFn (WVar index))
+
+      pure wasm
 
 fromExpr ::
   ( MonadError FromWasmError m,

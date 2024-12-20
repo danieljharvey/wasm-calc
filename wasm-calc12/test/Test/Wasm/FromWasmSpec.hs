@@ -192,6 +192,11 @@ spec = do
                 [ DropPathSelect (unsafeTy "b") 8 (DropPathFetch (Just "b")),
                   DropPathFetch Nothing
                 ]
+              ),
+              ( "Fn(Int64,Int32) -> Int32",
+                [ DropPathSelect tyInt32 4 (DropPathFetch Nothing),
+                  DropPathFetch Nothing
+                ]
               )
             ]
 
