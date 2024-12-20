@@ -22,7 +22,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
-import Debug.Trace
 import GHC.Natural
 
 patternBindings ::
@@ -218,42 +217,34 @@ fromLambda args returnTy body = do
       )
       (S.toList capturedIdentifiers)
 
-  let wasmItems = snd <$> capturedArgs
-
-  let offsetList = getOffsetListForWasmType wasmItems
-
-  -- we need to get types for these
-  -- add captured arg types to generated function
-
   wasmArgs <-
     traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
 
-  let allArgs = wasmArgs <> [("_env", Pointer)]
+  let wasmItems = snd <$> capturedArgs
+      offsetList = getOffsetListForWasmType wasmItems
+      allArgs = wasmArgs <> [("_env", Pointer)]
       moreArgs = allArgs <> capturedArgs
-
-  traceShowM ("moreArgs" :: String, moreArgs)
-
-  -- TODO: change body to unpack environment vars from `env` struct
-  traceShowM ("body" :: String, body)
 
   wasmBody <- withArgs moreArgs (fromExpr body)
 
   let envOffset = fromIntegral $ length wasmArgs
 
-  -- TODO: make it smash the right var numbers into the body
+  -- destructure all the env into vars again
   let wasmBodyWithGetters =
         foldr
           ( \(i, (identifier, wasmTy)) wasmExpr' ->
               WLet
                 (Just identifier)
-                (fromIntegral $ i + 1)
-                (WTupleAccess wasmTy (WVar envOffset) 0)
+                (fromIntegral $ envOffset + i + 1)
+                ( WTupleAccess
+                    wasmTy
+                    (WVar envOffset)
+                    (offsetList !! (fromIntegral i))
+                )
                 wasmExpr'
           )
           wasmBody
-          (zip [envOffset ..] capturedArgs)
-
-  traceShowM ("wasmBodyWithGetters" :: String, wasmBodyWithGetters)
+          (zip [0 ..] capturedArgs)
 
   wasmReturnType <- liftEither $ scalarFromType returnTy
 
@@ -267,7 +258,7 @@ fromLambda args returnTy body = do
             wfPublic = False,
             wfArgs = snd <$> allArgs,
             wfReturnType = wasmReturnType,
-            wfLocals = snd <$> capturedArgs,
+            wfLocals = snd <$> capturedArgs, -- captured args will be destructed as vars
             wfAbilities = mempty
           }
 
@@ -290,8 +281,6 @@ fromLambda args returnTy body = do
         )
         (zip [0 ..] capturedValues)
 
-  traceShowM ("wasmEnv" :: String, wasmEnv)
-
   -- then we create a tuple of [WFunctionPointer, pointerToEnv]
   -- and return it
   allocIndex <- addLocal Nothing Pointer
@@ -306,8 +295,6 @@ fromLambda args returnTy body = do
           [ (0, Pointer, WFunctionPointer wasmFnRef),
             (memorySize Pointer, Pointer, wasmEnv)
           ]
-
-  traceShowM ("wSet" :: String, wSet)
 
   pure wSet
 
@@ -411,14 +398,10 @@ fromApply fnExpr args = do
       let wasmFunctionPointer = WTupleAccess Pointer fn 0
       -- sort the user provided args
       wasmArgs <- traverse fromExpr args
-      -- TODO: fetch the other args from `fn` and add them to `args` to send to
-      -- function
+
       let wasmEnv = WTupleAccess Pointer fn (memorySize Pointer)
       let allArgs = wasmArgs <> [wasmEnv]
-      let wasm = WApplyIndirect wasmFunctionPointer allArgs
-      -- peek
-      traceShowM wasm
-      pure wasm
+      pure $ WApplyIndirect wasmFunctionPointer allArgs
 
 fromExpr ::
   ( MonadError FromWasmError m,
