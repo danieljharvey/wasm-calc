@@ -229,19 +229,31 @@ fromLambda args returnTy body = do
     traverse (\(k, a) -> (,) k <$> liftEither (scalarFromType a)) args
 
   let allArgs = wasmArgs <> [("_env", Pointer)]
+      moreArgs = allArgs <> capturedArgs
+
+  traceShowM ("moreArgs" :: String, moreArgs)
 
   -- TODO: change body to unpack environment vars from `env` struct
+  traceShowM ("body" :: String, body)
 
-  wasmBody <- withArgs allArgs (fromExpr body)
+  wasmBody <- withArgs moreArgs (fromExpr body)
+
+  let envOffset = fromIntegral $ length wasmArgs
 
   -- TODO: make it smash the right var numbers into the body
   let wasmBodyWithGetters =
         foldr
-          (\(i, (identifier, wasmTy)) wasmExpr' -> WLet (Just identifier) (fromIntegral $ length wasmArgs + i) (WTupleAccess wasmTy (WVar 0) 0) wasmExpr')
+          ( \(i, (identifier, wasmTy)) wasmExpr' ->
+              WLet
+                (Just identifier)
+                (fromIntegral $ i + 1)
+                (WTupleAccess wasmTy (WVar envOffset) 0)
+                wasmExpr'
+          )
           wasmBody
-          (zip [0 ..] capturedArgs)
+          (zip [envOffset ..] capturedArgs)
 
-  traceShowM wasmBodyWithGetters
+  traceShowM ("wasmBodyWithGetters" :: String, wasmBodyWithGetters)
 
   wasmReturnType <- liftEither $ scalarFromType returnTy
 
@@ -255,7 +267,7 @@ fromLambda args returnTy body = do
             wfPublic = False,
             wfArgs = snd <$> allArgs,
             wfReturnType = wasmReturnType,
-            wfLocals = mempty,
+            wfLocals = snd <$> capturedArgs,
             wfAbilities = mempty
           }
 
@@ -278,7 +290,7 @@ fromLambda args returnTy body = do
         )
         (zip [0 ..] capturedValues)
 
-  traceShowM wasmEnv
+  traceShowM ("wasmEnv" :: String, wasmEnv)
 
   -- then we create a tuple of [WFunctionPointer, pointerToEnv]
   -- and return it
@@ -295,7 +307,7 @@ fromLambda args returnTy body = do
             (memorySize Pointer, Pointer, wasmEnv)
           ]
 
-  traceShowM wSet
+  traceShowM ("wSet" :: String, wSet)
 
   pure wSet
 
