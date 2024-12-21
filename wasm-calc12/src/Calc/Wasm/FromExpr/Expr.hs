@@ -240,7 +240,7 @@ fromLambda args returnTy body = do
                 ( WTupleAccess
                     wasmTy
                     (WVar envOffset)
-                    (offsetList !! (fromIntegral i))
+                    (offsetList !! fromIntegral i)
                 )
                 wasmExpr'
           )
@@ -276,9 +276,12 @@ fromLambda args returnTy body = do
     WSet envIndex (WAllocate envTupleLength)
       <$> traverse
         ( \(i, (wasmTy, wasmItem)) ->
-            (,,) (offsetList !! i)
-              <$> pure wasmTy
-              <*> pure wasmItem
+            pure
+              ( (,,)
+                  (offsetList !! i)
+                  wasmTy
+                  wasmItem
+              )
         )
         (zip [0 ..] capturedValues)
 
@@ -307,7 +310,7 @@ fromConstructor ::
   ) =>
   Type ann ->
   Constructor ->
-  [(Expr (Type ann, Maybe (Drops ann)))] ->
+  [Expr (Type ann, Maybe (Drops ann))] ->
   m WasmExpr
 fromConstructor ty constructor args = do
   -- what is the underlying discriminator value?
@@ -395,7 +398,7 @@ fromApply fnExpr args = do
   case wasmFn of
     TopLevelFunction wasmExpr -> pure wasmExpr
     Lambda fn -> do
-      let ty = (getOuterAnnotation fnExpr)
+      let ty = getOuterAnnotation fnExpr
 
       let returnType = case fst ty of
             TFunction _ _ ret -> ret

@@ -159,9 +159,8 @@ abilityExpr (EBox ann a) = do
   EBox ann <$> abilityExpr a
 abilityExpr (ELambda ann args ident body) = do
   tell (S.singleton $ AllocateMemory ann)
-  ELambda ann args
-    <$> pure ident
-    <*> abilityExpr body
+  ELambda ann args ident
+    <$> abilityExpr body
 abilityExpr (EConstructor ann constructor as) = do
   tell (S.singleton $ AllocateMemory ann)
   EConstructor ann constructor <$> traverse abilityExpr as

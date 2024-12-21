@@ -4,6 +4,7 @@
 
 module Calc.Wasm.FromExpr.Helpers
   ( getAbilitiesForFunction,
+    getAbilitiesForTest,
     scalarFromType,
     lookupDataType,
     addLocal,
@@ -171,11 +172,23 @@ getGlobalMap globals =
       )
       (zip [0 ..] globals)
 
-getAbilitiesForFunction :: M.Map FunctionName (S.Set (Ability ann)) -> FunctionName -> Either FromWasmError (S.Set (Ability ann))
+getAbilitiesForFunction ::
+  M.Map FunctionName (S.Set (Ability ann)) ->
+  FunctionName ->
+  Either FromWasmError (S.Set (Ability ann))
 getAbilitiesForFunction functionAbilities fnName =
   case M.lookup fnName functionAbilities of
     Just a -> pure a
     Nothing -> throwError (FunctionAbilityLookupFailed fnName)
+
+getAbilitiesForTest ::
+  M.Map Identifier (S.Set (Ability ann)) ->
+  Identifier ->
+  Either FromWasmError (S.Set (Ability ann))
+getAbilitiesForTest testAbilities testName =
+  case M.lookup testName testAbilities of
+    Just a -> pure a
+    Nothing -> throwError (TestAbilityLookupFailed testName)
 
 -- take only the function info we need
 getFunctionMap ::

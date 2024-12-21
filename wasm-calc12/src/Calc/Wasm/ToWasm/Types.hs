@@ -92,7 +92,8 @@ data WasmImport = WasmImport
 data WasmTest = WasmTest
   { wtName :: T.Text,
     wtExpr :: WasmExpr,
-    wtLocals :: [WasmType]
+    wtLocals :: [WasmType],
+    wtAbilities :: S.Set (Ability ())
   }
   deriving stock (Eq, Ord, Show)
 
