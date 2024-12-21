@@ -57,4 +57,5 @@ data FromWasmError
   | FunctionNotFound FunctionName
   | PrimWithNonNumberType Prim (Type ())
   | FunctionAbilityLookupFailed FunctionName
+  | TestAbilityLookupFailed Identifier
   deriving stock (Eq, Ord, Show)

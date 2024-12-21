@@ -310,7 +310,8 @@ spec = do
               ( "\\(a: Int32,b:Int32) -> Int32 { a + b }",
                 "Fn(Int32,Int32) -> Int32"
               ),
-              ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32")
+              ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32"),
+              ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32")
             ]
 
       describe "Successfully typechecking expressions" $ do

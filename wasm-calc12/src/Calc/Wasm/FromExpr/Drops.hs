@@ -6,6 +6,7 @@ module Calc.Wasm.FromExpr.Drops
   ( DropPath (..),
     dropFunctionForType,
     addDropsFromPath,
+    dropInstructionForType,
     typeToDropPaths,
     createDropFunction,
     addDropsToWasmExpr,
@@ -20,6 +21,7 @@ import Calc.Wasm.FromExpr.Helpers
     genericArgName,
     getOffsetList,
     lookupIdent,
+    memorySize,
     scalarFromType,
   )
 import Calc.Wasm.FromExpr.Patterns (Path (..))
@@ -55,7 +57,7 @@ dropInstructionForType itemIdentifier ty =
   case ty of
     TVar _ typeVar -> do
       -- generics must have been passed in as function args
-      nat <- lookupIdent (genericArgName typeVar)
+      (nat, _) <- lookupIdent (genericArgName typeVar)
       pure (WApplyIndirect (WVar nat) [itemIdentifier])
     _ -> do
       -- generate a new fancy drop function
@@ -84,7 +86,7 @@ addDropsFromPath wholeExprIndex path = do
   case ty of
     TVar _ typeVar -> do
       -- generics must have been passed in as function args
-      nat <- lookupIdent (genericArgName typeVar)
+      (nat, _) <- lookupIdent (genericArgName typeVar)
       pure (WApplyIndirect (WVar nat) [wasmExpr])
     _ -> do
       pure $ WDrop wasmExpr
@@ -100,7 +102,7 @@ addDropsToWasmExpr drops wasmExpr =
   -- drop identifiers we will no longer need
   case drops of
     Just (DropIdentifiers idents) -> do
-      nats <- traverse (\(ident, ty) -> (,) <$> lookupIdent ident <*> pure ty) idents
+      nats <- traverse (\(ident, ty) -> (,) <$> (fst <$> lookupIdent ident) <*> pure ty) idents
       foldM
         ( \restExpr (index, ty) -> do
             dropWasm <- dropInstructionForType (WVar index) ty
@@ -135,6 +137,16 @@ typeToDropPaths ty@(TContainer _ tyItems) addPath = do
     )
 typeToDropPaths (TVar _ tyVar) addPath =
   pure [addPath (DropPathFetch (Just tyVar))]
+typeToDropPaths (TFunction ann _ _) addPath =
+  pure
+    [ addPath
+        ( DropPathSelect
+            (TPrim ann TInt32)
+            (memorySize Pointer)
+            (DropPathFetch Nothing)
+        ),
+      addPath (DropPathFetch Nothing)
+    ]
 typeToDropPaths _ _ = pure mempty
 
 typeVars :: Type ann -> S.Set TypeVar
@@ -154,7 +166,7 @@ dropFunctionForType ty =
   case ty of
     TVar _ typeVar -> do
       -- generics must have been passed in as function args
-      WVar <$> lookupIdent (genericArgName typeVar)
+      WVar . fst <$> lookupIdent (genericArgName typeVar)
     _ -> do
       dropFunc <- createDropFunction 1 ty
       WFunctionPointer <$> addGeneratedFunction dropFunc

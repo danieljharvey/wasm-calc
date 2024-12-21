@@ -4,12 +4,14 @@
 
 module Calc.Wasm.FromExpr.Helpers
   ( getAbilitiesForFunction,
+    getAbilitiesForTest,
     scalarFromType,
     lookupDataType,
     addLocal,
     withArgs,
     lookupGlobal,
     lookupIdent,
+    memorySize,
     addGeneratedFunction,
     getGlobalMap,
     getFunctionMap,
@@ -20,8 +22,10 @@ module Calc.Wasm.FromExpr.Helpers
     fromPrim,
     getOffsetList,
     getOffsetListForConstructor,
+    getOffsetListForWasmType,
     boxed,
     memorySizeForType,
+    getMemorySizeForWasmTuple,
     getConstructorNumber,
   )
 where
@@ -78,9 +82,10 @@ addLocal maybeIdent ty = do
 withArgs :: (MonadState FromExprState m) => [(Identifier, WasmType)] -> m a -> m a
 withArgs args action = do
   oldArgs <- gets fesArgs
-  modify (\fes -> fes {fesArgs = args})
+  oldVars <- gets fesVars
+  modify (\fes -> fes {fesArgs = args, fesVars = mempty})
   result <- action
-  modify (\fes -> fes {fesArgs = oldArgs})
+  modify (\fes -> fes {fesArgs = oldArgs, fesVars = oldVars})
   pure result
 
 lookupGlobal ::
@@ -104,7 +109,7 @@ lookupGlobal ident = do
 lookupIdent ::
   (MonadState FromExprState m, MonadError FromWasmError m) =>
   Identifier ->
-  m Natural
+  m (Natural, WasmType)
 lookupIdent ident = do
   let matchVarIdent (_, (thisIdent, _)) = thisIdent == Just ident
       matchArgIdent (_, (thisIdent, _)) = thisIdent == ident
@@ -118,7 +123,7 @@ lookupIdent ident = do
           . fesVars
       )
   case maybeVarNat of
-    Just (nat, _) -> pure nat
+    Just (nat, (_, ty)) -> pure (nat, ty)
     Nothing -> do
       -- check in args
       maybeArgNat <-
@@ -128,7 +133,7 @@ lookupIdent ident = do
               . fesArgs
           )
       case maybeArgNat of
-        Just (nat, _) -> pure nat
+        Just (nat, (_, ty)) -> pure (nat, ty)
         Nothing ->
           throwError $ IdentifierNotFound ident
 
@@ -167,11 +172,23 @@ getGlobalMap globals =
       )
       (zip [0 ..] globals)
 
-getAbilitiesForFunction :: M.Map FunctionName (S.Set (Ability ann)) -> FunctionName -> Either FromWasmError (S.Set (Ability ann))
+getAbilitiesForFunction ::
+  M.Map FunctionName (S.Set (Ability ann)) ->
+  FunctionName ->
+  Either FromWasmError (S.Set (Ability ann))
 getAbilitiesForFunction functionAbilities fnName =
   case M.lookup fnName functionAbilities of
     Just a -> pure a
     Nothing -> throwError (FunctionAbilityLookupFailed fnName)
+
+getAbilitiesForTest ::
+  M.Map Identifier (S.Set (Ability ann)) ->
+  Identifier ->
+  Either FromWasmError (S.Set (Ability ann))
+getAbilitiesForTest testAbilities testName =
+  case M.lookup testName testAbilities of
+    Just a -> pure a
+    Nothing -> throwError (TestAbilityLookupFailed testName)
 
 -- take only the function info we need
 getFunctionMap ::
@@ -278,6 +295,14 @@ getOffsetList :: Type ann -> [Natural]
 getOffsetList (TContainer _ items) =
   scanl (\offset item -> offset + offsetForType item) 0 (NE.toList items)
 getOffsetList _ = []
+
+getOffsetListForWasmType :: [WasmType] -> [Natural]
+getOffsetListForWasmType =
+  scanl (\offset item -> offset + memorySize item) 0
+
+getMemorySizeForWasmTuple :: [WasmType] -> Natural
+getMemorySizeForWasmTuple =
+  getSum . foldMap (Sum . memorySize)
 
 lookupDataType :: (MonadState FromExprState m) => DataName -> m (Data ())
 lookupDataType dataTypeName = do

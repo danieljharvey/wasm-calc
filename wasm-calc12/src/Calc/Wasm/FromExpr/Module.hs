@@ -49,12 +49,13 @@ fromImport
 -- | tests don't use imports
 fromTest ::
   (Eq ann, Show ann) =>
+  M.Map Identifier (S.Set (Ability any)) ->
   M.Map FunctionName FromExprFunc ->
   M.Map Identifier FromExprGlobal ->
   M.Map DataName (Data ()) ->
   Test (Type ann) ->
   Either FromWasmError WasmTest
-fromTest funcMap globalMap dataTypeMap (Test {tesName = Identifier testName, tesExpr}) = do
+fromTest testAbilities funcMap globalMap dataTypeMap (Test {tesName = tesName@(Identifier testName), tesExpr}) = do
   (expr, fes) <-
     runStateT
       (fromExpr ((,Nothing) <$> tesExpr))
@@ -69,12 +70,17 @@ fromTest funcMap globalMap dataTypeMap (Test {tesName = Identifier testName, tes
           }
       )
 
+  abilities <-
+    S.map void
+      <$> getAbilitiesForTest testAbilities tesName
+
   pure $
     WasmTest
       { wtName = testName,
         wtExpr = expr,
         wtLocals =
-          snd <$> fesVars fes
+          snd <$> fesVars fes,
+        wtAbilities = abilities
       }
 
 fromFunction ::
@@ -210,7 +216,10 @@ fromModule wholeMod@(Module {mdDataTypes, mdMemory, mdTests, mdGlobals, mdImport
 
   wasmImports <- traverse fromImport mdImports
 
-  wasmTests <- traverse (fromTest funcMap globalMap dataTypeMap) mdTests
+  wasmTests <-
+    traverse
+      (fromTest (maTests moduleAbilities) funcMap globalMap dataTypeMap)
+      mdTests
 
   pure $
     WasmModule

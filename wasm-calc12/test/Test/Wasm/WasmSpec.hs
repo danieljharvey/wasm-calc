@@ -455,6 +455,11 @@ spec = do
                 Wasm.VI64 101
               ),
               ( joinLines
+                  [ asTest "let id = \\(a: Int64) -> Int64 { a }; id(42)"
+                  ],
+                Wasm.VI64 42
+              ),
+              ( joinLines
                   [ "function apply(f: Fn() -> Int64) -> Int64 { f() }",
                     asTest "let f = \\() -> Int64 { 42 }; apply(f)"
                   ],
@@ -465,6 +470,12 @@ spec = do
                     asTest "let f = \\(a: Int64) -> Int64 { 42 + a }; apply(f,100)"
                   ],
                 Wasm.VI64 142
+              ),
+              ( asTest "let prim: Int64 = 22; let f = \\(a: Int64) -> Int64 { a + prim }; f(100)",
+                Wasm.VI64 122
+              ),
+              ( asTest "let prim1: Int64 = 10; let prim2: Int64 = 12; let f = \\(a: Int64) -> Int64 { a + prim1 + prim2 }; f(100)",
+                Wasm.VI64 122
               )
             ]
 

@@ -29,11 +29,20 @@ data UsesAllocator = UsesAllocator | DoesNotUseAllocator
   deriving stock (Eq, Ord, Show)
 
 moduleUsesAllocator :: WasmModule -> UsesAllocator
-moduleUsesAllocator =
-  bool DoesNotUseAllocator UsesAllocator
-    . getAny
-    . foldMap (Any . S.member (AllocateMemory ()) . wfAbilities)
-    . wmFunctions
+moduleUsesAllocator wm =
+  bool
+    DoesNotUseAllocator
+    UsesAllocator
+    (functionsUseAllocator wm || testsUseAllocator wm)
+  where
+    functionsUseAllocator =
+      getAny
+        . foldMap (Any . S.member (AllocateMemory ()) . wfAbilities)
+        . wmFunctions
+    testsUseAllocator =
+      getAny
+        . foldMap (Any . S.member (AllocateMemory ()) . wtAbilities)
+        . wmTests
 
 allocIndex :: (MonadReader ToWasmEnv m) => m Natural
 allocIndex = asks tweImportsOffset
