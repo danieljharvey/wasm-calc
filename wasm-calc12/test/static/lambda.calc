@@ -7,3 +7,40 @@ function main() -> Int64 {
   let a = f(100, 2, 3); 
   if g() then a else 200
 }
+
+type Maybe<a>
+  = Just(a)
+  | Nothing
+
+type Booly
+  = No
+  | Yeah
+
+function isTrue(booly: Booly) -> Boolean { 
+  case booly { Yeah -> True, No -> False }
+}
+
+function mapMaybe<a,b>(
+  maybe: Maybe(a), fn: Fn(a) -> b
+) -> Maybe(b) { 
+  case maybe { Just(a) -> Just(fn(a)), Nothing -> Nothing }
+}
+
+function orDefault<a>(maybe: Maybe(a), default: a) -> a { 
+  case maybe { Just(a) -> a, Nothing -> default }
+}
+
+test nice = 
+  {
+    isTrue(
+      orDefault(
+        mapMaybe(
+          Just(No), 
+          \(bool:Booly) -> Booly { 
+            case bool { Yeah -> No, No -> Yeah }
+          }
+        ), 
+        No
+      )
+    )
+  }

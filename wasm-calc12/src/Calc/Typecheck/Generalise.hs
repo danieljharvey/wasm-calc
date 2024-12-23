@@ -48,6 +48,6 @@ generaliseInternal fresh (TVar ann var) =
   case M.lookup var fresh of
     Just nat ->
       TUnificationVar ann nat
-    Nothing -> error "oh no generalise error"
+    Nothing -> error $ "Could not find var " <> show var <> " to generalise it"
 generaliseInternal fresh other =
   mapType (generaliseInternal fresh) other
