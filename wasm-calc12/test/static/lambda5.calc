@@ -1,0 +1,25 @@
+type YesOrNo
+  = No
+  | Yes
+
+type Maybe<a>
+  = Just(a)
+  | Nothing
+
+function mapMaybe<a,b>(
+  maybe: Maybe(a), fn: Fn(a) -> b
+) -> Maybe(b) {
+  case maybe { Just(a) -> Just(fn(a)), Nothing -> Nothing }
+}
+
+function useDataTypeInLambda() -> Boolean {
+  let fn = \(b:YesOrNo) -> YesOrNo {
+    case b { Yes -> No, No -> Yes }
+  };
+  case mapMaybe(Just(No), fn) {
+    Just(Yes) -> True, _ -> False
+  }
+}
+
+test useDataTypeInLambda =
+  { useDataTypeInLambda() }
