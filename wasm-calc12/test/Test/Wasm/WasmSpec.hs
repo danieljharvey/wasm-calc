@@ -495,32 +495,28 @@ spec = do
     describe "Run tests" $ do
       let testVals =
             [ ( "basic",
-                ( "test result = True"
-                )
+                "test result = True"
               ),
               ( "imports",
-                ( joinLines
-                    [ "import my.import as myImport(x: Int64) -> Void",
-                      "test dontExplodePlease = True"
-                    ]
-                )
+                joinLines
+                  [ "import my.import as myImport(x: Int64) -> Void",
+                    "test dontExplodePlease = True"
+                  ]
               ),
               ( "use import",
-                ( joinLines
-                    [ "import my.import as myImport(x: Int64) -> Void",
-                      "export function usesImport() -> Void { myImport(100) }",
-                      "test dontExplodePlease = True"
-                    ]
-                )
+                joinLines
+                  [ "import my.import as myImport(x: Int64) -> Void",
+                    "export function usesImport() -> Void { myImport(100) }",
+                    "test dontExplodePlease = True"
+                  ]
               ),
               ( "use function",
-                ( joinLines
-                    [ "import my.import as myImport(x: Int64) -> Void",
-                      "export function usesImport() -> Void { myImport(100) }",
-                      "function returnTrue() -> Boolean { True }",
-                      "test dontExplodePlease = { returnTrue() }"
-                    ]
-                )
+                joinLines
+                  [ "import my.import as myImport(x: Int64) -> Void",
+                    "export function usesImport() -> Void { myImport(100) }",
+                    "function returnTrue() -> Boolean { True }",
+                    "test dontExplodePlease = { returnTrue() }"
+                  ]
               )
             ]
 
