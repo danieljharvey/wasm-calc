@@ -1,0 +1,25 @@
+type List<a>
+  = Cons(a, List(a))
+  | Nil
+
+function mapList(
+  list: List(Int32), fn: Fn(Int32) -> Int32
+) -> List(Int32) { 
+  case list {
+    Cons(a, rest) -> Cons(fn(a), mapList(rest, fn)), 
+    Nil -> Nil 
+  }
+}
+
+function sumList(list: List(Int32)) -> Int32 { 
+  case list { Cons(a, rest) -> a + sumList(rest), Nil -> 0 }
+}
+
+function useDataTypeInLambda() -> Boolean { 
+  let inc = \(a:Int32) -> Int32 { a + 1}; 
+  let list: List(Int32) = Cons(1, Cons(2, Cons(3, Nil))); 
+  sumList(mapList(list, inc)) == 9
+}
+
+test useDataTypeInLambda = 
+  { useDataTypeInLambda() }
