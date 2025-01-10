@@ -527,7 +527,7 @@ spec = do
       describe "From tests" $ do
         traverse_ (uncurry runTestsWithInterpreter) testVals
 
-      fdescribe "Tests in files" $ do
+      describe "Tests in files" $ do
         traverse_ (uncurry runTestsWithInterpreter) testInputs
 
 -- these are saved in a file that is included in compilation

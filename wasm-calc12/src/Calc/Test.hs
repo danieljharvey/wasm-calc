@@ -7,7 +7,6 @@ module Calc.Test (testModule) where
 import Calc.Dependencies
 import Calc.Types
 import Calc.Types.ModuleAnnotations
-import Calc.Utils
 import Calc.Wasm.FromExpr.Module
 import Calc.Wasm.Run (runWasm)
 import Calc.Wasm.ToWasm.Helpers
@@ -29,7 +28,7 @@ testModule typedMod@(Module {mdTests}) =
         -- internal error, explode without grace
         error (show err)
       Right wasmMod -> do
-        let wasm = moduleToWasm (ltrace "wasmmod" wasmMod)
+        let wasm = moduleToWasm wasmMod
         traverse
           ( \wt@WasmTest {wtName} -> do
               result <- runWasm (TL.fromStrict (testName wt)) wasm
