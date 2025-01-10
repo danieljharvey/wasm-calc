@@ -79,14 +79,15 @@ addLocal maybeIdent ty = do
 -- save old args
 -- do things with provided args
 -- put old args back
-withArgs :: (MonadState FromExprState m) => [(Identifier, WasmType)] -> m a -> m a
+withArgs :: (MonadState FromExprState m) => [(Identifier, WasmType)] -> m a -> m (a, [(Maybe Identifier, WasmType)])
 withArgs args action = do
   oldArgs <- gets fesArgs
   oldVars <- gets fesVars
   modify (\fes -> fes {fesArgs = args, fesVars = mempty})
   result <- action
+  newVars <- gets fesVars
   modify (\fes -> fes {fesArgs = oldArgs, fesVars = oldVars})
-  pure result
+  pure (result, newVars)
 
 lookupGlobal ::
   ( MonadError FromWasmError m,

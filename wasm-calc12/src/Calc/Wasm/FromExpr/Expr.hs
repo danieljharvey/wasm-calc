@@ -226,7 +226,7 @@ fromLambda args returnTy body = do
       allArgs = wasmArgs <> [("_env", Pointer)]
       moreArgs = allArgs <> capturedArgs
 
-  wasmBody <- withArgs moreArgs (fromExpr body)
+  (wasmBody, lambdaLocals) <- withArgs moreArgs (fromExpr body)
 
   let envOffset = fromIntegral $ length wasmArgs
 
@@ -259,7 +259,7 @@ fromLambda args returnTy body = do
             wfPublic = False,
             wfArgs = snd <$> allArgs,
             wfReturnType = wasmReturnType,
-            wfLocals = snd <$> capturedArgs, -- captured args will be destructed as vars
+            wfLocals = (snd <$> lambdaLocals) <> (snd <$> capturedArgs), -- captured args will be destructed as vars
             wfAbilities = mempty
           }
 
@@ -385,12 +385,12 @@ fromApply fnExpr args = do
           EVar _ (Identifier ident) -> do
             -- maybe it's a function
             (fIndex, fGenerics, fArgTypes) <- lookupFunction (FunctionName ident)
-            let types =
+            let argTypes =
                   monomorphiseTypes
                     fGenerics
                     fArgTypes
                     (void . fst . getOuterAnnotation <$> args)
-            dropArgs <- traverse (dropFunctionForType . snd) types
+            dropArgs <- traverse (dropFunctionForType . snd) argTypes
             wasmArgs <- traverse fromExpr args
             let allArgs = wasmArgs <> dropArgs
             pure (TopLevelFunction (WApply fIndex allArgs))

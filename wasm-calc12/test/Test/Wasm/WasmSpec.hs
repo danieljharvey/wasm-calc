@@ -15,17 +15,24 @@ import qualified Calc.Wasm.FromExpr.Module as FromExpr
 import Calc.Wasm.Run
 import qualified Calc.Wasm.ToWasm as ToWasm
 import Control.Monad.IO.Class
+import Data.Bifunctor (second)
 import qualified Data.ByteString.Lazy as LB
 import Data.FileEmbed
 import Data.Foldable (traverse_)
 import Data.Hashable (hash)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Language.Wasm.Interpreter as Wasm
 import qualified Language.Wasm.Structure as Wasm
 import System.IO.Temp
 import Test.Helpers
 import Test.Hspec
 import Test.RunNode
+
+-- these are saved in a file that is included in compilation
+testInputs :: [(FilePath, T.Text)]
+testInputs =
+  fmap (second T.decodeUtf8) $(makeRelativeToProject "test/static/" >>= embedDir)
 
 spec :: Spec
 spec = do
@@ -487,43 +494,37 @@ spec = do
 
     describe "Run tests" $ do
       let testVals =
-            [ ( "test result = True",
-                [("result", True)]
+            [ ( "basic",
+                "test result = True"
               ),
-              ( joinLines
+              ( "imports",
+                joinLines
                   [ "import my.import as myImport(x: Int64) -> Void",
                     "test dontExplodePlease = True"
-                  ],
-                [ ( "dontExplodePlease",
-                    True
-                  )
-                ]
+                  ]
               ),
-              ( joinLines
+              ( "use import",
+                joinLines
                   [ "import my.import as myImport(x: Int64) -> Void",
                     "export function usesImport() -> Void { myImport(100) }",
                     "test dontExplodePlease = True"
-                  ],
-                [ ( "dontExplodePlease",
-                    True
-                  )
-                ]
+                  ]
               ),
-              ( joinLines
+              ( "use function",
+                joinLines
                   [ "import my.import as myImport(x: Int64) -> Void",
                     "export function usesImport() -> Void { myImport(100) }",
                     "function returnTrue() -> Boolean { True }",
                     "test dontExplodePlease = { returnTrue() }"
-                  ],
-                [ ( "dontExplodePlease",
-                    True
-                  )
-                ]
+                  ]
               )
             ]
 
       describe "From tests" $ do
-        traverse_ runTestsWithInterpreter testVals
+        traverse_ (uncurry runTestsWithInterpreter) testVals
+
+      describe "Tests in files" $ do
+        traverse_ (uncurry runTestsWithInterpreter) testInputs
 
 -- these are saved in a file that is included in compilation
 testJSSource :: LB.ByteString
@@ -594,8 +595,8 @@ testDeallocation (input, _) = it (show input) $ do
 
 -- | in fear of getting incredibly meta, run the tests from this module
 -- using the built-in `wasm` interpreter
-runTestsWithInterpreter :: (T.Text, [(T.Text, Bool)]) -> Spec
-runTestsWithInterpreter (input, result) = it (show input) $ do
+runTestsWithInterpreter :: FilePath -> T.Text -> Spec
+runTestsWithInterpreter title input = it (show title) $ do
   case parseModuleAndFormatError input of
     Left e -> error (show e)
     Right parsedModuleItems ->
@@ -605,7 +606,7 @@ runTestsWithInterpreter (input, result) = it (show input) $ do
           Left typeErr -> error (show typeErr)
           Right typedMod -> do
             resp <- testModule typedMod
-            resp `shouldBe` result
+            traverse_ (\(_, result) -> result `shouldBe` True) resp
 
 -- | output actual WASM files for testing
 -- test them with node

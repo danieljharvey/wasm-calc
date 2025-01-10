@@ -1,0 +1,13 @@
+type YesOrNo
+  = No
+  | Yes
+
+function useDataTypeInLambda() -> Boolean { 
+  let fn = \(b:YesOrNo) -> YesOrNo { 
+    case b { Yes -> No, No -> Yes }
+  }; 
+  True
+}
+
+test useDataTypeInLambda = 
+  { useDataTypeInLambda() }

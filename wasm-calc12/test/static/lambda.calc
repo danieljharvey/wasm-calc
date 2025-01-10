@@ -1,9 +1,9 @@
-function main() -> Int64 { 
-  let f = \(a:Int64, b:Int64, c:Int64) -> Int64 { 
-    let total = a + 100; 
-    total + 1 + b + c
+function useFlip() -> Boolean { 
+  let fn = \(b:Boolean) -> Boolean { 
+    if b then False else True
   }; 
-  let g = \() -> Boolean { False}; 
-  let a = f(100, 2, 3); 
-  if g() then a else 200
+  fn(False)
 }
+
+test flip = 
+  { useFlip() }
