@@ -605,8 +605,11 @@ runTestsWithInterpreter title input = it (show title) $ do
         Right parsedModule -> case elaborateModule parsedModule of
           Left typeErr -> error (show typeErr)
           Right typedMod -> do
-            resp <- testModule typedMod
-            traverse_ (\(_, result) -> result `shouldBe` True) resp
+            case validateModule typedMod of
+              Left e -> error (show e)
+              Right _ -> do
+                resp <- testModule typedMod
+                traverse_ (\(_, result) -> result `shouldBe` True) resp
 
 -- | output actual WASM files for testing
 -- test them with node
