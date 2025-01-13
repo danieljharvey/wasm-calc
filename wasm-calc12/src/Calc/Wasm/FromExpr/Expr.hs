@@ -468,6 +468,8 @@ fromExpr (EIf (ty, _) predE thenE elseE) = do
 fromExpr (EVar _ ident) = do
   (WVar . fst <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
+fromExpr (EReference _ ident) =
+  WVar . fst <$> lookupIdent ident
 fromExpr (EApply _ fnExpr args) = do
   fromApply fnExpr args
 fromExpr (ETuple (ty, _) a as) = do

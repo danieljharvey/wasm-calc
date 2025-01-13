@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -8,6 +9,7 @@ module Calc.Typecheck.Elaborate
 where
 
 import Calc.ExprUtils
+import Calc.TypeUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Infer
@@ -22,9 +24,11 @@ import Calc.Types.Memory
 import Calc.Types.Module
 import Calc.Types.Test
 import Calc.Types.Type
+import Control.Monad.Except
 import Control.Monad.State
 import Data.Functor
 import qualified Data.Map.Strict as M
+import Data.Monoid
 import qualified Data.Set as S
 
 elaborateModule ::
@@ -241,6 +245,8 @@ elaborateFunction
             (faType <$> fnArgs)
             (getOuterAnnotation exprA)
 
+    validateReturnType fnReturnType
+
     pure
       ( Function
           { fnAnn = tyFn,
@@ -253,3 +259,15 @@ elaborateFunction
             fnAbilityConstraints = fnAbilityConstraints
           }
       )
+
+-- | is there a reference in this type? If so, can't return it from a function
+validateReturnType :: Type ann -> TypecheckM ann ()
+validateReturnType ty =
+  case getFirst (checkRet ty) of
+    (Just err) -> throwError err
+    _ -> pure ()
+  where
+    checkRet a =
+      case a of
+        TReference {} -> First (Just (CantReturnReferenceFromFunction a))
+        other -> monoidType checkRet other

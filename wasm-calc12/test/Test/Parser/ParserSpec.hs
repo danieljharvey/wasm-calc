@@ -45,6 +45,9 @@ spec = do
               ),
               ( "Fn(Boolean,Int64) -> Int32",
                 TFunction () [tyBool, tyInt64] tyInt32
+              ),
+              ( "&(Boolean,Boolean)",
+                TReference () (tyContainer [tyBool, tyBool])
               )
             ]
       traverse_
@@ -418,6 +421,12 @@ spec = do
               ("True", EPrim () (PBool True)),
               ("False", EPrim () (PBool False)),
               ("(1,2,True)", tuple [int 1, int 2, bool True]),
+              ( "&dog",
+                EReference () "dog"
+              ),
+              ( "let a = &dog; a",
+                ELet () (patVar "a") (EReference () "dog") (var "a")
+              ),
               ( "1 + 2 + 3",
                 EInfix
                   ()

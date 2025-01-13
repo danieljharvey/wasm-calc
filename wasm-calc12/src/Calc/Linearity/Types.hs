@@ -25,10 +25,10 @@ data Drops ann
   | DropMe
   deriving stock (Eq, Ord, Show, Functor)
 
-newtype Linearity ann
+data Linearity ann
   = Whole ann
-  deriving newtype (Eq, Ord, Show)
-  deriving stock (Functor)
+  | Borrow ann
+  deriving stock (Eq, Ord, Show, Functor)
 
 -- | we're less fussy about the use of primitive values
 data LinearityType = LTPrimitive | LTBoxed

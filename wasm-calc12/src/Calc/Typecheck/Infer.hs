@@ -531,6 +531,12 @@ infer (EBox ann inner) = do
           (NE.singleton $ getOuterAnnotation typedInner)
       )
       typedInner
+infer (EReference ann ident) = do
+  ty <- lookupVar ann ident
+  case ty of
+    TPrim {} -> throwError (ReferenceForPrimitiveValue ty)
+    _ -> pure ()
+  pure $ EReference (TReference ann ty) ident
 infer (EConstructor ann constructor args) =
   checkConstructor Nothing ann constructor args
 infer (ELet ann pat expr rest) =

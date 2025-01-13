@@ -1,33 +1,32 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TupleSections      #-}
 
 module Calc.Linearity.Decorate
   ( decorate,
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad.Except
-import Control.Monad.State
-import Data.Bifunctor (second)
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
-import qualified Data.Set as S
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Helpers
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Identifier
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Bifunctor         (second)
+import           Data.Functor           (($>))
+import qualified Data.List.NonEmpty     as NE
+import qualified Data.Map               as M
+import qualified Data.Set               as S
+import qualified Data.Text              as T
+import           GHC.Natural
 
 getFresh :: (MonadState (LinearState ann) m) => m Natural
 getFresh = do
@@ -103,7 +102,7 @@ scoped action = do
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _ = False
+isPrimitive _          = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -190,8 +189,8 @@ combineWithBiggestItems ::
 combineWithBiggestItems = M.unionWith combineLinearity
   where
     combineLinearity a@(Fresh _, _) (Fresh _, _) = a
-    combineLinearity a@(Used _, _) _ = a
-    combineLinearity _ b@(Used _, _) = b
+    combineLinearity a@(Used _, _) _             = a
+    combineLinearity _ b@(Used _, _)             = b
 
 getIdents :: M.Map k (LinState ann, b) -> M.Map k b
 getIdents =
@@ -214,6 +213,9 @@ decorate (EVar ty ident) = do
   pure (EVar (ty, Nothing) ident)
 decorate (EConstructor ty constructor args) = do
   EConstructor (ty, Nothing) constructor <$> traverse decorate args
+decorate (EReference ty ident) = do
+  recordReference ident ty
+  pure (EReference (ty, Nothing) ident)
 decorate (ELambda ty args returnTy body) = do
   let decorateArg ident tyArg =
         (ident, tyArg $> (getOuterTypeAnnotation tyArg, Nothing))

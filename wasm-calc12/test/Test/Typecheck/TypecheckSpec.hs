@@ -270,7 +270,8 @@ spec = do
               joinLines
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
-                ]
+                ],
+              "function cantReturnReference(ref: &(Boolean,Boolean)) -> &(Boolean, Boolean) { ref }"
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
@@ -298,6 +299,7 @@ spec = do
               ("let a: Int64 = 100; a", "Int64"),
               ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
               ("True && True", "Boolean"),
+              ("let pair = (True,True); &pair", "&(Boolean,Boolean)"),
               ("False || True", "Boolean"),
               ( "let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3",
                 "Int64"
@@ -348,6 +350,7 @@ spec = do
               ("case True { True -> (1: Int64), 1 -> (2: Int64) }", PatternMismatch tyBool (PLiteral () (PIntLit 1))),
               ("case True { True -> (1: Int64), False -> False }", TypeMismatch tyInt64 tyBool),
               ("case True { True -> True , True -> False }", PatternMatchError (MissingPatterns () [PLiteral () (PBool False)])),
+              ("let a = True; &a", ReferenceForPrimitiveValue tyBool),
               ( "let (_,False) = (True,False); True",
                 PatternMatchError
                   ( MissingPatterns

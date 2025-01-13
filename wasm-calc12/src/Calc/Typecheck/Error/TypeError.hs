@@ -45,6 +45,8 @@ data TypeError ann
   | StoringNonPrimitiveType ann (Type ann)
   | LoadingNonPrimitiveType ann (Type ann)
   | UnknownLoadType ann
+  | CantReturnReferenceFromFunction (Type ann)
+  | ReferenceForPrimitiveValue (Type ann)
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -115,6 +117,27 @@ typeErrorDiagnostic input e =
                   ]
               )
               []
+        (ReferenceForPrimitiveValue ty) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Can't create a reference for a primitive value"
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        (getOuterTypeAnnotation ty)
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint $
+                                "This has type " <> PP.pretty ty
+                            )
+                        )
+                  ]
+              )
+              []
         (LoadingNonPrimitiveType ann ty) ->
           Diag.addReport diag $
             Diag.Err
@@ -131,6 +154,27 @@ typeErrorDiagnostic input e =
                         ( Diag.This
                             ( prettyPrint $
                                 "This is trying to load " <> PP.pretty ty
+                            )
+                        )
+                  ]
+              )
+              []
+        (CantReturnReferenceFromFunction ty) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Can't return a referencec from a function"
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        (getOuterTypeAnnotation ty)
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint $
+                                "Can't return " <> PP.pretty ty
                             )
                         )
                   ]

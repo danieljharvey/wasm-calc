@@ -40,6 +40,7 @@ data Type ann
   | TConstructor ann DataName [Type ann]
   | TVar ann TypeVar
   | TUnificationVar ann Natural
+  | TReference ann (Type ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance PP.Pretty (Type ann) where
@@ -50,6 +51,7 @@ instance PP.Pretty (Type ann) where
     where
       prettyArgs = PP.concatWith (PP.surround PP.comma) (PP.pretty <$> args)
   pretty (TUnificationVar _ i) = "U" <> PP.pretty i
+  pretty (TReference _ ty) = "&" <> PP.pretty ty
   pretty (TContainer _ as)
     | length as == 1 =
         "Box(" <> PP.pretty (NE.head as) <> ")"

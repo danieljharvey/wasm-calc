@@ -242,6 +242,7 @@ scalarFromType (TPrim _ TInt32) = pure I32
 scalarFromType (TPrim _ TInt64) = pure I64
 scalarFromType (TPrim _ TFloat32) = pure F32
 scalarFromType (TPrim _ TFloat64) = pure F64
+scalarFromType (TReference {}) = pure Pointer
 scalarFromType (TFunction {}) = pure Pointer
 scalarFromType (TContainer {}) = pure Pointer
 scalarFromType (TVar _ _) =
@@ -381,6 +382,8 @@ offsetForType (TPrim _ TBool) =
   memorySize I32
 offsetForType (TConstructor {}) =
   memorySize Pointer
+offsetForType (TReference {}) =
+  memorySize Pointer
 offsetForType (TPrim _ TVoid) =
   error "offsetForType TVoid"
 offsetForType (TContainer _ _) =
@@ -427,6 +430,8 @@ memorySizeForType (TConstructor _ dataTypeName tyArgs) = do
 memorySizeForType (TContainer _ as) =
   getSum <$> (mconcat <$> traverse (fmap Sum . memorySizeInsideConstructor) (NE.toList as))
 memorySizeForType (TFunction {}) =
+  pure $ memorySize Pointer
+memorySizeForType (TReference _ _) =
   pure $ memorySize Pointer
 memorySizeForType (TVar _ _) =
   pure $ memorySize Pointer
