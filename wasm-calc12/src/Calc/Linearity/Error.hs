@@ -1,20 +1,21 @@
-{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Calc.Linearity.Error
   ( linearityErrorDiagnostic,
     LinearityError (..),
   )
 where
 
-import           Calc.SourceSpan
-import           Calc.Types.Annotation
-import           Calc.Types.Identifier
-import           Data.Maybe                (catMaybes, mapMaybe)
-import qualified Data.Text                 as T
-import qualified Error.Diagnose            as Diag
-import qualified Prettyprinter             as PP
+import Calc.SourceSpan
+import Calc.Types.Annotation
+import Calc.Types.Identifier
+import Data.Maybe (catMaybes, mapMaybe)
+import qualified Data.Text as T
+import qualified Error.Diagnose as Diag
+import qualified Prettyprinter as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data LinearityError ann

@@ -9,7 +9,8 @@ module Calc.Linearity.Types
     LinearState (..),
     UserDefined (..),
     Drops (..),
-    LinState(..)  )
+    LinState (..),
+  )
 where
 
 import Calc.Types.Identifier
@@ -34,7 +35,7 @@ data LinearityType = LTPrimitive | LTBoxed
   deriving stock (Eq, Ord, Show)
 
 data LinState ann = Fresh ann | Used ann
-    deriving stock (Eq,Ord,Show,Functor)
+  deriving stock (Eq, Ord, Show, Functor)
 
 -- | differentiate between names provided by a user, and variables
 -- created during linearity check to allow us to drop unnamed items
