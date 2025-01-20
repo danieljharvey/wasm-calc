@@ -1,20 +1,20 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad      (void)
+import           Data.Bifunctor
+import           Data.Either        (isRight)
+import           Data.Foldable      (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Map.Strict    as M
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC =
@@ -230,7 +230,10 @@ spec = do
                 case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    let !result = (snd . (fmap . fmap) void <$> fst (getFunctionUses typedFn))
+                    let functions = case getFunctionUses typedFn of
+                                      Right a -> a
+                                      Left e  -> error (show e)
+                        result = snd . (fmap . fmap) void <$> fst functions
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
         )
@@ -239,22 +242,23 @@ spec = do
     describe "getFunctionUses" $ do
       let strings =
             [ ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
-                LinearState
+                Right $ LinearState
                   { lsVars =
                       M.fromList [(UserDefined "a", (LTPrimitive, ())), (UserDefined "b", (LTPrimitive, ()))],
-                    lsUses = NE.singleton (M.fromList [("b", NE.singleton $ Whole ()), ("a", NE.singleton $ Whole ())]),
+                    lsUses = NE.singleton (M.fromList [("b", Used ()),
+                          ("a", Used ())]),
                     lsFresh = 0,
                     lsIgnoreVars = S.singleton "sum"
                   }
               ),
               ( "function pair<a,b>(a: a, b: b) -> (a,b) { (a,b) }",
-                LinearState
+                Right $ LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
                     lsUses =
                       NE.singleton
                         ( M.fromList
-                            [ ("b", NE.singleton $ Whole ()),
-                              ("a", NE.singleton $ Whole ())
+                            [ ("b", Used ()),
+                              ("a", Used ())
                             ]
                         ),
                     lsFresh = 0,
@@ -262,25 +266,20 @@ spec = do
                   }
               ),
               ( "function dontUseA<a,b>(a: a, b: b) -> b { b }",
-                LinearState
+                Right $ LinearState
                   { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
-                    lsUses = NE.singleton (M.fromList [("b", NE.singleton $ Whole ())]),
+                    lsUses = NE.singleton (M.fromList [("b",  Used ())]),
                     lsFresh = 0,
                     lsIgnoreVars = S.singleton "dontUseA"
                   }
               ),
               ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
-                LinearState
-                  { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ()))],
-                    lsUses = NE.singleton (M.fromList [("a", NE.fromList [Whole (), Whole ()])]),
-                    lsFresh = 0,
-                    lsIgnoreVars = S.singleton "dup"
-                  }
+                Left (UsedMultipleTimes () () "a")
               ),
               ( "function useLambda() -> Int64 { let f = \\() -> Int64 { 100 }; f() }",
-                LinearState
+                Right $ LinearState
                   { lsVars = M.fromList [(UserDefined "f", (LTBoxed, ()))],
-                    lsUses = NE.singleton (M.fromList [("f", NE.fromList [Whole ()])]),
+                    lsUses = NE.singleton (M.fromList [("f", Used ())]),
                     lsFresh = 0,
                     lsIgnoreVars = S.singleton "useLambda"
                   }
@@ -293,7 +292,8 @@ spec = do
                 case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    void (snd $ getFunctionUses typedFn) `shouldBe` linearState
+                    (bimap void (void . snd) (getFunctionUses typedFn))
+                      `shouldBe` linearState
               Left e -> error (T.unpack e)
         )
         strings
@@ -330,13 +330,13 @@ spec = do
                   NotUsed () "a"
                 ),
                 ( "function dup<a>(a: a) -> (a,a) { (a,a)}",
-                  UsedMultipleTimes (NE.fromList [(), ()]) "a"
+                  UsedMultipleTimes () () "a"
                 ),
                 ( "function withPair<a,b>(pair: (a,b)) -> (a,a,b) { let (a,b) = pair; (a, a, b) }",
-                  UsedMultipleTimes (NE.fromList [(), ()]) "a"
+                  UsedMultipleTimes () () "a"
                 ),
                 ( "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then { let _ = pair; pair } else pair }",
-                  UsedMultipleTimes (NE.fromList [(), ()]) "pair"
+                  UsedMultipleTimes () () "pair"
                 )
               ]
         traverse_

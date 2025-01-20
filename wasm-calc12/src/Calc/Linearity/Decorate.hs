@@ -1,33 +1,35 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TupleSections      #-}
 
 module Calc.Linearity.Decorate
   ( decorate,
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad (unless)
-import Control.Monad.State
-import Control.Monad.Writer
-import Data.Bifunctor (second)
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
-import qualified Data.Set as S
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Identifier
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad         (unless)
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Data.Bifunctor        (second)
+import           Data.Foldable         (traverse_)
+import           Data.Functor          (($>))
+import qualified Data.List.NonEmpty    as NE
+import qualified Data.Map              as M
+import           Data.Maybe            (mapMaybe)
+import qualified Data.Set              as S
+import qualified Data.Text             as T
+import           GHC.Natural
 
 getFresh :: (MonadState (LinearState ann) m) => m Natural
 getFresh = do
@@ -36,12 +38,16 @@ getFresh = do
 
 -- | push a load of uses directly onto the head of the uses stack
 pushUses ::
-  (MonadState (LinearState ann) m) =>
-  M.Map Identifier (NE.NonEmpty (Linearity ann)) ->
+  (MonadError (LinearityError ann) m,
+  MonadState (LinearState ann) m) =>
+  M.Map Identifier (LinState ann) ->
   m ()
 pushUses uses = do
-  let pushForIdent ident =
-        traverse_ (\(Whole ann) -> recordUsesInState ident ann)
+  let pushForIdent ident linState =
+          let ann = case linState of
+                      Fresh ann' -> ann'
+                      Used ann'  -> ann'
+          in recordUsesInState ident ann
    in traverse_ (uncurry pushForIdent) (M.toList uses)
 
 mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
@@ -49,28 +55,28 @@ mapHead f (neHead NE.:| neTail) =
   f neHead NE.:| neTail
 
 recordUsesInState ::
-  (MonadState (LinearState ann) m) =>
+  ( MonadState (LinearState ann) m,
+    MonadError (LinearityError ann) m
+  ) =>
   Identifier ->
   ann ->
   m ()
 recordUsesInState ident ann = do
+  existing <- gets (M.lookup ident . NE.head . lsUses)
+  case existing of
+    Just (Used usedAnn) ->
+      throwError $ UsedMultipleTimes ann usedAnn ident
+    _ -> pure ()
   modify
     ( \ls ->
-        let f =
-              M.alter
-                ( \existing ->
-                    let newItem = Whole ann
-                     in Just $ case existing of
-                          Just neExisting -> newItem NE.:| NE.toList neExisting
-                          Nothing -> NE.singleton newItem
-                )
-                ident
+        let f = M.insert ident (Used ann)
          in ls {lsUses = mapHead f (lsUses ls)}
     )
 
 recordUse ::
   ( MonadState (LinearState ann) m,
-    MonadWriter (M.Map Identifier (Type ann)) m
+    MonadWriter (M.Map Identifier (Type ann)) m,
+  MonadError (LinearityError ann) m
   ) =>
   Identifier ->
   Type ann ->
@@ -84,7 +90,7 @@ recordUse ident ty = do
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them
 -- this allows us to dedupe and re-add them to the current stack as desired
-scoped :: (MonadState (LinearState ann) m) => m a -> m (a, M.Map Identifier (NE.NonEmpty (Linearity ann)))
+scoped :: (MonadState (LinearState ann) m) => m a -> m (a, M.Map Identifier (LinState ann))
 scoped action = do
   -- add a new empty stack
   modify (\ls -> ls {lsUses = mempty NE.:| NE.toList (lsUses ls)})
@@ -99,7 +105,7 @@ scoped action = do
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _ = False
+isPrimitive _          = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -178,13 +184,20 @@ getVarsInScope = gets (S.fromList . mapMaybe userDefined . M.keys . lsVars)
       UserDefined i -> Just i
       _ -> Nothing
 
-combineWithBiggestItems :: (Ord k, Foldable t) => M.Map k (t a) -> M.Map k (t a) -> M.Map k (t a)
-combineWithBiggestItems = M.unionWith (\l r -> if length r > length l then r else l)
+combineWithBiggestItems ::
+  (Ord k) => M.Map k (LinState ann) -> M.Map k (LinState ann) -> M.Map k (LinState ann)
+combineWithBiggestItems = M.unionWith combineLinearity
+  where
+    combineLinearity (Fresh a) (Fresh _) = Fresh a
+    combineLinearity (Used a) _          = Used a
+    combineLinearity _ (Used b)          = Used b
 
 decorate ::
   (Show ann) =>
   ( MonadState (LinearState ann) m,
-    MonadWriter (M.Map Identifier (Type ann)) m
+    MonadWriter (M.Map Identifier (Type ann)) m,
+  MonadError (LinearityError ann) m
+
   ) =>
   Expr (Type ann) ->
   m (Expr (Type ann, Maybe (Drops ann)))

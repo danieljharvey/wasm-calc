@@ -9,7 +9,7 @@ module Calc.Linearity.Types
     LinearState (..),
     UserDefined (..),
     Drops (..),
-  )
+    LinState(..)  )
 where
 
 import Calc.Types.Identifier
@@ -33,6 +33,9 @@ newtype Linearity ann
 data LinearityType = LTPrimitive | LTBoxed
   deriving stock (Eq, Ord, Show)
 
+data LinState ann = Fresh ann | Used ann
+    deriving stock (Eq,Ord,Show,Functor)
+
 -- | differentiate between names provided by a user, and variables
 -- created during linearity check to allow us to drop unnamed items
 data UserDefined a = UserDefined a | Internal a
@@ -40,7 +43,7 @@ data UserDefined a = UserDefined a | Internal a
 
 data LinearState ann = LinearState
   { lsVars :: M.Map (UserDefined Identifier) (LinearityType, ann),
-    lsUses :: NE.NonEmpty (M.Map Identifier (NE.NonEmpty (Linearity ann))),
+    lsUses :: NE.NonEmpty (M.Map Identifier (LinState ann)),
     lsFresh :: Natural,
     lsIgnoreVars :: S.Set Identifier
   }

@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns   #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -8,28 +8,25 @@ module Calc.Linearity.Validate
     getFunctionUses,
   )
 where
-
-import Calc.Linearity.Decorate
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Function
-import Calc.Types.Global
-import Calc.Types.Identifier
-import Calc.Types.Module
-import Calc.Types.Type
-import Control.Monad.Identity
-import Control.Monad.State
-import Control.Monad.Writer
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import qualified Data.Set as S
-
-getLinearityAnnotation :: Linearity ann -> ann
-getLinearityAnnotation (Whole ann) = ann
+import           Calc.Linearity.Decorate
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Function
+import           Calc.Types.Global
+import           Calc.Types.Identifier
+import           Calc.Types.Module
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad.Except
+import           Control.Monad.Identity
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Data.Foldable           (traverse_)
+import           Data.Functor            (($>))
+import qualified Data.List.NonEmpty      as NE
+import qualified Data.Map                as M
+import qualified Data.Set                as S
 
 validateModule :: (Show ann) => Module (Type ann) -> Either (LinearityError ann) ()
 validateModule (Module {mdFunctions, mdGlobals}) = do
@@ -41,7 +38,7 @@ validateGlobal ::
   Global (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
 validateGlobal glob = do
-  let (expr, linearState) = getGlobalUses glob
+  (expr, linearState) <- getGlobalUses glob
   validate linearState $> expr
 
 validateFunction ::
@@ -49,34 +46,34 @@ validateFunction ::
   Function (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
 validateFunction fn = do
-  let (expr, linearState) = getFunctionUses fn
+  (expr, linearState) <- getFunctionUses fn
   validate linearState $> expr
 
 validate :: LinearState ann -> Either (LinearityError ann) ()
 validate (LinearState {lsVars, lsUses}) =
   let validateFunctionItem (Internal _, _) = Right ()
       validateFunctionItem (UserDefined ident, (linearity, ann)) =
-        let completeUses = maybe mempty NE.toList (M.lookup ident (NE.head lsUses))
+        let linearState = M.lookup ident (NE.head lsUses)
          in case linearity of
               LTPrimitive ->
-                if null completeUses
-                  then Left (NotUsed ann ident)
-                  else Right ()
+                case linearState of
+                  Just(Fresh _) -> Left (NotUsed ann ident)
+                  Just(Used _)  -> Right ()
+                  Nothing       -> Left (NotUsed ann ident)
               LTBoxed ->
-                case NE.nonEmpty completeUses of
-                  Nothing -> Left (NotUsed ann ident)
-                  Just neUses ->
-                    if length neUses == 1
-                      then Right ()
-                      else Left (UsedMultipleTimes (getLinearityAnnotation <$> neUses) ident)
+                case linearState of
+                  Just(Fresh _)  -> Left (NotUsed ann ident)
+                  Just (Used _ ) -> Right ()
+                  Nothing        -> Left (NotUsed ann ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
 
 getFunctionUses ::
   (Show ann) =>
   Function (Type ann) ->
-  (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
+  Either (LinearityError ann)
+    (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
 getFunctionUses (Function {fnFunctionName = FunctionName fnName, fnBody, fnArgs}) =
-  fst $ runIdentity $ runWriterT $ runStateT action initialState
+  fst <$> runIdentity $ runWriterT $ runExceptT $ runStateT action initialState
   where
     action = decorate fnBody
 
@@ -93,16 +90,17 @@ getFunctionUses (Function {fnFunctionName = FunctionName fnName, fnBody, fnArgs}
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (UserDefined (Identifier arg)) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 
 getGlobalUses ::
   (Show ann) =>
   Global (Type ann) ->
-  (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
+  Either (LinearityError ann)
+    (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
 getGlobalUses (Global {glbExpr}) =
-  fst $ runIdentity $ runWriterT $ runStateT action initialState
+   fst <$> runIdentity $ runWriterT (runExceptT (runStateT action initialState))
   where
     action = decorate glbExpr
 
