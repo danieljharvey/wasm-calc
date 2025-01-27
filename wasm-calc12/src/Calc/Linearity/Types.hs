@@ -34,7 +34,9 @@ newtype Linearity ann
 data LinearityType = LTPrimitive | LTBoxed
   deriving stock (Eq, Ord, Show)
 
-data LinState ann = Fresh ann | Used ann
+data LinState ann
+  = Fresh ann
+  | Used ann
   deriving stock (Eq, Ord, Show, Functor)
 
 -- | differentiate between names provided by a user, and variables

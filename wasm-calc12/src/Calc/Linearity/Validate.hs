@@ -17,6 +17,7 @@ import Calc.Types.Expr
 import Calc.Types.Function
 import Calc.Types.Global
 import Calc.Types.Identifier
+import Calc.Types.Import
 import Calc.Types.Module
 import Calc.Types.Type
 import Control.Monad.Except
@@ -30,8 +31,11 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 validateModule :: (Show ann) => Module (Type ann) -> Either (LinearityError ann) ()
-validateModule (Module {mdFunctions, mdGlobals}) = do
-  traverse_ validateFunction mdFunctions
+validateModule (Module {mdImports, mdFunctions, mdGlobals}) = do
+  let functionNames =
+        foldMap (S.singleton . fnFunctionName) mdFunctions
+          <> foldMap (S.singleton . impImportName) mdImports
+  traverse_ (validateFunction functionNames) mdFunctions
   traverse_ validateGlobal mdGlobals
 
 validateGlobal ::
@@ -44,10 +48,11 @@ validateGlobal glob = do
 
 validateFunction ::
   (Show ann) =>
+  S.Set FunctionName ->
   Function (Type ann) ->
   Either (LinearityError ann) (Expr (Type ann, Maybe (Drops ann)))
-validateFunction fn = do
-  (expr, linearState) <- getFunctionUses fn
+validateFunction functionNames fn = do
+  (expr, linearState) <- getFunctionUses functionNames fn
   validate linearState $> expr
 
 validate :: LinearState ann -> Either (LinearityError ann) ()
@@ -58,9 +63,8 @@ validate (LinearState {lsVars, lsUses}) =
          in case linearity of
               LTPrimitive ->
                 case linearState of
-                  Just (Fresh _) -> Left (NotUsed ann ident)
-                  Just (Used _) -> Right ()
                   Nothing -> Left (NotUsed ann ident)
+                  _ -> Right ()
               LTBoxed ->
                 case linearState of
                   Just (Fresh _) -> Left (NotUsed ann ident)
@@ -70,21 +74,25 @@ validate (LinearState {lsVars, lsUses}) =
 
 getFunctionUses ::
   (Show ann) =>
+  S.Set FunctionName ->
   Function (Type ann) ->
   Either
     (LinearityError ann)
     (Expr (Type ann, Maybe (Drops ann)), LinearState ann)
-getFunctionUses (Function {fnFunctionName = FunctionName fnName, fnBody, fnArgs}) =
+getFunctionUses functionNames (Function {fnFunctionName = FunctionName fnName, fnBody, fnArgs}) =
   fst <$> runIdentity $ runWriterT $ runExceptT $ runStateT action initialState
   where
     action = decorate fnBody
 
+    ignoreVars =
+      S.map (\(FunctionName ident) -> Identifier ident) functionNames
+        <> S.singleton (Identifier fnName) -- don't count recursive calls
     initialState =
       LinearState
         { lsVars = initialVars,
           lsUses = NE.singleton mempty,
           lsFresh = 0,
-          lsIgnoreVars = S.singleton (Identifier fnName) -- don't count recursive calls
+          lsIgnoreVars = ignoreVars
         }
 
     initialVars =

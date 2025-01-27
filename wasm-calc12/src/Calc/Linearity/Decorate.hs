@@ -17,7 +17,6 @@ import Calc.Types.Expr
 import Calc.Types.Identifier
 import Calc.Types.Pattern
 import Calc.Types.Type
-import Control.Monad (unless)
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
@@ -43,13 +42,8 @@ pushUses ::
   ) =>
   M.Map Identifier (LinState ann) ->
   m ()
-pushUses uses = do
-  let pushForIdent ident linState =
-        let ann = case linState of
-              Fresh ann' -> ann'
-              Used ann' -> ann'
-         in recordUsesInState ident ann
-   in traverse_ (uncurry pushForIdent) (M.toList uses)
+pushUses uses =
+  traverse_ (uncurry recordUsesInState) (M.toList uses)
 
 mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
 mapHead f (neHead NE.:| neTail) =
@@ -60,17 +54,17 @@ recordUsesInState ::
     MonadError (LinearityError ann) m
   ) =>
   Identifier ->
-  ann ->
+  LinState ann ->
   m ()
-recordUsesInState ident ann = do
+recordUsesInState ident linState = do
   existing <- gets (M.lookup ident . NE.head . lsUses)
-  case existing of
-    Just (Used usedAnn) ->
+  case (linState, existing) of
+    (Used ann, Just (Used usedAnn)) ->
       throwError $ UsedMultipleTimes ann usedAnn ident
     _ -> pure ()
   modify
     ( \ls ->
-        let f = M.insert ident (Used ann)
+        let f = M.insert ident linState
          in ls {lsUses = mapHead f (lsUses ls)}
     )
 
@@ -83,10 +77,12 @@ recordUse ::
   Type ann ->
   m ()
 recordUse ident ty = do
-  recordUsesInState ident (getOuterTypeAnnotation ty)
   ignoreVars <- gets lsIgnoreVars
-  unless (S.member ident ignoreVars || isPrimitive ty) $
-    tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+  if S.member ident ignoreVars || isPrimitive ty
+    then recordUsesInState ident (Fresh (getOuterTypeAnnotation ty))
+    else do
+      tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+      recordUsesInState ident (Used (getOuterTypeAnnotation ty))
 
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them

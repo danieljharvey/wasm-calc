@@ -113,7 +113,9 @@ fromFunction functionAbilities funcMap importMap globalMap dataTypeMap generated
 
   let allArgs = args <> genericsArgs
 
-  let functionUses = case fst <$> getFunctionUses fn of
+  let functionNames = M.keysSet funcMap <> M.keysSet importMap
+
+  let functionUses = case fst <$> getFunctionUses functionNames fn of
         Right a -> a
         Left e -> error (show e)
 

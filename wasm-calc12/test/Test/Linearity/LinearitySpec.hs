@@ -230,7 +230,7 @@ spec = do
                 case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    let functions = case getFunctionUses typedFn of
+                    let functions = case getFunctionUses mempty typedFn of
                           Right a -> a
                           Left e -> error (show e)
                         result = snd . (fmap . fmap) void <$> fst functions
@@ -249,8 +249,8 @@ spec = do
                       lsUses =
                         NE.singleton
                           ( M.fromList
-                              [ ("b", Used ()),
-                                ("a", Used ())
+                              [ ("b", Fresh ()),
+                                ("a", Fresh ())
                               ]
                           ),
                       lsFresh = 0,
@@ -301,7 +301,7 @@ spec = do
                 case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    (bimap void (void . snd) (getFunctionUses typedFn))
+                    (bimap void (void . snd) (getFunctionUses mempty typedFn))
                       `shouldBe` linearState
               Left e -> error (T.unpack e)
         )
@@ -325,7 +325,7 @@ spec = do
                   case runTC (elaborateFunction mempty parsedFn) of
                     Left e -> error (show e)
                     Right typedFn ->
-                      validateFunction typedFn `shouldSatisfy` isRight
+                      validateFunction mempty typedFn `shouldSatisfy` isRight
                 Left e -> error (T.unpack e)
           )
           success
@@ -355,7 +355,7 @@ spec = do
                   case runTC (elaborateFunction mempty (void parsedFn)) of
                     Left e -> error (show e)
                     Right typedFn ->
-                      validateFunction typedFn `shouldBe` Left err
+                      validateFunction mempty typedFn `shouldBe` Left err
                 Left e -> error (T.unpack e)
           )
           failures
