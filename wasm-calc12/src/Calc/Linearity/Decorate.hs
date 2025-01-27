@@ -1,34 +1,33 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TupleSections      #-}
 
 module Calc.Linearity.Decorate
   ( decorate,
   )
 where
 
-import Calc.ExprUtils
-import Calc.Linearity.Error
-import Calc.Linearity.Types
-import Calc.TypeUtils
-import Calc.Types.Expr
-import Calc.Types.Identifier
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Writer
-import Data.Bifunctor (second)
-import Data.Foldable (traverse_)
-import Data.Functor (($>))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
-import qualified Data.Set as S
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Linearity.Error
+import           Calc.Linearity.Types
+import           Calc.Types.Expr
+import           Calc.Types.Identifier
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Calc.TypeUtils
+import           Control.Monad.Except
+import           Control.Monad.State
+import           Data.Bifunctor        (second)
+import           Data.Foldable         (traverse_)
+import           Data.Functor          (($>))
+import qualified Data.List.NonEmpty    as NE
+import qualified Data.Map              as M
+import           Data.Maybe            (mapMaybe)
+import qualified Data.Set              as S
+import qualified Data.Text             as T
+import           GHC.Natural
 
 getFresh :: (MonadState (LinearState ann) m) => m Natural
 getFresh = do
@@ -40,10 +39,10 @@ pushUses ::
   ( MonadError (LinearityError ann) m,
     MonadState (LinearState ann) m
   ) =>
-  M.Map Identifier (LinState ann) ->
+  M.Map Identifier (LinState ann, Type ann) ->
   m ()
 pushUses uses =
-  traverse_ (uncurry recordUsesInState) (M.toList uses)
+  traverse_ (\(i,(ls,ty)) -> recordUsesInState i ty ls) (M.toList uses)
 
 mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
 mapHead f (neHead NE.:| neTail) =
@@ -54,23 +53,23 @@ recordUsesInState ::
     MonadError (LinearityError ann) m
   ) =>
   Identifier ->
+  Type ann ->
   LinState ann ->
   m ()
-recordUsesInState ident linState = do
+recordUsesInState ident ty linState = do
   existing <- gets (M.lookup ident . NE.head . lsUses)
   case (linState, existing) of
-    (Used ann, Just (Used usedAnn)) ->
+    (Used ann, Just (Used usedAnn,_)) ->
       throwError $ UsedMultipleTimes ann usedAnn ident
     _ -> pure ()
   modify
     ( \ls ->
-        let f = M.insert ident linState
+        let f = M.insert ident (linState,ty)
          in ls {lsUses = mapHead f (lsUses ls)}
     )
 
 recordUse ::
   ( MonadState (LinearState ann) m,
-    MonadWriter (M.Map Identifier (Type ann)) m,
     MonadError (LinearityError ann) m
   ) =>
   Identifier ->
@@ -79,15 +78,16 @@ recordUse ::
 recordUse ident ty = do
   ignoreVars <- gets lsIgnoreVars
   if S.member ident ignoreVars || isPrimitive ty
-    then recordUsesInState ident (Fresh (getOuterTypeAnnotation ty))
+    then recordUsesInState ident ty (Fresh (getOuterTypeAnnotation ty))
     else do
-      tell (M.singleton ident ty) -- we only want to track use of non-primitive types
-      recordUsesInState ident (Used (getOuterTypeAnnotation ty))
+      recordUsesInState ident ty (Used (getOuterTypeAnnotation ty))
 
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them
 -- this allows us to dedupe and re-add them to the current stack as desired
-scoped :: (MonadState (LinearState ann) m) => m a -> m (a, M.Map Identifier (LinState ann))
+scoped :: (MonadState (LinearState ann) m) =>
+  m a ->
+  m (a, M.Map Identifier (LinState ann, Type ann))
 scoped action = do
   -- add a new empty stack
   modify (\ls -> ls {lsUses = mempty NE.:| NE.toList (lsUses ls)})
@@ -102,7 +102,7 @@ scoped action = do
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _ = False
+isPrimitive _          = False
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -182,17 +182,25 @@ getVarsInScope = gets (S.fromList . mapMaybe userDefined . M.keys . lsVars)
       _ -> Nothing
 
 combineWithBiggestItems ::
-  (Ord k) => M.Map k (LinState ann) -> M.Map k (LinState ann) -> M.Map k (LinState ann)
+  (Ord k) =>
+  M.Map k (LinState ann,Type ann) ->
+  M.Map k (LinState ann,Type ann) ->
+  M.Map k (LinState ann, Type ann)
 combineWithBiggestItems = M.unionWith combineLinearity
   where
-    combineLinearity (Fresh a) (Fresh _) = Fresh a
-    combineLinearity (Used a) _ = Used a
-    combineLinearity _ (Used b) = Used b
+    combineLinearity a@(Fresh _, _) (Fresh _, _) = a
+    combineLinearity a@(Used _,_) _              = a
+    combineLinearity _ b@(Used _,_)              = b
+
+getIdents :: M.Map k (LinState ann, b) -> M.Map k b
+getIdents = fmap snd . M.filter (\case
+                                  (Used _ ,_)-> True
+                                  (Fresh _,_) -> False)
+
 
 decorate ::
   (Show ann) =>
   ( MonadState (LinearState ann) m,
-    MonadWriter (M.Map Identifier (Type ann)) m,
     MonadError (LinearityError ann) m
   ) =>
   Expr (Type ann) ->
@@ -230,10 +238,10 @@ decorate (EMatch ty expr pats) = do
 
   let decoratePair (pat, patExpr) = do
         (decoratedPat, _idents) <- decoratePattern pat
-        ((decoratedPatExpr, uses), patIdents) <- runWriterT (scoped (decorate patExpr))
+        (decoratedPatExpr, uses)  <- scoped (decorate patExpr)
         -- we only care about idents that exist in the current scope
         let usefulIdents =
-              M.filterWithKey (\k _ -> S.member k existingVars) patIdents
+              M.filterWithKey (\k _ -> S.member k existingVars) (getIdents uses)
         pure ((usefulIdents, uses), (decoratedPat, decoratedPatExpr))
 
   decoratedPatterns <- traverse decoratePair pats
@@ -259,8 +267,11 @@ decorate (EMatch ty expr pats) = do
 decorate (EInfix ty op a b) =
   EInfix (ty, Nothing) op <$> decorate a <*> decorate b
 decorate (EIf ty predExpr thenExpr elseExpr) = do
-  ((decoratedThen, thenUses), thenIdents) <- runWriterT (scoped (decorate thenExpr))
-  ((decoratedElse, elseUses), elseIdents) <- runWriterT (scoped (decorate elseExpr))
+  (decoratedThen, thenUses)  <- scoped (decorate thenExpr)
+  (decoratedElse, elseUses)  <- scoped (decorate elseExpr)
+
+  let thenIdents = getIdents thenUses
+      elseIdents = getIdents elseUses
 
   -- here we're gonna go through each constructor and keep the longest list of
   -- things, then push the ones we want to keep hold of
@@ -268,8 +279,10 @@ decorate (EIf ty predExpr thenExpr elseExpr) = do
     (combineWithBiggestItems thenUses elseUses)
 
   -- work out idents used in the other branch but not this one
-  let uniqueToThen = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))
-      uniqueToElse = DropIdentifiers <$> NE.nonEmpty (M.toList (M.difference elseIdents thenIdents))
+  let uniqueToThen = DropIdentifiers <$>
+          NE.nonEmpty (M.toList (M.difference thenIdents elseIdents))
+      uniqueToElse = DropIdentifiers <$>
+          NE.nonEmpty (M.toList (M.difference elseIdents thenIdents))
 
   EIf (ty, Nothing)
     <$> decorate predExpr

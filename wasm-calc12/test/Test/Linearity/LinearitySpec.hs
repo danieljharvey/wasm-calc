@@ -1,20 +1,20 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Bifunctor
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad      (void)
+import           Data.Bifunctor
+import           Data.Either        (isRight)
+import           Data.Foldable      (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Map.Strict    as M
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC =
@@ -232,7 +232,7 @@ spec = do
                   Right typedFn ->
                     let functions = case getFunctionUses mempty typedFn of
                           Right a -> a
-                          Left e -> error (show e)
+                          Left e  -> error (show e)
                         result = snd . (fmap . fmap) void <$> fst functions
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
@@ -240,6 +240,8 @@ spec = do
         strings
 
     describe "getFunctionUses" $ do
+      let tyInt64 = TPrim mempty TInt64
+
       let strings =
             [ ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 Right $
@@ -249,8 +251,8 @@ spec = do
                       lsUses =
                         NE.singleton
                           ( M.fromList
-                              [ ("b", Fresh ()),
-                                ("a", Fresh ())
+                              [ ("b", (Fresh (),tyInt64)),
+                                ("a", (Fresh (),tyInt64))
                               ]
                           ),
                       lsFresh = 0,
@@ -264,8 +266,8 @@ spec = do
                       lsUses =
                         NE.singleton
                           ( M.fromList
-                              [ ("b", Used ()),
-                                ("a", Used ())
+                              [ ("b", (Used (), TVar () "b")),
+                                ("a", (Used (), TVar () "a"))
                               ]
                           ),
                       lsFresh = 0,
@@ -276,7 +278,8 @@ spec = do
                 Right $
                   LinearState
                     { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
-                      lsUses = NE.singleton (M.fromList [("b", Used ())]),
+                      lsUses = NE.singleton (
+                          M.fromList [("b", (Used (),TVar () "b"))]),
                       lsFresh = 0,
                       lsIgnoreVars = S.singleton "dontUseA"
                     }
@@ -288,7 +291,9 @@ spec = do
                 Right $
                   LinearState
                     { lsVars = M.fromList [(UserDefined "f", (LTBoxed, ()))],
-                      lsUses = NE.singleton (M.fromList [("f", Used ())]),
+                      lsUses = NE.singleton (M.fromList [
+                          ("f", (Used (),TFunction () mempty tyInt64))
+                                                        ]),
                       lsFresh = 0,
                       lsIgnoreVars = S.singleton "useLambda"
                     }
