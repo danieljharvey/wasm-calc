@@ -2,22 +2,22 @@
 
 module Calc.Parser.Expr (exprParser) where
 
-import Calc.Parser.Identifier
-import Calc.Parser.Pattern
-import Calc.Parser.Primitives
-import Calc.Parser.Shared
-import Calc.Parser.Type
-import Calc.Parser.Types
-import Calc.Types.Annotation
-import Calc.Types.Expr
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Type
-import Control.Monad.Combinators.Expr
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import Text.Megaparsec
+import           Calc.Parser.Identifier
+import           Calc.Parser.Pattern
+import           Calc.Parser.Primitives
+import           Calc.Parser.Shared
+import           Calc.Parser.Type
+import           Calc.Parser.Types
+import           Calc.Types.Annotation
+import           Calc.Types.Expr
+import           Calc.Types.Identifier
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Type
+import           Control.Monad.Combinators.Expr
+import qualified Data.List.NonEmpty             as NE
+import qualified Data.Text                      as T
+import           Text.Megaparsec
 
 -- | expression, include lets
 exprParser :: Parser (Expr Annotation)
@@ -155,8 +155,8 @@ ifParser = label "if" $ addLocation $ do
 varParser :: Parser (Expr Annotation)
 varParser =
   label "var" $
-    addLocation $
-      EVar mempty <$> identifierParser
+    addLocation $ do
+      EVar mempty Use <$> identifierParser
 
 applyFuncParser :: Parser (Expr Annotation)
 applyFuncParser = do
@@ -182,7 +182,7 @@ tupleParser = label "tuple" $
     neArgs <- NE.fromList <$> sepEndBy1 exprParserInternal (stringLiteral ",")
     neTail <- case NE.nonEmpty (NE.tail neArgs) of
       Just ne -> pure ne
-      _ -> fail "Expected at least two items in a tuple"
+      _       -> fail "Expected at least two items in a tuple"
     _ <- stringLiteral ")"
     pure (ETuple mempty (NE.head neArgs) neTail)
 
@@ -246,7 +246,7 @@ patternMatchParser = addLocation $ do
   stringLiteral "}"
   case NE.nonEmpty patterns of
     (Just nePatterns) -> pure $ EMatch mempty matchExpr nePatterns
-    _ -> error "need at least one pattern"
+    _                 -> error "need at least one pattern"
 
 matchExprWithParser :: Parser (Expr Annotation)
 matchExprWithParser = do

@@ -1,17 +1,17 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE NamedFieldPuns     #-}
 
 module Calc.Dependencies (Dependency (..), treeShakeModule, trimDependencies, combineDependencies, getModuleDependencies) where
 
-import Calc.ExprUtils
-import Calc.Types
-import Calc.Types.ModuleAnnotations
-import Control.Monad (when)
-import Control.Monad.Writer
-import qualified Data.Map.Strict as M
-import Data.Maybe (fromMaybe, mapMaybe)
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Types
+import           Calc.Types.ModuleAnnotations
+import           Control.Monad                (when)
+import           Control.Monad.Writer
+import qualified Data.Map.Strict              as M
+import           Data.Maybe                   (fromMaybe, mapMaybe)
+import qualified Data.Set                     as S
 
 data Dependency
   = DepFunction FunctionName
@@ -59,7 +59,7 @@ combineDependencies deps annotatedModule =
         fromMaybe mempty (M.lookup fnName (maFunctions annotatedModule))
       getChildDeps (DepTest identifier) = case M.lookup identifier (maTests annotatedModule) of
         Just testDeps -> testDeps
-        Nothing -> error $ "Internal error looking up " <> show identifier
+        Nothing       -> error $ "Internal error looking up " <> show identifier
       getChildDeps (DepImport _) = mempty
       getChildDeps (DepGlobal _) = mempty
 
@@ -86,7 +86,7 @@ getFunctionDependencies globalNames importNames (Function {fnFunctionName, fnBod
 getExprDependencies :: S.Set Identifier -> S.Set FunctionName -> Expr ann -> S.Set Dependency
 getExprDependencies globalNames importNames = snd . runWriter . go
   where
-    go (EApply ann fnExpr@(EVar _ (Identifier fnName)) args) = do
+    go (EApply ann fnExpr@(EVar _ _ (Identifier fnName)) args) = do
       if S.member (FunctionName fnName) importNames
         then tell (S.singleton $ DepImport (FunctionName fnName))
         else tell (S.singleton $ DepFunction (FunctionName fnName))
@@ -94,8 +94,8 @@ getExprDependencies globalNames importNames = snd . runWriter . go
     go (ESet ann globalName value) = do
       tell (S.singleton $ DepGlobal globalName)
       ESet ann globalName <$> go value
-    go (EVar ann identifier) = do
+    go (EVar ann borrow identifier) = do
       when (S.member identifier globalNames) $
         tell (S.singleton $ DepGlobal identifier)
-      pure (EVar ann identifier)
+      pure (EVar ann borrow identifier)
     go other = bindExpr go other

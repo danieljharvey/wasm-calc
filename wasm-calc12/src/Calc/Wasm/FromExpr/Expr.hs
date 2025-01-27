@@ -1,29 +1,27 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr.Expr (fromExpr) where
 
-import Calc.ExprUtils
-import Calc.Linearity (Drops (..))
-import Calc.Types
-import Calc.Wasm.FromExpr.Drops
-  ( addDropsFromPath,
-    addDropsToWasmExpr,
-    dropFunctionForType,
-    dropInstructionForType,
-  )
-import Calc.Wasm.FromExpr.Helpers
-import Calc.Wasm.FromExpr.Patterns
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Linearity              (Drops (..))
+import           Calc.Types
+import           Calc.Wasm.FromExpr.Drops    (addDropsFromPath,
+                                              addDropsToWasmExpr,
+                                              dropFunctionForType,
+                                              dropInstructionForType)
+import           Calc.Wasm.FromExpr.Helpers
+import           Calc.Wasm.FromExpr.Patterns
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad               (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List.NonEmpty          as NE
+import qualified Data.Map.Strict             as M
+import qualified Data.Set                    as S
+import qualified Data.Text                   as T
+import           GHC.Natural
 
 patternBindings ::
   (MonadError FromWasmError m, MonadState FromExprState m, Show ann, Eq ann) =>
@@ -133,7 +131,7 @@ fromMatch expr pats = do
       -- we make a nameless binding of the whole value
       (needsLet, index) <- case wasmExpr of
         WVar i -> pure (False, i)
-        _ -> (,) True <$> addLocal Nothing wasmType
+        _      -> (,) True <$> addLocal Nothing wasmType
 
       -- return type of exprs
       wasmReturnType <- liftEither $ scalarFromType $ fst $ getOuterAnnotation headExpr
@@ -187,8 +185,8 @@ allVars :: Expr (Type ann, Maybe (Drops ann)) -> S.Set Identifier
 allVars =
   go
   where
-    go (EVar _ ident) = S.singleton ident
-    go other = monoidExpr go other
+    go (EVar _ _ ident) = S.singleton ident
+    go other            = monoidExpr go other
 
 fromLambda ::
   ( MonadError FromWasmError m,
@@ -334,7 +332,7 @@ fromConstructor ty constructor args = do
 
   let allWasmItems = case constructorNumber of
         Just nat -> (0, I8, nat) : wasmItems
-        Nothing -> wasmItems
+        Nothing  -> wasmItems
 
   pure $ WSet index allocate allWasmItems
 
@@ -382,7 +380,7 @@ fromApply fnExpr args = do
       )
       `catchError` \_ ->
         case fnExpr of
-          EVar _ (Identifier ident) -> do
+          EVar _ _ (Identifier ident) -> do
             -- maybe it's a function
             (fIndex, fGenerics, fArgTypes) <- lookupFunction (FunctionName ident)
             let argTypes =
@@ -402,7 +400,7 @@ fromApply fnExpr args = do
 
       let returnType = case fst ty of
             TFunction _ _ ret -> ret
-            _ -> error "argggh"
+            _                 -> error "argggh"
 
       wasmReturnType <- liftEither $ scalarFromType returnType
 
@@ -465,7 +463,7 @@ fromExpr (EIf (ty, _) predE thenE elseE) = do
     <$> fromExpr predE
     <*> fromExprWithDrops thenE
     <*> fromExprWithDrops elseE
-fromExpr (EVar _ ident) = do
+fromExpr (EVar _ _ ident) = do
   (WVar . fst <$> lookupIdent ident)
     `catchError` \_ -> WGlobal <$> lookupGlobal ident
 fromExpr (EApply _ fnExpr args) = do

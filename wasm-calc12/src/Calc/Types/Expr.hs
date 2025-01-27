@@ -1,19 +1,22 @@
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveTraversable  #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
-module Calc.Types.Expr (Expr (..)) where
+module Calc.Types.Expr (Borrow(..), Expr (..)) where
 
-import Calc.Types.Constructor
-import Calc.Types.Identifier
-import Calc.Types.Op
-import Calc.Types.Pattern
-import Calc.Types.Prim
-import Calc.Types.Type
-import Calc.Utils
-import qualified Data.List.NonEmpty as NE
-import Prettyprinter ((<+>))
-import qualified Prettyprinter as PP
+import           Calc.Types.Constructor
+import           Calc.Types.Identifier
+import           Calc.Types.Op
+import           Calc.Types.Pattern
+import           Calc.Types.Prim
+import           Calc.Types.Type
+import           Calc.Utils
+import qualified Data.List.NonEmpty     as NE
+import           Prettyprinter          ((<+>))
+import qualified Prettyprinter          as PP
+
+data Borrow = Borrow | Use
+  deriving stock (Eq,Ord,Show)
 
 data Expr ann
   = EPrim ann Prim
@@ -21,7 +24,7 @@ data Expr ann
   | EMatch ann (Expr ann) (NE.NonEmpty (Pattern ann, Expr ann))
   | EInfix ann Op (Expr ann) (Expr ann)
   | EIf ann (Expr ann) (Expr ann) (Expr ann)
-  | EVar ann Identifier
+  | EVar ann Borrow Identifier
   | EApply ann (Expr ann) [Expr ann]
   | ETuple ann (Expr ann) (NE.NonEmpty (Expr ann))
   | EBox ann (Expr ann)
@@ -122,7 +125,8 @@ instance PP.Pretty (Expr ann) where
           <> PP.line
           <> indentMulti 2 (PP.pretty elseExpr)
       )
-  pretty (EVar _ ident) = PP.pretty ident
+  pretty (EVar _ Use ident) = PP.pretty ident
+  pretty (EVar _ Borrow ident) = "&" <> PP.pretty ident
   pretty (EApply _ fn args) =
     PP.pretty fn
       <> "("

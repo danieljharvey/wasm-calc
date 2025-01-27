@@ -5,24 +5,25 @@ module Calc.Typecheck.Infer
   )
 where
 
-import Calc.ExprUtils
-import Calc.TypeUtils
-import Calc.Typecheck.Error
-import Calc.Typecheck.Generalise
-import Calc.Typecheck.Helpers
-import Calc.Typecheck.Patterns
-import Calc.Typecheck.Substitute
-import Calc.Typecheck.Types
-import Calc.Typecheck.Unify
-import Calc.Types
-import Control.Monad (foldM, unless, when, zipWithM, zipWithM_)
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Functor
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
+import           Calc.ExprUtils
+import           Calc.Typecheck.Error
+import           Calc.Typecheck.Generalise
+import           Calc.Typecheck.Helpers
+import           Calc.Typecheck.Patterns
+import           Calc.Typecheck.Substitute
+import           Calc.Typecheck.Types
+import           Calc.Typecheck.Unify
+import           Calc.Types
+import           Calc.TypeUtils
+import           Control.Monad             (foldM, unless, when, zipWithM,
+                                            zipWithM_)
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.Functor
+import qualified Data.List.NonEmpty        as NE
+import qualified Data.Map.Strict           as M
+import qualified Data.Set                  as S
 
 check :: Type ann -> Expr ann -> TypecheckM ann (Expr (Type ann))
 check ty (EApply ann fn args) =
@@ -53,16 +54,16 @@ check (TPrim tyAnn tyPrim) (EPrim _ (PFloatLit f)) = do
     TPrim tyAnn <$> case tyPrim of
       TFloat32 -> pure tyPrim
       TFloat64 -> pure tyPrim
-      _ -> throwError (ExpectedFloat tyAnn tyPrim)
+      _        -> throwError (ExpectedFloat tyAnn tyPrim)
   pure $ EPrim ty (PFloatLit f)
 check (TPrim tyAnn tyPrim) (EPrim _ (PIntLit i)) = do
   ty <-
     TPrim tyAnn <$> case tyPrim of
-      TInt8 -> pure tyPrim
+      TInt8  -> pure tyPrim
       TInt16 -> pure tyPrim
       TInt32 -> pure tyPrim
       TInt64 -> pure tyPrim
-      _ -> throwError (ExpectedInteger tyAnn tyPrim)
+      _      -> throwError (ExpectedInteger tyAnn tyPrim)
   pure $ EPrim ty (PIntLit i)
 check (TContainer tyAnn tyItems) (EBox _ inner) | length tyItems == 1 = do
   typedInner <- check (NE.head tyItems) inner
@@ -123,7 +124,7 @@ checkSet maybeTy ann ident expr = do
   (TypecheckGlobal tyVar mutability) <- lookupGlobal ann ident
   case mutability of
     Constant -> throwError $ CantSetConstant ann ident
-    Mutable -> pure ()
+    Mutable  -> pure ()
   typedExpr <- check tyVar expr
   let tyVoid = TPrim ann TVoid
   case maybeTy of
@@ -142,7 +143,7 @@ checkIf maybeReturnTy ann predExpr thenExpr elseExpr = do
   predA <- infer predExpr
   case getOuterAnnotation predA of
     (TPrim _ TBool) -> pure ()
-    otherType -> throwError (PredicateIsNotBoolean ann otherType)
+    otherType       -> throwError (PredicateIsNotBoolean ann otherType)
   (thenA, elseA) <- case maybeReturnTy of
     Just returnTy -> do
       thenA <- check returnTy thenExpr
@@ -242,13 +243,13 @@ checkInfix Nothing ann op a b = do
 
 -- | is this type a primitive number?
 isNumber :: Type ann -> Bool
-isNumber (TPrim _ TInt8) = True
-isNumber (TPrim _ TInt16) = True
-isNumber (TPrim _ TInt32) = True
-isNumber (TPrim _ TInt64) = True
+isNumber (TPrim _ TInt8)    = True
+isNumber (TPrim _ TInt16)   = True
+isNumber (TPrim _ TInt32)   = True
+isNumber (TPrim _ TInt64)   = True
 isNumber (TPrim _ TFloat32) = True
 isNumber (TPrim _ TFloat64) = True
-isNumber _ = False
+isNumber _                  = False
 
 -- | like `check`, but we also check we're not passing a non-boxed value to a
 -- generic argument
@@ -287,7 +288,7 @@ freeVars =
   go
   where
     go (TVar _ var) = S.singleton var
-    go other = monoidType go other
+    go other        = monoidType go other
 
 checkApply ::
   Maybe (Type ann) ->
@@ -464,7 +465,7 @@ checkLet maybeReturnTy ann pat expr rest = do
   typedRest <- withVar pat (getOuterAnnotation typedExpr) $
     case maybeReturnTy of
       Just returnTy -> check returnTy rest
-      Nothing -> infer rest
+      Nothing       -> infer rest
 
   env <- ask
   case validatePatterns env ann [typedPat] of
@@ -490,7 +491,7 @@ checkMatch maybeTy ann matchExpr pats = do
 
   env <- ask
   case validatePatterns env ann (fst <$> NE.toList elabPats) of
-    Right _ -> pure ()
+    Right _                -> pure ()
     Left patternMatchError -> throwError (PatternMatchError patternMatchError)
   pure (EMatch (mapOuterTypeAnnotation (const ann) typ) elabExpr elabPats)
 
@@ -507,8 +508,8 @@ infer (EAnn ann ty expr) = do
   pure $ EAnn (getOuterAnnotation typedExpr $> ann) (ty $> ty) typedExpr
 infer (EPrim ann prim) =
   case prim of
-    PBool _ -> pure (EPrim (TPrim ann TBool) prim)
-    PIntLit _ -> throwError (UnknownIntegerLiteral ann)
+    PBool _     -> pure (EPrim (TPrim ann TBool) prim)
+    PIntLit _   -> throwError (UnknownIntegerLiteral ann)
     PFloatLit _ -> throwError (UnknownFloatLiteral ann)
 infer (EMatch ann matchExpr pats) =
   checkMatch Nothing ann matchExpr pats
@@ -541,9 +542,9 @@ infer (ETuple ann fstExpr restExpr) =
   checkTuple Nothing ann fstExpr restExpr
 infer (EApply ann fnName args) =
   checkApply Nothing ann fnName args
-infer (EVar ann var) = do
+infer (EVar ann borrow var) = do
   ty <- lookupVar ann var
-  pure (EVar (ty $> ann) var)
+  pure (EVar (ty $> ann) borrow var)
 infer (EInfix ann op a b) =
   checkInfix Nothing ann op a b
 infer (ELoad ann index) =
