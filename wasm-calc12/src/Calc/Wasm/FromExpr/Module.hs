@@ -113,9 +113,15 @@ fromFunction functionAbilities funcMap importMap globalMap dataTypeMap generated
 
   let allArgs = args <> genericsArgs
 
+  let functionNames = M.keysSet funcMap <> M.keysSet importMap
+
+  let functionUses = case fst <$> getFunctionUses functionNames fn of
+        Right a -> a
+        Left e -> error (show e)
+
   (expr, fes) <-
     runStateT
-      (fromExpr (fst $ getFunctionUses fn))
+      (fromExpr functionUses)
       ( FromExprState
           { fesVars = mempty,
             fesArgs = allArgs,

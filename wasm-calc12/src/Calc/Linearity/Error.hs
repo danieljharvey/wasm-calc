@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -11,7 +12,6 @@ where
 import Calc.SourceSpan
 import Calc.Types.Annotation
 import Calc.Types.Identifier
-import qualified Data.List.NonEmpty as NE
 import Data.Maybe (catMaybes, mapMaybe)
 import qualified Data.Text as T
 import qualified Error.Diagnose as Diag
@@ -20,8 +20,8 @@ import qualified Prettyprinter.Render.Text as PP
 
 data LinearityError ann
   = NotUsed ann Identifier
-  | UsedMultipleTimes (NE.NonEmpty ann) Identifier
-  deriving stock (Eq, Ord, Show)
+  | UsedMultipleTimes ann ann Identifier
+  deriving stock (Eq, Ord, Show, Functor)
 
 prettyPrint :: PP.Doc doc -> T.Text
 prettyPrint = renderWithWidth 60
@@ -66,7 +66,7 @@ linearityErrorDiagnostic input e =
                 ]
             )
             []
-        (UsedMultipleTimes anns ident) ->
+        (UsedMultipleTimes ann1 ann2 ident) ->
           Diag.Err
             Nothing
             ( prettyPrint $ "Identifier " <> PP.pretty ident <> " used multiple times."
@@ -84,7 +84,7 @@ linearityErrorDiagnostic input e =
                             )
                         )
                 )
-                (NE.toList anns)
+                [ann1, ann2]
             )
             []
    in Diag.addReport diag report
