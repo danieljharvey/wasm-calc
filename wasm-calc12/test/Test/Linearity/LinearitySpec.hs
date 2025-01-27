@@ -251,8 +251,8 @@ spec = do
                       lsUses =
                         NE.singleton
                           ( M.fromList
-                              [ ("b", (Fresh (),tyInt64)),
-                                ("a", (Fresh (),tyInt64))
+                              [ ("b", (Fresh (), tyInt64)),
+                                ("a", (Fresh (), tyInt64))
                               ]
                           ),
                       lsFresh = 0,
@@ -278,8 +278,10 @@ spec = do
                 Right $
                   LinearState
                     { lsVars = M.fromList [(UserDefined "a", (LTBoxed, ())), (UserDefined "b", (LTBoxed, ()))],
-                      lsUses = NE.singleton (
-                          M.fromList [("b", (Used (),TVar () "b"))]),
+                      lsUses =
+                        NE.singleton
+                          ( M.fromList [("b", (Used (), TVar () "b"))]
+                          ),
                       lsFresh = 0,
                       lsIgnoreVars = S.singleton "dontUseA"
                     }
@@ -291,9 +293,12 @@ spec = do
                 Right $
                   LinearState
                     { lsVars = M.fromList [(UserDefined "f", (LTBoxed, ()))],
-                      lsUses = NE.singleton (M.fromList [
-                          ("f", (Used (),TFunction () mempty tyInt64))
-                                                        ]),
+                      lsUses =
+                        NE.singleton
+                          ( M.fromList
+                              [ ("f", (Used (), TFunction () mempty tyInt64))
+                              ]
+                          ),
                       lsFresh = 0,
                       lsIgnoreVars = S.singleton "useLambda"
                     }
@@ -306,7 +311,7 @@ spec = do
                 case runTC (elaborateFunction mempty parsedFn) of
                   Left e -> error (show e)
                   Right typedFn ->
-                    (bimap void (void . snd) (getFunctionUses mempty typedFn))
+                    bimap void (void . snd) (getFunctionUses mempty typedFn)
                       `shouldBe` linearState
               Left e -> error (T.unpack e)
         )
