@@ -1,20 +1,20 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import           Calc
-import           Calc.Linearity
-import           Calc.Typecheck
-import           Control.Monad      (void)
-import           Data.Bifunctor
-import           Data.Either        (isRight)
-import           Data.Foldable      (traverse_)
+import Calc
+import Calc.Linearity
+import Calc.Typecheck
+import Control.Monad (void)
+import Data.Bifunctor
+import Data.Either (isRight)
+import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict    as M
-import qualified Data.Set           as S
-import qualified Data.Text          as T
-import           Test.Hspec
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC =
@@ -232,7 +232,7 @@ spec = do
                   Right typedFn ->
                     let functions = case getFunctionUses mempty typedFn of
                           Right a -> a
-                          Left e  -> error (show e)
+                          Left e -> error (show e)
                         result = snd . (fmap . fmap) void <$> fst functions
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
