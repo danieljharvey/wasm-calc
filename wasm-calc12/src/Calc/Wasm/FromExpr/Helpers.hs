@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Wasm.FromExpr.Helpers
@@ -30,26 +30,23 @@ module Calc.Wasm.FromExpr.Helpers
   )
 where
 
-import Calc.ExprUtils
-import Calc.TypeUtils
-import Calc.Typecheck
-  ( TypecheckEnv (..),
-    runTypecheckM,
-  )
-import Calc.Typecheck.Helpers (calculateMonomorphisedTypes)
-import Calc.Types
-import Calc.Wasm.FromExpr.Types
-import Calc.Wasm.ToWasm.Types
-import Control.Monad (void)
-import Control.Monad.Except
-import Control.Monad.State
-import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import Data.Monoid
-import qualified Data.Set as S
-import qualified Data.Text as T
-import GHC.Natural
+import           Calc.ExprUtils
+import           Calc.Typecheck           (TypecheckEnv (..), runTypecheckM)
+import           Calc.Typecheck.Helpers   (calculateMonomorphisedTypes)
+import           Calc.Types
+import           Calc.TypeUtils
+import           Calc.Wasm.FromExpr.Types
+import           Calc.Wasm.ToWasm.Types
+import           Control.Monad            (void)
+import           Control.Monad.Except
+import           Control.Monad.State
+import qualified Data.List                as List
+import qualified Data.List.NonEmpty       as NE
+import qualified Data.Map.Strict          as M
+import           Data.Monoid
+import qualified Data.Set                 as S
+import qualified Data.Text                as T
+import           GHC.Natural
 
 -- | add a local type, returning a unique index
 addLocal ::
@@ -179,7 +176,7 @@ getAbilitiesForFunction ::
   Either FromWasmError (S.Set (Ability ann))
 getAbilitiesForFunction functionAbilities fnName =
   case M.lookup fnName functionAbilities of
-    Just a -> pure a
+    Just a  -> pure a
     Nothing -> throwError (FunctionAbilityLookupFailed fnName)
 
 getAbilitiesForTest ::
@@ -188,7 +185,7 @@ getAbilitiesForTest ::
   Either FromWasmError (S.Set (Ability ann))
 getAbilitiesForTest testAbilities testName =
   case M.lookup testName testAbilities of
-    Just a -> pure a
+    Just a  -> pure a
     Nothing -> throwError (TestAbilityLookupFailed testName)
 
 -- take only the function info we need
@@ -249,6 +246,7 @@ scalarFromType (TVar _ _) =
 scalarFromType (TUnificationVar {}) =
   pure Pointer
 scalarFromType (TConstructor {}) = pure Pointer -- maybe enums will become I8 in future, but for now, it's all pointers
+scalarFromType (TBorrow _ a) = scalarFromType a
 
 genericArgName :: TypeVar -> Identifier
 genericArgName generic =
@@ -272,7 +270,7 @@ monomorphiseTypes typeVars fnArgTys argTys =
           }
    in case runTypecheckM tcEnv (calculateMonomorphisedTypes typeVars fnArgTys argTys mempty) of
         Right tvs -> tvs
-        Left e -> error (show e)
+        Left e    -> error (show e)
 
 -- | we use a combination of the value and the type
 fromPrim :: (MonadError FromWasmError m) => Type ann -> Prim -> m WasmPrim
@@ -333,7 +331,7 @@ getOffsetListForConstructor (TConstructor _ dataTypeName tyItems) constructor = 
       -- monomorphised ones
       let toWasm ty = case ty of
             TVar _ identifier -> case M.lookup identifier replacements of
-              Just a -> liftEither (scalarFromType a)
+              Just a  -> liftEither (scalarFromType a)
               Nothing -> pure Pointer -- polymorphic values become "Pointer", this seems boringly safe
             other -> liftEither (scalarFromType other)
 
@@ -348,14 +346,14 @@ getOffsetListForConstructor _ _ = pure []
 
 -- 1 item is a byte, so i8, so i32 is 4 bytes
 memorySize :: WasmType -> Natural
-memorySize I8 = 1
-memorySize I16 = 2
-memorySize I32 = 4
-memorySize I64 = 8
-memorySize F32 = 4
-memorySize F64 = 8
+memorySize I8      = 1
+memorySize I16     = 2
+memorySize I32     = 4
+memorySize I64     = 8
+memorySize F32     = 4
+memorySize F64     = 8
 memorySize Pointer = memorySize I32
-memorySize Void = 0
+memorySize Void    = 0
 
 -- | wrap a `WasmExpr` in a single item struct
 boxed :: Natural -> WasmType -> WasmExpr -> WasmExpr
@@ -389,6 +387,7 @@ offsetForType (TFunction {}) =
   memorySize Pointer
 offsetForType (TVar _ _) =
   memorySize Pointer
+offsetForType (TBorrow _ a) = offsetForType a
 offsetForType (TUnificationVar _ _) =
   error "offsetForType TUnificationVar"
 
@@ -430,6 +429,7 @@ memorySizeForType (TFunction {}) =
   pure $ memorySize Pointer
 memorySizeForType (TVar _ _) =
   pure $ memorySize Pointer
+memorySizeForType (TBorrow _ a) = memorySizeForType a
 memorySizeForType (TUnificationVar _ _) =
   error "memorySizeForType TUnificationVar"
 
@@ -447,9 +447,9 @@ matchConstructorTypesToArgs dataTypeVars tyArgs dataTypeArgs =
 
 -- nested data types only take up "Pointer"
 memorySizeInsideConstructor :: (MonadState FromExprState m) => Type ann -> m Natural
-memorySizeInsideConstructor (TContainer {}) = pure $ memorySize Pointer
+memorySizeInsideConstructor (TContainer {})   = pure $ memorySize Pointer
 memorySizeInsideConstructor (TConstructor {}) = pure $ memorySize Pointer
-memorySizeInsideConstructor other = memorySizeForType other
+memorySizeInsideConstructor other             = memorySizeForType other
 
 -- | if there is more than one constructor, return the index
 -- if there's onlu one, return Nothing
@@ -464,4 +464,4 @@ getConstructorNumber ty constructor = do
       let numberMap = M.fromList $ zip (M.keys constructors) [0 ..]
       case M.lookup constructor numberMap of
         Just nat -> pure (Just nat)
-        Nothing -> error $ "constructor not found " <> show constructor
+        Nothing  -> error $ "constructor not found " <> show constructor

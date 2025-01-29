@@ -156,7 +156,11 @@ varParser :: Parser (Expr Annotation)
 varParser =
   label "var" $
     addLocation $ do
-      EVar mempty Use <$> identifierParser
+      amp <- optional (stringLiteral "&")
+      let borrow = case amp of
+                        Just _ -> Borrow
+                        _      -> Use
+      EVar mempty borrow <$> identifierParser
 
 applyFuncParser :: Parser (Expr Annotation)
 applyFuncParser = do

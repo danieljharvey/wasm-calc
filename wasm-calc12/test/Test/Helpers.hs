@@ -1,5 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Helpers
@@ -26,13 +26,13 @@ module Test.Helpers
   )
 where
 
-import Calc
-import Calc.Wasm.FromExpr.Types
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import Data.String
-import qualified Data.Text as T
-import Data.Word
+import           Calc
+import           Calc.Wasm.FromExpr.Types
+import qualified Data.List.NonEmpty       as NE
+import qualified Data.Map.Strict          as M
+import           Data.String
+import qualified Data.Text                as T
+import           Data.Word
 
 joinLines :: [T.Text] -> T.Text
 joinLines = T.intercalate "\n"
@@ -47,7 +47,7 @@ bool :: (Monoid ann) => Bool -> Expr ann
 bool = EPrim mempty . PBool
 
 var :: (Monoid ann) => String -> Expr ann
-var = EVar mempty . Identifier . fromString
+var = EVar mempty Use . Identifier . fromString
 
 box :: (Monoid ann) => Expr ann -> Expr ann
 box = EBox mempty

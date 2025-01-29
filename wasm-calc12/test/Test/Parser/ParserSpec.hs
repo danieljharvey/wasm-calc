@@ -2,16 +2,16 @@
 
 module Test.Parser.ParserSpec (spec) where
 
-import Calc
-import Calc.Module
-import Data.Foldable (traverse_)
-import Data.Functor
+import           Calc
+import           Calc.Module
+import           Data.Foldable      (traverse_)
+import           Data.Functor
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Map.Strict    as M
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 emptyFunction :: Function ()
 emptyFunction =
@@ -36,6 +36,7 @@ spec = do
               ("Void", TPrim () TVoid),
               ("(Boolean, Boolean, Int64)", tyContainer [tyBool, tyBool, tyInt64]),
               ("a", tyVar "a"),
+              ("&a", TBorrow () (tyVar "a")),
               ("(a,b)", tyContainer [tyVar "a", tyVar "b"]),
               ("Box(a)", tyContainer [tyVar "a"]),
               ("Colour", tyConstructor "Colour" mempty),
@@ -51,7 +52,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseTypeAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 
@@ -306,7 +307,7 @@ spec = do
         ( \(str, dt) -> it (T.unpack str) $ do
             case parseDataAndFormatError str of
               Right parsedData -> parsedData $> () `shouldBe` dt
-              Left e -> error (T.unpack e)
+              Left e           -> error (T.unpack e)
         )
         strings
 
@@ -389,7 +390,7 @@ spec = do
         ( \(str, fn) -> it (T.unpack str) $ do
             case parseFunctionAndFormatError str of
               Right parsedFn -> parsedFn $> () `shouldBe` fn
-              Left e -> error (T.unpack e)
+              Left e         -> error (T.unpack e)
         )
         strings
 
@@ -407,7 +408,7 @@ spec = do
         ( \(str, pat) -> it (T.unpack str) $ do
             case parsePatternAndFormatError str of
               Right parsedPattern -> parsedPattern $> () `shouldBe` pat
-              Left e -> error (T.unpack e)
+              Left e              -> error (T.unpack e)
         )
         strings
 
@@ -436,6 +437,7 @@ spec = do
               ("True || False", EInfix () OpOr (bool True) (bool False)),
               ("if True then 1 else 2", EIf () (bool True) (int 1) (int 2)),
               ("variable", var "variable"),
+              ("&borrowed", EVar () Borrow "borrowed"),
               ("a + 1", EInfix () OpAdd (var "a") (int 1)),
               ("add(1,2,)", EApply () (var "add") [int 1, int 2]),
               ("go()", EApply () (var "go") []),
@@ -531,7 +533,7 @@ spec = do
         ( \(str, expr) -> it (T.unpack str) $ do
             case parseExprAndFormatError str of
               Right parsedExp -> parsedExp $> () `shouldBe` expr
-              Left e -> error (T.unpack e)
+              Left e          -> error (T.unpack e)
         )
         strings
 

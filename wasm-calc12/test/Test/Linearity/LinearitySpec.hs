@@ -1,20 +1,20 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Bifunctor
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad      (void)
+import           Data.Bifunctor
+import           Data.Either        (isRight)
+import           Data.Foldable      (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Test.Hspec
+import qualified Data.Map.Strict    as M
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC =
@@ -31,7 +31,7 @@ spec :: Spec
 spec = do
   describe "LinearitySpec" $ do
     describe "decorate" $ do
-      let dVar = EVar Nothing
+      let dVar = EVar Nothing Use
           dBool = EPrim Nothing . PBool
           dTyInt32 = TPrim Nothing TInt32
           dTyInt64 = TPrim Nothing TInt64
@@ -111,8 +111,8 @@ spec = do
                       ( EIf
                           Nothing
                           (dBool True)
-                          (EVar (dropIdents [("b", tyTuple [tyInt32, tyInt32])]) "a")
-                          (EVar (dropIdents [("a", tyTuple [tyInt32, tyInt32])]) "b")
+                          (EVar (dropIdents [("b", tyTuple [tyInt32, tyInt32])]) Use "a")
+                          (EVar (dropIdents [("a", tyTuple [tyInt32, tyInt32])]) Use "b")
                       )
                   )
               ),
@@ -140,8 +140,8 @@ spec = do
                           ( EIf
                               Nothing
                               (dBool True)
-                              (EVar (dropIdents [("b", tyTuple [tyInt64])]) "a")
-                              (EVar (dropIdents [("a", tyTuple [tyInt64])]) "b")
+                              (EVar (dropIdents [("b", tyTuple [tyInt64])]) Use "a")
+                              (EVar (dropIdents [("a", tyTuple [tyInt64])]) Use "b")
                           )
                           (dVar "c")
                       )
@@ -159,24 +159,26 @@ spec = do
                   ( ELet
                       Nothing
                       (PTuple (Just DropMe) (PVar Nothing "b") (NE.singleton $ PVar Nothing "c"))
-                      (EVar Nothing "a")
-                      (EInfix Nothing OpAdd (EVar Nothing "b") (EVar Nothing "c"))
+                      (EVar Nothing Use "a")
+                      (EInfix Nothing OpAdd (EVar Nothing Use "b") (EVar Nothing Use "c"))
                   )
               ),
               ( "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a, _) = pair; Box(a) }",
                 ELet
                   Nothing
                   (PTuple (Just DropMe) (PVar Nothing "a") (NE.singleton $ PVar (Just DropMe) "_fresh_name1"))
-                  (EVar Nothing "pair")
-                  (EBox Nothing (EVar Nothing "a"))
+                  (EVar Nothing Use "pair")
+                  (EBox Nothing (EVar Nothing Use "a"))
               ),
               ( "function matchBool<a>(one: a, two: a) -> a { case True { True -> one, False -> two } }",
                 EMatch
                   Nothing
                   (dBool True)
                   ( NE.fromList
-                      [ (PLiteral Nothing (PBool True), EVar (dropIdents [("two", TVar () "a")]) "one"),
-                        (PLiteral Nothing (PBool False), EVar (dropIdents [("one", TVar () "a")]) "two")
+                      [ (PLiteral Nothing (PBool True),
+                            EVar (dropIdents [("two", TVar () "a")]) Use "one"),
+                        (PLiteral Nothing (PBool False),
+                          EVar (dropIdents [("one", TVar () "a")]) Use "two")
                       ]
                   )
               ),
@@ -185,9 +187,12 @@ spec = do
                   Nothing
                   (EAnn Nothing dTyInt32 (dInt 1))
                   ( NE.fromList
-                      [ (PLiteral Nothing (PIntLit 1), EVar (dropIdents [("three", TVar () "a"), ("two", TVar () "a")]) "one"),
-                        (PLiteral Nothing (PIntLit 2), EVar (dropIdents [("one", TVar () "a"), ("three", TVar () "a")]) "two"),
-                        (PVar Nothing "_fresh_name1", EVar (dropIdents [("one", TVar () "a"), ("two", TVar () "a")]) "three")
+                      [ (PLiteral Nothing (PIntLit 1),
+                          EVar (dropIdents [("three", TVar () "a"), ("two", TVar () "a")]) Use "one"),
+                        (PLiteral Nothing (PIntLit 2),
+                            EVar (dropIdents [("one", TVar () "a"), ("three", TVar () "a")]) Use "two"),
+                        (PVar Nothing "_fresh_name1",
+                            EVar (dropIdents [("one", TVar () "a"), ("two", TVar () "a")]) Use "three")
                       ]
                   )
               ),
@@ -213,8 +218,8 @@ spec = do
                                 ( ELet
                                     Nothing
                                     (PBox (Just DropMe) (PVar Nothing "b"))
-                                    (EVar Nothing "box")
-                                    (EVar Nothing "b")
+                                    (EVar Nothing Use "box")
+                                    (EVar Nothing Use "b")
                                 )
                             )
                         ),
@@ -232,7 +237,7 @@ spec = do
                   Right typedFn ->
                     let functions = case getFunctionUses mempty typedFn of
                           Right a -> a
-                          Left e -> error (show e)
+                          Left e  -> error (show e)
                         result = snd . (fmap . fmap) void <$> fst functions
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
@@ -356,6 +361,9 @@ spec = do
                 ),
                 ( "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then { let _ = pair; pair } else pair }",
                   UsedMultipleTimes () () "pair"
+                ),
+                ( "function borrowAfterUse<a>(a: a) -> Int64 { let b = a; let c = &a; 100 }",
+                  BorrowAfterUse () () "a"
                 )
               ]
         traverse_

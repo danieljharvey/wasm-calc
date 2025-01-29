@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Linearity.Error
   ( linearityErrorDiagnostic,
@@ -9,18 +9,19 @@ module Calc.Linearity.Error
   )
 where
 
-import Calc.SourceSpan
-import Calc.Types.Annotation
-import Calc.Types.Identifier
-import Data.Maybe (catMaybes, mapMaybe)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import qualified Prettyprinter as PP
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.Identifier
+import           Data.Maybe                (catMaybes, mapMaybe)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data LinearityError ann
   = NotUsed ann Identifier
   | UsedMultipleTimes ann ann Identifier
+  | BorrowAfterUse ann ann Identifier
   deriving stock (Eq, Ord, Show, Functor)
 
 prettyPrint :: PP.Doc doc -> T.Text
@@ -87,6 +88,38 @@ linearityErrorDiagnostic input e =
                 [ann1, ann2]
             )
             []
+        (BorrowAfterUse ann1 ann2 ident) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint $ "Identifier " <> PP.pretty ident <> " borrowed after it has been used."
+            )
+            ( catMaybes
+                [
+                    (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann1
+                      <*> pure
+                        ( Diag.Where
+                            ( prettyPrint "Used here"
+                            )
+                        ),
+                    (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann2
+                      <*> pure
+                        ( Diag.Where
+                            ( prettyPrint "Borrowed here afterwards"
+                            )
+                        )
+
+                ]
+            )
+            []
+
    in Diag.addReport diag report
 
 renderWithWidth :: Int -> PP.Doc ann -> T.Text
