@@ -1,21 +1,21 @@
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import           Calc
-import           Calc.Linearity
-import           Calc.Typecheck
-import           Control.Monad      (void)
-import           Data.Bifunctor
-import           Data.Either        (isRight)
-import           Data.Foldable      (traverse_)
+import Calc
+import Calc.Linearity
+import Calc.Typecheck
+import Control.Monad (void)
+import Data.Bifunctor
+import Data.Either (isRight)
+import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict    as M
-import qualified Data.Set           as S
-import qualified Data.Text          as T
-import           Test.Helpers
-import           Test.Hspec
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+import qualified Data.Text as T
+import Test.Helpers
+import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC =
@@ -231,7 +231,7 @@ spec = do
                   Right typedFn ->
                     let functions = case getFunctionUses mempty typedFn of
                           Right a -> a
-                          Left e  -> error (show e)
+                          Left e -> error (show e)
                         result = snd . (fmap . fmap) void <$> fst functions
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
@@ -324,14 +324,11 @@ spec = do
                 "function main() -> Int64 { let _ = (1: Int64); 2 }",
                 "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then pair else pair }",
                 "function bothSidesOfMatch() -> (Boolean,Boolean) { let pair = (True,False); case True { True -> pair, False -> pair } }",
-                 joinLines
-                          [
-                            "function fiveTimes(fn: &Fn(Int32) -> Int32) -> Int32 {",
-                            "fn(fn(fn(fn(fn(1)))))",
-                            "}"
-                          ]
-
-
+                joinLines
+                  [ "function fiveTimes(fn: &Fn(Int32) -> Int32) -> Int32 {",
+                    "fn(fn(fn(fn(fn(1)))))",
+                    "}"
+                  ]
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do

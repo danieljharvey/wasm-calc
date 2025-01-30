@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Linearity.Validate
   ( validateFunction,
@@ -9,25 +9,25 @@ module Calc.Linearity.Validate
   )
 where
 
-import           Calc.Linearity.Decorate
-import           Calc.Linearity.Error
-import           Calc.Linearity.Types
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Global
-import           Calc.Types.Identifier
-import           Calc.Types.Import
-import           Calc.Types.Module
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad.Except
-import           Control.Monad.Identity
-import           Control.Monad.State
-import           Data.Foldable           (traverse_)
-import           Data.Functor            (($>))
-import qualified Data.List.NonEmpty      as NE
-import qualified Data.Map                as M
-import qualified Data.Set                as S
+import Calc.Linearity.Decorate
+import Calc.Linearity.Error
+import Calc.Linearity.Types
+import Calc.TypeUtils
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Identifier
+import Calc.Types.Import
+import Calc.Types.Module
+import Calc.Types.Type
+import Control.Monad.Except
+import Control.Monad.Identity
+import Control.Monad.State
+import Data.Foldable (traverse_)
+import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
+import qualified Data.Set as S
 
 validateModule :: (Show ann) => Module (Type ann) -> Either (LinearityError ann) ()
 validateModule (Module {mdImports, mdFunctions, mdGlobals}) = do
@@ -63,13 +63,13 @@ validate (LinearState {lsVars, lsUses}) =
               LTPrimitive ->
                 case linearState of
                   Nothing -> Left (NotUsed ann ident)
-                  _       -> Right ()
+                  _ -> Right ()
               LTBoxed ->
                 case fst <$> linearState of
-                  Just (Fresh _)  -> Left (NotUsed ann ident)
+                  Just (Fresh _) -> Left (NotUsed ann ident)
                   Just (Borrow _) -> Right ()
-                  Just (Used _)   -> Right ()
-                  Nothing         -> Left (NotUsed ann ident)
+                  Just (Used _) -> Right ()
+                  Nothing -> Left (NotUsed ann ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
 
 getFunctionUses ::
@@ -100,7 +100,7 @@ getFunctionUses functionNames (Function {fnFunctionName = FunctionName fnName, f
         ( \(FunctionArg {faAnn, faName = ArgumentName arg, faType}) ->
             M.singleton (UserDefined (Identifier arg)) $ case faType of
               TPrim {} -> (LTPrimitive, getOuterTypeAnnotation faAnn)
-              _        -> (LTBoxed, getOuterTypeAnnotation faAnn)
+              _ -> (LTBoxed, getOuterTypeAnnotation faAnn)
         )
         fnArgs
 

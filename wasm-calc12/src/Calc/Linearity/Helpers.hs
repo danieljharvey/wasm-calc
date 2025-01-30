@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Calc.Linearity.Helpers
   ( getFresh,
@@ -16,19 +16,19 @@ module Calc.Linearity.Helpers
   )
 where
 
-import           Calc.Linearity.Error
-import           Calc.Linearity.Types
-import           Calc.Types.Identifier
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Foldable         (traverse_)
-import qualified Data.List.NonEmpty    as NE
-import qualified Data.Map              as M
-import           Data.Maybe            (mapMaybe)
-import qualified Data.Set              as S
-import           GHC.Natural
+import Calc.Linearity.Error
+import Calc.Linearity.Types
+import Calc.TypeUtils
+import Calc.Types.Identifier
+import Calc.Types.Type
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Foldable (traverse_)
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
+import Data.Maybe (mapMaybe)
+import qualified Data.Set as S
+import GHC.Natural
 
 -- | push a load of uses directly onto the head of the uses stack
 pushUses ::
@@ -120,7 +120,7 @@ mapHead f (neHead NE.:| neTail) =
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _          = False
+isPrimitive _ = False
 
 dropForType :: Type ann -> Maybe (Drops an)
 dropForType ty = if isPrimitive ty then Nothing else Just DropMe
