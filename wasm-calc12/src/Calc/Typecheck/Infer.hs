@@ -15,7 +15,13 @@ import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
 import Calc.Typecheck.Unify
 import Calc.Types
-import Control.Monad (foldM, unless, when, zipWithM, zipWithM_)
+import Control.Monad
+  ( foldM,
+    unless,
+    when,
+    zipWithM,
+    zipWithM_,
+  )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -289,6 +295,14 @@ freeVars =
     go (TVar _ var) = S.singleton var
     go other = monoidType go other
 
+getFunctionType :: ann -> Type ann -> TypecheckM ann ([Type ann], Type ann)
+getFunctionType ann ty = case ty of
+  TFunction _ tyFnArgs tyFnReturn ->
+    pure (tyFnArgs, tyFnReturn)
+  TReference _ inner -> getFunctionType ann inner
+  _ ->
+    throwError $ NonFunctionTypeFound ann ty
+
 checkApply ::
   Maybe (Type ann) ->
   ann ->
@@ -299,42 +313,38 @@ checkApply maybeTy ann fnExpr args = do
   typedFnExpr <- infer fnExpr
   let tyFn = getOuterAnnotation typedFnExpr
   generalisedTyFn <- generalise (freeVars tyFn) tyFn
-  (ty, elabArgs) <- case generalisedTyFn of
-    TFunction _ tyFnArgs tyFnReturn -> do
-      when
-        (length args /= length tyFnArgs)
-        ( throwError $
-            FunctionArgumentLengthMismatch
-              ann
-              (length tyFnArgs)
-              (length args)
-        )
+  (tyFnArgs, tyFnReturn) <- getFunctionType ann generalisedTyFn
 
-      -- what do we learn about args from return type?
-      _ <- case maybeTy of
-        Just ty -> void (unify ty tyFnReturn)
-        Nothing -> pure ()
+  when
+    (length args /= length tyFnArgs)
+    ( throwError $
+        FunctionArgumentLengthMismatch
+          ann
+          (length tyFnArgs)
+          (length args)
+    )
 
-      unified <- gets tcsUnified
+  -- what do we learn about args from return type?
+  _ <- case maybeTy of
+    Just ty -> void (unify ty tyFnReturn)
+    Nothing -> pure ()
 
-      -- what have we learned?
-      let substitutedArgs = substitute unified <$> tyFnArgs
+  unified <- gets tcsUnified
 
-      elabArgs <- zipWithM checkApplyArg substitutedArgs args -- check each arg against type
+  -- what have we learned?
+  let substitutedArgs = substitute unified <$> tyFnArgs
 
-      -- did we learn yet more?
-      moreUnified <- gets tcsUnified
+  elabArgs <- zipWithM checkApplyArg substitutedArgs args -- check each arg against type
 
-      actualTyReturn <-
-        checkReturnType
-          tyFnReturn
-          (substitute moreUnified tyFnReturn)
-      pure (actualTyReturn, elabArgs)
-    ty ->
-      throwError $
-        NonFunctionTypeFound ann ty
+  -- did we learn yet more?
+  moreUnified <- gets tcsUnified
 
-  pure (EApply (ty $> ann) typedFnExpr elabArgs)
+  actualTyReturn <-
+    checkReturnType
+      tyFnReturn
+      (substitute moreUnified tyFnReturn)
+
+  pure (EApply (actualTyReturn $> ann) typedFnExpr elabArgs)
 
 checkPattern :: Type ann -> Pattern ann -> TypecheckM ann (Pattern (Type ann))
 checkPattern ty (PWildcard _) = pure (PWildcard ty)
@@ -377,6 +387,9 @@ checkPattern (TConstructor _ tyDataName tyArgs) (PConstructor ann constructor pa
 
   let ty = TConstructor ann dataTypeName (snd <$> monomorphisedArgs)
   pure (PConstructor ty constructor typedArgs)
+checkPattern (TReference ann ty) pat = do
+  pInner <- checkPattern ty pat
+  pure (mapOuterPatternAnnotation (TReference ann) pInner)
 checkPattern ty pat = throwError $ PatternMismatch ty pat
 
 checkTuple ::

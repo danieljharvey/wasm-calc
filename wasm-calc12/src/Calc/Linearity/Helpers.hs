@@ -18,13 +18,13 @@ module Calc.Linearity.Helpers
   )
 where
 
+import Calc.Linearity.Error
 import Calc.Linearity.Types
 import Calc.TypeUtils
 import Calc.Types.Identifier
 import Calc.Types.Type
-import Control.Monad (unless)
+import Control.Monad.Except
 import Control.Monad.State
-import Control.Monad.Writer
 import Data.Foldable (traverse_)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
@@ -32,69 +32,65 @@ import Data.Maybe (mapMaybe)
 import qualified Data.Set as S
 import GHC.Natural
 
-getFresh :: (MonadState (LinearState ann) m) => m Natural
-getFresh = do
-  modify (\ls -> ls {lsFresh = lsFresh ls + 1})
-  gets lsFresh
-
 -- | push a load of uses directly onto the head of the uses stack
 pushUses ::
-  (MonadState (LinearState ann) m) =>
-  M.Map Identifier (NE.NonEmpty (Linearity ann)) ->
+  ( MonadError (LinearityError ann) m,
+    MonadState (LinearState ann) m
+  ) =>
+  M.Map Identifier (LinState ann, Type ann) ->
   m ()
-pushUses uses = do
-  let pushForIdent ident =
-        traverse_ (recordUsesInState ident)
-   in traverse_ (uncurry pushForIdent) (M.toList uses)
-
-mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
-mapHead f (neHead NE.:| neTail) =
-  f neHead NE.:| neTail
+pushUses uses =
+  traverse_ (\(i, (ls, ty)) -> recordUsesInState i ty ls) (M.toList uses)
 
 recordUsesInState ::
-  (MonadState (LinearState ann) m) =>
+  ( MonadState (LinearState ann) m,
+    MonadError (LinearityError ann) m
+  ) =>
   Identifier ->
-  Linearity ann ->
+  Type ann ->
+  LinState ann ->
   m ()
-recordUsesInState ident newItem = do
+recordUsesInState ident ty linState = do
+  existing <- gets (M.lookup ident . NE.head . lsUses)
+  case (linState, existing) of
+    (Used ann, Just (Used usedAnn, _)) ->
+      throwError $ UsedMultipleTimes ann usedAnn ident
+    (Borrow ann, Just (Used usedAnn, _)) ->
+      throwError $ BorrowAfterUse usedAnn ann ident
+    _ -> pure ()
   modify
     ( \ls ->
-        let f =
-              M.alter
-                ( \existing ->
-                    Just $ case existing of
-                      Just neExisting -> newItem NE.:| NE.toList neExisting
-                      Nothing -> NE.singleton newItem
-                )
-                ident
+        let f = M.insert ident (linState, ty)
          in ls {lsUses = mapHead f (lsUses ls)}
     )
 
 recordUse ::
   ( MonadState (LinearState ann) m,
-    MonadWriter (M.Map Identifier (Type ann)) m
+    MonadError (LinearityError ann) m
   ) =>
   Identifier ->
   Type ann ->
   m ()
 recordUse ident ty = do
-  recordUsesInState ident (Whole $ getOuterTypeAnnotation ty)
   ignoreVars <- gets lsIgnoreVars
-  unless (S.member ident ignoreVars || isPrimitive ty) $
-    tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+  if S.member ident ignoreVars || isPrimitive ty
+    then recordUsesInState ident ty (Fresh (getOuterTypeAnnotation ty))
+    else do
+      recordUsesInState ident ty (Used (getOuterTypeAnnotation ty))
 
 recordReference ::
   ( MonadState (LinearState ann) m,
-    MonadWriter (M.Map Identifier (Type ann)) m
+    MonadError (LinearityError ann) m
   ) =>
   Identifier ->
   Type ann ->
   m ()
 recordReference ident ty = do
-  recordUsesInState ident (Borrow $ getOuterTypeAnnotation ty)
   ignoreVars <- gets lsIgnoreVars
-  unless (S.member ident ignoreVars || isPrimitive ty) $
-    tell (M.singleton ident ty) -- we only want to track use of non-primitive types
+  if S.member ident ignoreVars || isPrimitive ty
+    then recordUsesInState ident ty (Fresh (getOuterTypeAnnotation ty))
+    else do
+      recordUsesInState ident ty (Borrow (getOuterTypeAnnotation ty))
 
 -- run an action, giving it a new uses scope
 -- then chop off the new values and return them
@@ -102,7 +98,7 @@ recordReference ident ty = do
 scoped ::
   (MonadState (LinearState ann) m) =>
   m a ->
-  m (a, M.Map Identifier (NE.NonEmpty (Linearity ann)))
+  m (a, M.Map Identifier (LinState ann, Type ann))
 scoped action = do
   -- add a new empty stack
   modify (\ls -> ls {lsUses = mempty NE.:| NE.toList (lsUses ls)})
@@ -114,6 +110,15 @@ scoped action = do
   modify (\ls -> ls {lsUses = NE.fromList (NE.tail (lsUses ls))})
   -- return both things
   pure (result, items)
+
+getFresh :: (MonadState (LinearState ann) m) => m Natural
+getFresh = do
+  modify (\ls -> ls {lsFresh = lsFresh ls + 1})
+  gets lsFresh
+
+mapHead :: (a -> a) -> NE.NonEmpty a -> NE.NonEmpty a
+mapHead f (neHead NE.:| neTail) =
+  f neHead NE.:| neTail
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True

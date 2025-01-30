@@ -1,25 +1,25 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Module
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types
-import Control.Monad
-import Data.Bifunctor (second)
-import Data.Either (isLeft, isRight)
-import Data.FileEmbed
-import Data.Foldable (traverse_)
-import qualified Data.List as List
+import           Calc.ExprUtils
+import           Calc.Module
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types
+import           Control.Monad
+import           Data.Bifunctor     (second)
+import           Data.Either        (isLeft, isRight)
+import           Data.FileEmbed
+import           Data.Foldable      (traverse_)
+import qualified Data.List          as List
 import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
+import           Data.Text          (Text)
 import qualified Data.Text.Encoding as T
-import Test.Helpers
-import Test.Hspec
+import           Test.Helpers
+import           Test.Hspec
 
 -- these are saved in a file that is included in compilation
 testInputs :: [(FilePath, Text)]
@@ -224,6 +224,17 @@ spec = do
                     "function main() -> Int32 { let either: Either(Boolean,Int32) = Right(42); case either { Right(a) -> a, Left(_) -> 0 } }"
                   ],
                 tyInt32
+              ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    "function main(list: List(Int32), fn: &Fn(Int32) -> Int32) -> List(Int32) {",
+                    "case list {",
+                    "    Cons(a, rest) -> Cons(fn(a), main(rest, fn)), ",
+                    "    Nil -> Nil",
+                    "  }",
+                    "}"
+                  ],
+                tyConstructor "List" [tyInt32]
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -298,6 +309,7 @@ spec = do
               ("let Box(a) = Box((1: Int64)); a", "Int64"),
               ("let a: Int64 = 100; a", "Int64"),
               ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
+              ("let pair: (Int64, Int64) = (1,2); let (a,b) = &pair; a + b", "Int64"),
               ("True && True", "Boolean"),
               ("let pair = (True,True); &pair", "&(Boolean,Boolean)"),
               ("False || True", "Boolean"),
@@ -312,6 +324,7 @@ spec = do
               ( "\\(a: Int32,b:Int32) -> Int32 { a + b }",
                 "Fn(Int32,Int32) -> Int32"
               ),
+              ("let f = \\(a: &(Int32,Int32)) -> Int32 { let (fst,_) = a; fst }; let pair: (Int32,Int32) = (100, 200); f(&pair)", "Int32"),
               ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32"),
               ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32")
             ]
@@ -424,7 +437,7 @@ testModuleTypechecks fileName input =
             let result = elaborateModule (void parsedMod)
             case result of
               Right _ -> pure ()
-              Left e -> error (show e)
+              Left e  -> error (show e)
             isRight result `shouldBe` True
 
 -- | find function called 'main'

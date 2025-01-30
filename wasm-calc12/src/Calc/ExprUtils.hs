@@ -6,6 +6,7 @@ module Calc.ExprUtils
     bindExpr,
     mapExpr,
     getOuterPatternAnnotation,
+    mapOuterPatternAnnotation,
     monoidExpr,
   )
 where
@@ -98,6 +99,14 @@ getOuterPatternAnnotation (PTuple ann _ _) = ann
 getOuterPatternAnnotation (PLiteral ann _) = ann
 getOuterPatternAnnotation (PBox ann _) = ann
 getOuterPatternAnnotation (PConstructor ann _ _) = ann
+
+mapOuterPatternAnnotation :: (ann -> ann) -> Pattern ann -> Pattern ann
+mapOuterPatternAnnotation f (PWildcard ann) = PWildcard (f ann)
+mapOuterPatternAnnotation f (PVar ann a) = PVar (f ann) a
+mapOuterPatternAnnotation f (PTuple ann a b) = PTuple (f ann) a b
+mapOuterPatternAnnotation f (PLiteral ann a) = PLiteral (f ann) a
+mapOuterPatternAnnotation f (PBox ann a) = PBox (f ann) a
+mapOuterPatternAnnotation f (PConstructor ann a b) = PConstructor (f ann) a b
 
 monoidExpr :: (Monoid m) => (Expr ann -> m) -> Expr ann -> m
 monoidExpr _ (EVar {}) = mempty

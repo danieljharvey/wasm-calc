@@ -37,10 +37,6 @@ validateModule (Module {mdImports, mdFunctions, mdGlobals}) = do
   traverse_ (validateFunction functionNames) mdFunctions
   traverse_ validateGlobal mdGlobals
 
-getLinearityAnnotation :: Linearity ann -> ann
-getLinearityAnnotation (Whole ann)  = ann
-getLinearityAnnotation (Borrow ann) = ann
-
 validateGlobal ::
   (Show ann) =>
   Global (Type ann) ->
@@ -70,9 +66,10 @@ validate (LinearState {lsVars, lsUses}) =
                   _       -> Right ()
               LTBoxed ->
                 case fst <$> linearState of
-                  Just (Fresh _) -> Left (NotUsed ann ident)
-                  Just (Used _)  -> Right ()
-                  Nothing        -> Left (NotUsed ann ident)
+                  Just (Fresh _)  -> Left (NotUsed ann ident)
+                  Just (Borrow _) -> Right ()
+                  Just (Used _)   -> Right ()
+                  Nothing         -> Left (NotUsed ann ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
 
 getFunctionUses ::

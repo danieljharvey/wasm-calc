@@ -151,6 +151,8 @@ identifiersFromPattern (PConstructor ann constructor ps) (TConstructor _ _ tyArg
 
   allIdents <- zipWithM identifiersFromPattern ps filtered
   pure $ mconcat allIdents
+identifiersFromPattern pat (TReference _ ty) =
+  identifiersFromPattern pat ty
 identifiersFromPattern pat ty =
   throwError $ PatternMismatch ty pat
 

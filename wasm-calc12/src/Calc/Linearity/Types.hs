@@ -4,8 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Calc.Linearity.Types
-  ( Linearity (..),
-    LinearityType (..),
+  ( LinearityType (..),
     LinearState (..),
     UserDefined (..),
     Drops (..),
@@ -25,17 +24,13 @@ data Drops ann
   | DropMe
   deriving stock (Eq, Ord, Show, Functor)
 
-data Linearity ann
-  = Whole ann
-  | Borrow ann
-  deriving stock (Eq, Ord, Show, Functor)
-
 -- | we're less fussy about the use of primitive values
 data LinearityType = LTPrimitive | LTBoxed
   deriving stock (Eq, Ord, Show)
 
 data LinState ann
   = Fresh ann
+  | Borrow ann
   | Used ann
   deriving stock (Eq, Ord, Show, Functor)
 
