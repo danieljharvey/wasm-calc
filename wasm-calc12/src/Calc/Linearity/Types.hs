@@ -1,7 +1,6 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts   #-}
 
 module Calc.Linearity.Types
   ( LinearityType (..),
@@ -12,12 +11,12 @@ module Calc.Linearity.Types
   )
 where
 
-import Calc.Types.Identifier
-import Calc.Types.Type
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
-import qualified Data.Set as S
-import GHC.Natural
+import           Calc.Types.Identifier
+import           Calc.Types.Type
+import qualified Data.List.NonEmpty    as NE
+import qualified Data.Map              as M
+import qualified Data.Set              as S
+import           GHC.Natural
 
 data Drops ann
   = DropIdentifiers (NE.NonEmpty (Identifier, Type ann))
@@ -40,9 +39,9 @@ data UserDefined a = UserDefined a | Internal a
   deriving stock (Eq, Ord, Show, Functor)
 
 data LinearState ann = LinearState
-  { lsVars :: M.Map (UserDefined Identifier) (LinearityType, ann),
-    lsUses :: NE.NonEmpty (M.Map Identifier (LinState ann, Type ann)),
-    lsFresh :: Natural,
+  { lsVars       :: M.Map (UserDefined Identifier) (LinearityType, ann),
+    lsUses       :: NE.NonEmpty (M.Map Identifier (LinState ann, Type ann)),
+    lsFresh      :: Natural,
     lsIgnoreVars :: S.Set Identifier
   }
   deriving stock (Eq, Ord, Show, Functor)
