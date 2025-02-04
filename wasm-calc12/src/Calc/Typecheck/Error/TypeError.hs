@@ -1,24 +1,24 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Typecheck.Error.TypeError (TypeError (..), typeErrorDiagnostic) where
 
-import Calc.ExprUtils
-import Calc.SourceSpan
-import Calc.TypeUtils
-import Calc.Typecheck.Error.PatternMatchError
-import Calc.Types
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HS
-import qualified Data.List as List
-import Data.Maybe (catMaybes, mapMaybe)
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import GHC.Natural
-import qualified Prettyprinter as PP
-import qualified Prettyprinter.Render.Text as PP
+import           Calc.ExprUtils
+import           Calc.SourceSpan
+import           Calc.Typecheck.Error.PatternMatchError
+import           Calc.Types
+import           Calc.TypeUtils
+import           Data.HashSet                           (HashSet)
+import qualified Data.HashSet                           as HS
+import qualified Data.List                              as List
+import           Data.Maybe                             (catMaybes, mapMaybe)
+import           Data.Text                              (Text)
+import qualified Data.Text                              as T
+import qualified Error.Diagnose                         as Diag
+import           GHC.Natural
+import qualified Prettyprinter                          as PP
+import qualified Prettyprinter.Render.Text              as PP
 
 data TypeError ann
   = PredicateIsNotBoolean ann (Type ann)
@@ -47,6 +47,8 @@ data TypeError ann
   | UnknownLoadType ann
   | CantReturnReferenceFromFunction (Type ann)
   | ReferenceForPrimitiveValue (Type ann)
+  | ReferenceInDataType DataName Constructor (Type ann)
+  | DuplicateConstructor Constructor DataName DataName
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -96,6 +98,38 @@ typeErrorDiagnostic input e =
                   ]
               )
               []
+        (DuplicateConstructor constructor dt1 dt2) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint $ PP.pretty constructor <> " is defined in data types " <> PP.pretty dt1 <> " and " <> PP.pretty dt2
+              )
+              []
+              []
+
+
+        (ReferenceInDataType dataName consName ty) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint $ "Cannot use a reference in data type " <> PP.pretty dataName
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        (getOuterTypeAnnotation ty)
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint $
+                                PP.pretty consName <> " contains type " <> PP.pretty ty
+                            )
+                        )
+                  ]
+              )
+              []
+
         (StoringNonPrimitiveType ann ty) ->
           Diag.addReport diag $
             Diag.Err

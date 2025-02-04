@@ -362,7 +362,7 @@ spec = do
                 ( "function borrowAfterUse() -> Int32 { let pair = (True,True); let ref = pair; let _ = &pair; 32 }",
                   BorrowAfterUse () () "pair"
                 ),
-                ( "function useAfterBorrow() -> Int32 { let pair = (True,True); let ref = pair; let _ = pair; 32 }",
+                ( "function useAfterBorrow() -> Int32 { let pair = (True,True); let ref = &pair; let _ = pair; let _ = ref; 32 }",
                   UseAfterBorrow () () "pair"
                 )
 

@@ -1,32 +1,12 @@
 function main() -> Int64 { 100}
 
-type CantHaveAReferenceInHere
-  = Nope(&Int8)
-
 type Dog
   = Big
   | Little
   | Massive
 
-type WhyAmIAllowedCat
-  = Massive
-
 function thisIsAllowed() -> Boolean { 
   let pair = (True, False); 
   let borrowed = &pair; 
   case borrowed { (true, _) -> true }
-}
-
-function thisShouldntTypecheck() -> Dog { 
-  let pair = (Big, Little); 
-  let borrowed = &pair; 
-  case borrowed { (l, _) -> l }
-}
-
-function useAfterBorrowShouldntBeAllowed() -> Dog { 
-  let pair = (Big, Little); 
-  let borrowed = &pair; 
-  let result = case pair { (b, _) -> b }; 
-  borrowed; 
-  result
 }
