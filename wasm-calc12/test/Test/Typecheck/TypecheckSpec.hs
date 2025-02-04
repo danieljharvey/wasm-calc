@@ -1,25 +1,25 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Test.Typecheck.TypecheckSpec (spec) where
 
-import Calc.ExprUtils
-import Calc.Module
-import Calc.Parser
-import Calc.Typecheck
-import Calc.Types
-import Control.Monad
-import Data.Bifunctor (second)
-import Data.Either (isLeft, isRight)
-import Data.FileEmbed
-import Data.Foldable (traverse_)
-import qualified Data.List as List
+import           Calc.ExprUtils
+import           Calc.Module
+import           Calc.Parser
+import           Calc.Typecheck
+import           Calc.Types
+import           Control.Monad
+import           Data.Bifunctor     (second)
+import           Data.Either        (isLeft, isRight)
+import           Data.FileEmbed
+import           Data.Foldable      (traverse_)
+import qualified Data.List          as List
 import qualified Data.List.NonEmpty as NE
-import Data.Text (Text)
+import           Data.Text          (Text)
 import qualified Data.Text.Encoding as T
-import Test.Helpers
-import Test.Hspec
+import           Test.Helpers
+import           Test.Hspec
 
 -- these are saved in a file that is included in compilation
 testInputs :: [(FilePath, Text)]
@@ -282,7 +282,9 @@ spec = do
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
                 ],
-              "function cantReturnReference(ref: &(Boolean,Boolean)) -> &(Boolean, Boolean) { ref }"
+              "function cantReturnReference(ref: &(Boolean,Boolean)) -> &(Boolean, Boolean) { ref }",
+              "type PointerBox = Nope(&Int32)",
+              joinLines ["type Pet = Dog | Cat","type Animal = Cat"]
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
@@ -326,7 +328,9 @@ spec = do
               ),
               ("let f = \\(a: &(Int32,Int32)) -> Int32 { let (fst,_) = a; fst }; let pair: (Int32,Int32) = (100, 200); f(&pair)", "Int32"),
               ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32"),
-              ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32")
+              ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32"),
+              ("let pair = (True,False); let borrow = &pair; let (fst,_) = borrow; fst", "Boolean"),
+              ("let inner = (True,False); let pair = (inner,False); let borrow = &pair; let (fst,_) = borrow; fst", "&(Boolean,Boolean)")
             ]
 
       describe "Successfully typechecking expressions" $ do
@@ -372,6 +376,7 @@ spec = do
                       ]
                   )
               )
+
             ]
 
       describe "Failing typechecking expressions" $ do
@@ -437,7 +442,7 @@ testModuleTypechecks fileName input =
             let result = elaborateModule (void parsedMod)
             case result of
               Right _ -> pure ()
-              Left e -> error (show e)
+              Left e  -> error (show e)
             isRight result `shouldBe` True
 
 -- | find function called 'main'

@@ -1,21 +1,21 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Linearity.LinearitySpec (spec) where
 
-import Calc
-import Calc.Linearity
-import Calc.Typecheck
-import Control.Monad (void)
-import Data.Bifunctor
-import Data.Either (isRight)
-import Data.Foldable (traverse_)
+import           Calc
+import           Calc.Linearity
+import           Calc.Typecheck
+import           Control.Monad      (void)
+import           Data.Bifunctor
+import           Data.Either        (isRight)
+import           Data.Foldable      (traverse_)
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as M
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Test.Helpers
-import Test.Hspec
+import qualified Data.Map.Strict    as M
+import qualified Data.Set           as S
+import qualified Data.Text          as T
+import           Test.Helpers
+import           Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
 runTC =
@@ -231,7 +231,7 @@ spec = do
                   Right typedFn ->
                     let functions = case getFunctionUses mempty typedFn of
                           Right a -> a
-                          Left e -> error (show e)
+                          Left e  -> error (show e)
                         result = snd . (fmap . fmap) void <$> fst functions
                      in result `shouldBe` expr
               Left e -> error (T.unpack e)
@@ -359,9 +359,13 @@ spec = do
                 ( "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then { let _ = pair; pair } else pair }",
                   UsedMultipleTimes () () "pair"
                 ),
-                ( "function useAfterBorrow() -> Int32 { let pair = (True,True); let ref = pair; let _ = &pair; 32 }",
+                ( "function borrowAfterUse() -> Int32 { let pair = (True,True); let ref = pair; let _ = &pair; 32 }",
                   BorrowAfterUse () () "pair"
+                ),
+                ( "function useAfterBorrow() -> Int32 { let pair = (True,True); let ref = pair; let _ = pair; 32 }",
+                  UseAfterBorrow () () "pair"
                 )
+
               ]
         traverse_
           ( \(str, err) -> it (T.unpack str) $ do

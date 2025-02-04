@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Calc.Linearity.Error
   ( linearityErrorDiagnostic,
@@ -9,19 +9,20 @@ module Calc.Linearity.Error
   )
 where
 
-import Calc.SourceSpan
-import Calc.Types.Annotation
-import Calc.Types.Identifier
-import Data.Maybe (catMaybes, mapMaybe)
-import qualified Data.Text as T
-import qualified Error.Diagnose as Diag
-import qualified Prettyprinter as PP
+import           Calc.SourceSpan
+import           Calc.Types.Annotation
+import           Calc.Types.Identifier
+import           Data.Maybe                (catMaybes, mapMaybe)
+import qualified Data.Text                 as T
+import qualified Error.Diagnose            as Diag
+import qualified Prettyprinter             as PP
 import qualified Prettyprinter.Render.Text as PP
 
 data LinearityError ann
   = NotUsed ann Identifier
   | UsedMultipleTimes ann ann Identifier
   | BorrowAfterUse ann ann Identifier
+  | UseAfterBorrow ann ann Identifier
   deriving stock (Eq, Ord, Show, Functor)
 
 prettyPrint :: PP.Doc doc -> T.Text
@@ -88,6 +89,36 @@ linearityErrorDiagnostic input e =
                 [ann1, ann2]
             )
             []
+        (UseAfterBorrow borrowAnn useAnn ident) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint $ "Identifier " <> PP.pretty ident <> " used after borrow."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      borrowAnn
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "This was borrowed earlier"
+                          )
+                      ),
+                  (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      useAnn
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "Then it was used"
+                          )
+                      )
+                ]
+            )
+            []
+
         (BorrowAfterUse useAnn borrowAnn ident) ->
           Diag.Err
             Nothing
