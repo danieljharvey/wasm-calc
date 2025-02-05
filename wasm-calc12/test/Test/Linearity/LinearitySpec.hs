@@ -328,7 +328,14 @@ spec = do
                   [ "function fiveTimes(fn: &Fn(Int32) -> Int32) -> Int32 {",
                     "fn(fn(fn(fn(fn(1)))))",
                     "}"
-                  ]
+                  ],
+                  joinLines ["function borrowInApplyIsFine() -> (Boolean,Boolean) {",
+                      "let doSomethingWith = \\(a: &(Boolean,Boolean)) -> Boolean {let (b,_) = a; b};",
+                      "let pair = (True,False);",
+                      "doSomethingWith(&pair);",
+                      "pair",
+                      "}"]
+
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do
