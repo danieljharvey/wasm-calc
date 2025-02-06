@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE NamedFieldPuns     #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Calc.Typecheck.Helpers
   ( runTypecheckM,
@@ -19,23 +19,23 @@ module Calc.Typecheck.Helpers
   )
 where
 
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Generalise
-import           Calc.Typecheck.Types
-import           Calc.Typecheck.Unify
-import           Calc.Types
-import           Calc.TypeUtils
-import           Control.Monad             (when, zipWithM)
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Data.Bifunctor            (second)
-import           Data.Foldable             (traverse_)
-import qualified Data.HashMap.Strict       as HM
-import qualified Data.List.NonEmpty        as NE
-import qualified Data.Map.Strict           as M
-import           Data.Maybe                (mapMaybe)
-import qualified Data.Set                  as S
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Generalise
+import Calc.Typecheck.Types
+import Calc.Typecheck.Unify
+import Calc.Types
+import Control.Monad (when, zipWithM)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import Data.Bifunctor (second)
+import Data.Foldable (traverse_)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as M
+import Data.Maybe (mapMaybe)
+import qualified Data.Set as S
 
 -- | run a typechecking computation, discarding any Writer output
 runTypecheckM ::
@@ -132,18 +132,21 @@ lookupGlobal ann identifier = do
 
 -- simple types stay, everything else becomes a reference
 referenceType :: Type ann -> Type ann
-referenceType ty = if
-                      isPrimitive ty
-                   then ty
-                   else TReference (getOuterTypeAnnotation ty) ty
+referenceType ty =
+  if isPrimitive ty
+    then ty
+    else TReference (getOuterTypeAnnotation ty) ty
 
 isPrimitive :: Type ann -> Bool
 isPrimitive (TPrim {}) = True
-isPrimitive _          = False
+isPrimitive _ = False
 
-
-identifiersFromPattern :: Pattern ann -> Type ann -> TypecheckM ann
-  [(Identifier, Type ann)]
+identifiersFromPattern ::
+  Pattern ann ->
+  Type ann ->
+  TypecheckM
+    ann
+    [(Identifier, Type ann)]
 identifiersFromPattern (PLiteral {}) _ = pure mempty
 identifiersFromPattern (PVar _ identifier) ty =
   pure [(identifier, ty)]
@@ -250,7 +253,7 @@ calculateMonomorphisedTypes typeVars fnArgTys argTys fallbacks = do
         case M.lookup tv mapped of
           Just a -> Just (tv, a)
           Nothing -> case M.lookup tv fallbacks of
-            Just a  -> Just (tv, a)
+            Just a -> Just (tv, a)
             Nothing -> Nothing
   pure $ mapMaybe fromTv typeVars
 

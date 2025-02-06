@@ -1,31 +1,31 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE LambdaCase         #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Calc.Linearity.Decorate
   ( decorate,
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Linearity.Error
-import           Calc.Linearity.Helpers
-import           Calc.Linearity.Types
-import           Calc.Types.Expr
-import           Calc.Types.Identifier
-import           Calc.Types.Pattern
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad.Except
-import           Control.Monad.State
-import           Data.Bifunctor         (second)
-import           Data.Functor           (($>))
-import qualified Data.List.NonEmpty     as NE
-import qualified Data.Map               as M
-import qualified Data.Set               as S
-import qualified Data.Text              as T
+import Calc.ExprUtils
+import Calc.Linearity.Error
+import Calc.Linearity.Helpers
+import Calc.Linearity.Types
+import Calc.TypeUtils
+import Calc.Types.Expr
+import Calc.Types.Identifier
+import Calc.Types.Pattern
+import Calc.Types.Type
+import Control.Monad.Except
+import Control.Monad.State
+import Data.Bifunctor (second)
+import Data.Functor (($>))
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text as T
 
 addLetBinding ::
   (MonadState (LinearState ann) m) =>
@@ -206,9 +206,12 @@ decorate (EApply ty fn args) = do
   decoratedFn <- decorate fn
   (decoratedArgs, uses) <- scoped (traverse decorate args)
 
-  pushUses $ (\case
-          (Borrow ann, b) -> (Fresh ann, b)
-          other -> other) <$> uses
+  pushUses $
+    ( \case
+        (Borrow ann, b) -> (Fresh ann, b)
+        other -> other
+    )
+      <$> uses
 
   pure $ EApply (ty, Nothing) decoratedFn decoratedArgs
 decorate (ETuple ty a as) =

@@ -1,24 +1,24 @@
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Calc.Typecheck.Error.TypeError (TypeError (..), typeErrorDiagnostic) where
 
-import           Calc.ExprUtils
-import           Calc.SourceSpan
-import           Calc.Typecheck.Error.PatternMatchError
-import           Calc.Types
-import           Calc.TypeUtils
-import           Data.HashSet                           (HashSet)
-import qualified Data.HashSet                           as HS
-import qualified Data.List                              as List
-import           Data.Maybe                             (catMaybes, mapMaybe)
-import           Data.Text                              (Text)
-import qualified Data.Text                              as T
-import qualified Error.Diagnose                         as Diag
-import           GHC.Natural
-import qualified Prettyprinter                          as PP
-import qualified Prettyprinter.Render.Text              as PP
+import Calc.ExprUtils
+import Calc.SourceSpan
+import Calc.TypeUtils
+import Calc.Typecheck.Error.PatternMatchError
+import Calc.Types
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HS
+import qualified Data.List as List
+import Data.Maybe (catMaybes, mapMaybe)
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Error.Diagnose as Diag
+import GHC.Natural
+import qualified Prettyprinter as PP
+import qualified Prettyprinter.Render.Text as PP
 
 data TypeError ann
   = PredicateIsNotBoolean ann (Type ann)
@@ -106,8 +106,6 @@ typeErrorDiagnostic input e =
               )
               []
               []
-
-
         (ReferenceInDataType dataName consName ty) ->
           Diag.addReport diag $
             Diag.Err
@@ -129,7 +127,6 @@ typeErrorDiagnostic input e =
                   ]
               )
               []
-
         (StoringNonPrimitiveType ann ty) ->
           Diag.addReport diag $
             Diag.Err

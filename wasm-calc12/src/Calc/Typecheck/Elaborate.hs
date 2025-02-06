@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Calc.Typecheck.Elaborate
@@ -8,31 +8,31 @@ module Calc.Typecheck.Elaborate
   )
 where
 
-import           Calc.ExprUtils
-import           Calc.Typecheck.Error
-import           Calc.Typecheck.Helpers
-import           Calc.Typecheck.Infer
-import           Calc.Typecheck.Substitute
-import           Calc.Typecheck.Types
-import           Calc.Types.Constructor
-import           Calc.Types.Data
-import           Calc.Types.Expr
-import           Calc.Types.Function
-import           Calc.Types.Global
-import           Calc.Types.Import
-import           Calc.Types.Memory
-import           Calc.Types.Module
-import           Calc.Types.Test
-import           Calc.Types.Type
-import           Calc.TypeUtils
-import           Control.Monad             (unless)
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
-import           Data.Functor
-import qualified Data.Map.Strict           as M
-import           Data.Monoid
-import qualified Data.Set                  as S
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Infer
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Constructor
+import Calc.Types.Data
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Import
+import Calc.Types.Memory
+import Calc.Types.Module
+import Calc.Types.Test
+import Calc.Types.Type
+import Control.Monad (unless)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import Data.Functor
+import qualified Data.Map.Strict as M
+import Data.Monoid
+import qualified Data.Set as S
 
 elaborateModule ::
   forall ann.
@@ -53,8 +53,8 @@ elaborateModule
             { tceVars = mempty,
               tceGenerics = mempty,
               tceMemoryLimit = case mdMemory of
-                Nothing                         -> 0
-                Just (LocalMemory {lmLimit})    -> lmLimit
+                Nothing -> 0
+                Just (LocalMemory {lmLimit}) -> lmLimit
                 Just (ImportedMemory {imLimit}) -> imLimit,
               tceDataTypes = arrangeDataTypes mdDataTypes
             }
@@ -124,19 +124,19 @@ elaborateDataType :: Data ann -> TypecheckM ann (Data (Type ann))
 elaborateDataType (Data dtName vars cons) = do
   let typecheckItem :: Constructor -> Type ann -> TypecheckM ann (Type (Type ann))
       typecheckItem constructor ty =
-          if typeIsReference ty
-           then throwError (ReferenceInDataType dtName constructor ty)
-           else pure (ty $> ty)
+        if typeIsReference ty
+          then throwError (ReferenceInDataType dtName constructor ty)
+          else pure (ty $> ty)
 
       typecheckConstructors :: (Constructor, [Type ann]) -> TypecheckM ann (Constructor, [Type (Type ann)])
-      typecheckConstructors (constructor,v) = do
-         existing <- asks (M.lookup constructor . tceDataTypes)
-         case existing of
-           Just (TCDataType {tcdtName}) ->
-             unless (dtName == tcdtName) $ throwError (DuplicateConstructor constructor dtName tcdtName)
-           Nothing -> pure ()
+      typecheckConstructors (constructor, v) = do
+        existing <- asks (M.lookup constructor . tceDataTypes)
+        case existing of
+          Just (TCDataType {tcdtName}) ->
+            unless (dtName == tcdtName) $ throwError (DuplicateConstructor constructor dtName tcdtName)
+          Nothing -> pure ()
 
-         (,) constructor <$> traverse (typecheckItem constructor) v
+        (,) constructor <$> traverse (typecheckItem constructor) v
 
   tyCons <- M.fromList <$> traverse typecheckConstructors (M.toList cons)
 
@@ -145,9 +145,9 @@ elaborateDataType (Data dtName vars cons) = do
 typeIsReference :: Type ann -> Bool
 typeIsReference ty =
   getAny (go ty)
-   where
-     go (TReference {}) = Any True
-     go other           = monoidType go other
+  where
+    go (TReference {}) = Any True
+    go other = monoidType go other
 
 -- check a test expression has type `Bool`
 -- later we'll also check it does not use any imports
@@ -295,9 +295,9 @@ validateReturnType :: Type ann -> TypecheckM ann ()
 validateReturnType ty =
   case getFirst (checkRet ty) of
     (Just err) -> throwError err
-    _          -> pure ()
+    _ -> pure ()
   where
     checkRet a =
       case a of
         TReference {} -> First (Just (CantReturnReferenceFromFunction a))
-        other         -> monoidType checkRet other
+        other -> monoidType checkRet other
