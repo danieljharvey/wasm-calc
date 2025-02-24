@@ -4,54 +4,54 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Calc.Ability.Check (
-  AbilityEnv (..),
-  ModuleAbilities,
-  getAbilitiesForModule,
-  abilityCheckModule,
-  module Calc.Ability.Error,
-  module Calc.Types.ModuleAnnotations,
-)
+module Calc.Ability.Check
+  ( AbilityEnv (..),
+    ModuleAbilities,
+    getAbilitiesForModule,
+    abilityCheckModule,
+    module Calc.Ability.Error,
+    module Calc.Types.ModuleAnnotations,
+  )
 where
 
 import Calc.Ability.Error
 import Calc.ExprUtils (bindExpr)
 import Calc.Types.Ability (Ability (..))
-import Calc.Types.Expr (
-  Expr (EApply, EBox, EConstructor, ELambda, ESet, ETuple, EVar),
- )
-import Calc.Types.Function (
-  AbilityConstraint (..),
-  Function (Function, fnAbilityConstraints, fnBody, fnFunctionName),
-  FunctionName (..),
- )
+import Calc.Types.Expr
+  ( Expr (EApply, EBox, EConstructor, ELambda, ESet, ETuple, EVar),
+  )
+import Calc.Types.Function
+  ( AbilityConstraint (..),
+    Function (Function, fnAbilityConstraints, fnBody, fnFunctionName),
+    FunctionName (..),
+  )
 import Calc.Types.Identifier (Identifier (Identifier))
 import Calc.Types.Import (Import (Import, impImportName))
-import Calc.Types.Module (
-  Module (Module, mdFunctions, mdImports, mdTests),
- )
+import Calc.Types.Module
+  ( Module (Module, mdFunctions, mdImports, mdTests),
+  )
 import Calc.Types.ModuleAnnotations
 import Calc.Types.Test (Test (Test, tesExpr, tesName))
 import Control.Monad (when)
 import Control.Monad.Identity (Identity (runIdentity))
-import Control.Monad.Reader (
-  MonadReader,
-  ReaderT (runReaderT),
-  asks,
- )
-import Control.Monad.State (
-  MonadState,
-  StateT (StateT),
-  execStateT,
-  gets,
-  modify,
- )
-import Control.Monad.Writer (
-  MonadWriter (tell),
-  Writer,
-  WriterT (runWriterT),
-  execWriterT,
- )
+import Control.Monad.Reader
+  ( MonadReader,
+    ReaderT (runReaderT),
+    asks,
+  )
+import Control.Monad.State
+  ( MonadState,
+    StateT (StateT),
+    execStateT,
+    gets,
+    modify,
+  )
+import Control.Monad.Writer
+  ( MonadWriter (tell),
+    Writer,
+    WriterT (runWriterT),
+    execWriterT,
+  )
 import Data.Foldable (traverse_)
 import qualified Data.List as List
 import qualified Data.Map.Strict as M
@@ -60,18 +60,18 @@ import qualified Data.Set as S
 type ModuleAbilities ann = ModuleAnnotations (S.Set (Ability ann))
 
 newtype AbilityEnv = AbilityEnv
-  { aeImportNames :: S.Set FunctionName
-  -- ^ which functions are in fact imports?
+  { -- | which functions are in fact imports?
+    aeImportNames :: S.Set FunctionName
   }
 
 newtype AbilityM ann a = AbilityM (StateT (ModuleAbilities ann) (ReaderT AbilityEnv (Writer (S.Set (Ability ann)))) a)
   deriving newtype
-    ( Functor
-    , Applicative
-    , Monad
-    , MonadState (ModuleAbilities ann)
-    , MonadReader AbilityEnv
-    , MonadWriter (S.Set (Ability ann))
+    ( Functor,
+      Applicative,
+      Monad,
+      MonadState (ModuleAbilities ann),
+      MonadReader AbilityEnv,
+      MonadWriter (S.Set (Ability ann))
     )
 
 abilityCheckModule :: (Ord ann) => Module ann -> Either (AbilityError ann) (ModuleAbilities ann)
@@ -81,7 +81,7 @@ abilityCheckModule theModule = do
       checkTest (testName, abilities) =
         case List.find
           ( \case
-              CallImportedFunction{} -> True
+              CallImportedFunction {} -> True
               _ -> False
           )
           (S.toList abilities) of
@@ -89,8 +89,8 @@ abilityCheckModule theModule = do
           Nothing -> Right ()
 
       checkFunction (functionName, abilities) =
-        let constraints = case List.find (\Function{fnFunctionName} -> fnFunctionName == functionName) (mdFunctions theModule) of
-              Just (Function{fnAbilityConstraints}) -> fnAbilityConstraints
+        let constraints = case List.find (\Function {fnFunctionName} -> fnFunctionName == functionName) (mdFunctions theModule) of
+              Just (Function {fnAbilityConstraints}) -> fnAbilityConstraints
               Nothing -> mempty
          in checkFunctionAbilityViolations constraints abilities functionName
 
@@ -101,26 +101,26 @@ abilityCheckModule theModule = do
 checkFunctionAbilityViolations :: S.Set AbilityConstraint -> S.Set (Ability ann) -> FunctionName -> Either (AbilityError ann) ()
 checkFunctionAbilityViolations constraints abilities fnName =
   let checkAbility ability = case ability of
-        CallImportedFunction{} ->
+        CallImportedFunction {} ->
           when (S.member NoImports constraints) $
             Left (FunctionViolatesConstraint NoImports ability fnName)
-        AllocateMemory{} ->
+        AllocateMemory {} ->
           when (S.member NoAllocate constraints) $
             Left (FunctionViolatesConstraint NoAllocate ability fnName)
-        MutateGlobal{} ->
+        MutateGlobal {} ->
           when (S.member NoGlobalMutate constraints) $
             Left (FunctionViolatesConstraint NoGlobalMutate ability fnName)
    in traverse_ checkAbility abilities
 
 getAbilitiesForModule :: (Ord ann) => Module ann -> ModuleAbilities ann
-getAbilitiesForModule (Module{mdImports, mdFunctions, mdTests}) =
-  let importNames = S.fromList $ (\(Import{impImportName}) -> impImportName) <$> mdImports
+getAbilitiesForModule (Module {mdImports, mdFunctions, mdTests}) =
+  let importNames = S.fromList $ (\(Import {impImportName}) -> impImportName) <$> mdImports
 
-      abilityEnv = AbilityEnv{aeImportNames = importNames}
+      abilityEnv = AbilityEnv {aeImportNames = importNames}
 
       initialState = ModuleAnnotations mempty mempty
 
-      getAbilitiesForFunction (Function{fnFunctionName, fnBody}) = do
+      getAbilitiesForFunction (Function {fnFunctionName, fnBody}) = do
         functionAbilities <- execWriterT (abilityExpr fnBody)
         modify
           ( \ma ->
@@ -130,7 +130,7 @@ getAbilitiesForModule (Module{mdImports, mdFunctions, mdTests}) =
                 }
           )
 
-      getAbilitiesForTests (Test{tesName, tesExpr}) = do
+      getAbilitiesForTests (Test {tesName, tesExpr}) = do
         testAbilities <- execWriterT (abilityExpr tesExpr)
         modify
           ( \ma ->
@@ -162,10 +162,10 @@ lookupFunctionAbilities fnName = do
     Nothing -> pure mempty
 
 abilityExpr ::
-  ( MonadState (ModuleAbilities ann) m
-  , MonadReader AbilityEnv m
-  , MonadWriter (S.Set (Ability ann)) m
-  , Ord ann
+  ( MonadState (ModuleAbilities ann) m,
+    MonadReader AbilityEnv m,
+    MonadWriter (S.Set (Ability ann)) m,
+    Ord ann
   ) =>
   Expr ann ->
   m (Expr ann)
