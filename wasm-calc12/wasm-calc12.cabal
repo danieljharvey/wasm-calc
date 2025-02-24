@@ -65,6 +65,7 @@ common shared
     Calc.Linearity
     Calc.Linearity.Decorate
     Calc.Linearity.Error
+    Calc.Linearity.Helpers
     Calc.Linearity.Types
     Calc.Linearity.Validate
     Calc.Module

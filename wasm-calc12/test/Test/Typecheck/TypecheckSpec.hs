@@ -224,6 +224,17 @@ spec = do
                     "function main() -> Int32 { let either: Either(Boolean,Int32) = Right(42); case either { Right(a) -> a, Left(_) -> 0 } }"
                   ],
                 tyInt32
+              ),
+              ( joinLines
+                  [ "type List<a> = Cons(a, List(a)) | Nil",
+                    "function main(list: List(Int32), fn: &Fn(Int32) -> Int32) -> List(Int32) {",
+                    "case list {",
+                    "    Cons(a, rest) -> Cons(fn(a), main(rest, fn)), ",
+                    "    Nil -> Nil",
+                    "  }",
+                    "}"
+                  ],
+                tyConstructor "List" [tyInt32]
               )
             ]
       describe "Successfully typechecking modules" $ do
@@ -270,7 +281,10 @@ spec = do
               joinLines
                 [ "type List<a> = Cons(a, List(a)) | Nil",
                   "function main() -> Int32 { let _ = Cons(True, Cons((42:Int32),Nil)); 100 }"
-                ]
+                ],
+              "function cantReturnReference(ref: &(Boolean,Boolean)) -> &(Boolean, Boolean) { ref }",
+              "type PointerBox = Nope(&Int32)",
+              joinLines ["type Pet = Dog | Cat", "type Animal = Cat"]
             ]
       describe "Failing typechecking modules" $ do
         traverse_ testFailingModule failing
@@ -297,7 +311,9 @@ spec = do
               ("let Box(a) = Box((1: Int64)); a", "Int64"),
               ("let a: Int64 = 100; a", "Int64"),
               ("let (a,b): (Int64,Int64) = (1,2); a + b", "Int64"),
+              ("let pair: (Int64, Int64) = (1,2); let (a,b) = &pair; a + b", "Int64"),
               ("True && True", "Boolean"),
+              ("let pair = (True,True); &pair", "&(Boolean,Boolean)"),
               ("False || True", "Boolean"),
               ( "let inner = Box((100: Int64)); let Box(inner2) = Box(inner); let Box(inner3) = inner2; inner3",
                 "Int64"
@@ -310,8 +326,11 @@ spec = do
               ( "\\(a: Int32,b:Int32) -> Int32 { a + b }",
                 "Fn(Int32,Int32) -> Int32"
               ),
+              ("let f = \\(a: &(Int32,Int32)) -> Int32 { let (fst,_) = a; fst }; let pair: (Int32,Int32) = (100, 200); f(&pair)", "Int32"),
               ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32"),
-              ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32")
+              ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32"),
+              ("let pair = (True,False); let borrow = &pair; let (fst,_) = borrow; fst", "Boolean"),
+              ("let inner = (True,False); let pair = (inner,False); let borrow = &pair; let (fst,_) = borrow; fst", "&(Boolean,Boolean)")
             ]
 
       describe "Successfully typechecking expressions" $ do
@@ -348,6 +367,7 @@ spec = do
               ("case True { True -> (1: Int64), 1 -> (2: Int64) }", PatternMismatch tyBool (PLiteral () (PIntLit 1))),
               ("case True { True -> (1: Int64), False -> False }", TypeMismatch tyInt64 tyBool),
               ("case True { True -> True , True -> False }", PatternMatchError (MissingPatterns () [PLiteral () (PBool False)])),
+              ("let a = True; &a", ReferenceForPrimitiveValue tyBool),
               ( "let (_,False) = (True,False); True",
                 PatternMatchError
                   ( MissingPatterns

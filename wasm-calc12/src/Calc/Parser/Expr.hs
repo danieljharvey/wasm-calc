@@ -41,6 +41,7 @@ exprParserInternal =
   let parser =
         do
           try annotationParser
+          <|> referenceParser
           <|> try tupleParser
           <|> constructorParser
           <|> boxParser
@@ -77,6 +78,12 @@ lambdaParser = label "lambda" $ addLocation $ do
   expr <- exprParser
   stringLiteral "}"
   pure $ ELambda mempty args ty expr
+
+-- `&var`
+referenceParser :: Parser (Expr Annotation)
+referenceParser = label "reference" $ addLocation $ do
+  stringLiteral "&"
+  EReference mempty <$> identifierParser
 
 -- `{ let a = 1; True }`
 blockParser :: Parser (Expr Annotation)

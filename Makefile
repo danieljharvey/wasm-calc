@@ -76,6 +76,14 @@ STATIC_FILES = "./wasm-calc$(version)/test/static/"
 format-all-files:
 	find $(STATIC_FILES) -maxdepth 1 -type f -exec cabal run wasm-calc$(version) -- format {} \;
 
+# run with `make format-all-files version=7` to build all static `.calc` files for wasm-calc7
+.PHONY: build-file
+version = 12
+file = noalloc
+STATIC_FILES = ./wasm-calc$(version)/test/static
+build-file:
+	cabal run wasm-calc$(version) -- build "$(STATIC_FILES)/$(file).calc"
+
 # run with `make build-malloc version=9` to build and diff malloc.calc for
 # wasm-calc9
 .PHONY: build-malloc

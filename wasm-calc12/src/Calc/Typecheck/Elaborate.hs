@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -8,11 +9,13 @@ module Calc.Typecheck.Elaborate
 where
 
 import Calc.ExprUtils
+import Calc.TypeUtils
 import Calc.Typecheck.Error
 import Calc.Typecheck.Helpers
 import Calc.Typecheck.Infer
 import Calc.Typecheck.Substitute
 import Calc.Typecheck.Types
+import Calc.Types.Constructor
 import Calc.Types.Data
 import Calc.Types.Expr
 import Calc.Types.Function
@@ -22,9 +25,13 @@ import Calc.Types.Memory
 import Calc.Types.Module
 import Calc.Types.Test
 import Calc.Types.Type
+import Control.Monad (unless)
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.State
 import Data.Functor
 import qualified Data.Map.Strict as M
+import Data.Monoid
 import qualified Data.Set as S
 
 elaborateModule ::
@@ -101,6 +108,8 @@ elaborateModule
 
       tests <- traverse (elaborateTest functionsInScope) mdTests
 
+      dataTypes <- traverse elaborateDataType mdDataTypes
+
       pure $
         Module
           { mdFunctions = functions,
@@ -108,12 +117,37 @@ elaborateModule
             mdMemory = elaborateMemory <$> mdMemory,
             mdGlobals = globals,
             mdTests = tests,
-            mdDataTypes = elaborateDataType <$> mdDataTypes
+            mdDataTypes = dataTypes
           }
 
-elaborateDataType :: Data ann -> Data (Type ann)
-elaborateDataType (Data dtName vars cons) =
-  Data dtName vars ((fmap . fmap) (\ty -> ty $> ty) cons)
+elaborateDataType :: Data ann -> TypecheckM ann (Data (Type ann))
+elaborateDataType (Data dtName vars cons) = do
+  let typecheckItem :: Constructor -> Type ann -> TypecheckM ann (Type (Type ann))
+      typecheckItem constructor ty =
+        if typeIsReference ty
+          then throwError (ReferenceInDataType dtName constructor ty)
+          else pure (ty $> ty)
+
+      typecheckConstructors :: (Constructor, [Type ann]) -> TypecheckM ann (Constructor, [Type (Type ann)])
+      typecheckConstructors (constructor, v) = do
+        existing <- asks (M.lookup constructor . tceDataTypes)
+        case existing of
+          Just (TCDataType {tcdtName}) ->
+            unless (dtName == tcdtName) $ throwError (DuplicateConstructor constructor dtName tcdtName)
+          Nothing -> pure ()
+
+        (,) constructor <$> traverse (typecheckItem constructor) v
+
+  tyCons <- M.fromList <$> traverse typecheckConstructors (M.toList cons)
+
+  pure $ Data dtName vars tyCons
+
+typeIsReference :: Type ann -> Bool
+typeIsReference ty =
+  getAny (go ty)
+  where
+    go (TReference {}) = Any True
+    go other = monoidType go other
 
 -- check a test expression has type `Bool`
 -- later we'll also check it does not use any imports
@@ -241,6 +275,8 @@ elaborateFunction
             (faType <$> fnArgs)
             (getOuterAnnotation exprA)
 
+    validateReturnType fnReturnType
+
     pure
       ( Function
           { fnAnn = tyFn,
@@ -253,3 +289,15 @@ elaborateFunction
             fnAbilityConstraints = fnAbilityConstraints
           }
       )
+
+-- | is there a reference in this type? If so, can't return it from a function
+validateReturnType :: Type ann -> TypecheckM ann ()
+validateReturnType ty =
+  case getFirst (checkRet ty) of
+    (Just err) -> throwError err
+    _ -> pure ()
+  where
+    checkRet a =
+      case a of
+        TReference {} -> First (Just (CantReturnReferenceFromFunction a))
+        other -> monoidType checkRet other

@@ -6,6 +6,7 @@ module Calc.ExprUtils
     bindExpr,
     mapExpr,
     getOuterPatternAnnotation,
+    mapOuterPatternAnnotation,
     monoidExpr,
   )
 where
@@ -32,6 +33,7 @@ getOuterAnnotation (EStore ann _ _) = ann
 getOuterAnnotation (ESet ann _ _) = ann
 getOuterAnnotation (EBlock ann _) = ann
 getOuterAnnotation (ELambda ann _ _ _) = ann
+getOuterAnnotation (EReference ann _) = ann
 
 -- | modify the outer annotation of an expression
 -- useful for adding line numbers during parsing
@@ -53,7 +55,8 @@ mapOuterExprAnnotation f expr' =
     EStore ann a b -> EStore (f ann) a b
     ESet ann a b -> ESet (f ann) a b
     EBlock ann a -> EBlock (f ann) a
-    ELambda ann a b c -> ELambda ann a b c
+    ELambda ann a b c -> ELambda (f ann) a b c
+    EReference ann a -> EReference (f ann) a
 
 mapExpr :: (Expr ann -> Expr ann) -> Expr ann -> Expr ann
 mapExpr f =
@@ -87,6 +90,7 @@ bindExpr f (EStore ann a b) = EStore ann <$> f a <*> f b
 bindExpr f (ESet ann a b) = ESet ann a <$> f b
 bindExpr f (EBlock ann a) = EBlock ann <$> f a
 bindExpr f (ELambda ann a b c) = ELambda ann a b <$> f c
+bindExpr _ (EReference ann a) = pure $ EReference ann a
 
 getOuterPatternAnnotation :: Pattern ann -> ann
 getOuterPatternAnnotation (PWildcard ann) = ann
@@ -96,8 +100,17 @@ getOuterPatternAnnotation (PLiteral ann _) = ann
 getOuterPatternAnnotation (PBox ann _) = ann
 getOuterPatternAnnotation (PConstructor ann _ _) = ann
 
+mapOuterPatternAnnotation :: (ann -> ann) -> Pattern ann -> Pattern ann
+mapOuterPatternAnnotation f (PWildcard ann) = PWildcard (f ann)
+mapOuterPatternAnnotation f (PVar ann a) = PVar (f ann) a
+mapOuterPatternAnnotation f (PTuple ann a b) = PTuple (f ann) a b
+mapOuterPatternAnnotation f (PLiteral ann a) = PLiteral (f ann) a
+mapOuterPatternAnnotation f (PBox ann a) = PBox (f ann) a
+mapOuterPatternAnnotation f (PConstructor ann a b) = PConstructor (f ann) a b
+
 monoidExpr :: (Monoid m) => (Expr ann -> m) -> Expr ann -> m
 monoidExpr _ (EVar {}) = mempty
+monoidExpr _ (EReference {}) = mempty
 monoidExpr _ (EPrim {}) = mempty
 monoidExpr f (ELet _ _ expr body) = f expr <> f body
 monoidExpr f (EMatch _ matchExpr pats) =

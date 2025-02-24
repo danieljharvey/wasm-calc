@@ -1,0 +1,20 @@
+function main() -> Int64 { 100}
+
+type Dog
+  = Big(Int32)
+  | Little
+  | Massive
+
+function thisIsAllowed() -> Boolean { 
+  let pair = (True, False); 
+  let borrowed = &pair; 
+  case borrowed { (true, _) -> true }
+}
+
+function useReference(dogRef: &Dog) -> Int32 { 
+  case dogRef { Big(i) -> i, _ -> 0 }
+}
+
+function callingFunctionShouldntCountAsABorrowBecauseItsOutOfScope(
+  
+) -> Dog { let dog = Big(100);  useReference(&dog);  dog}

@@ -21,6 +21,8 @@ import qualified Prettyprinter.Render.Text as PP
 data LinearityError ann
   = NotUsed ann Identifier
   | UsedMultipleTimes ann ann Identifier
+  | BorrowAfterUse ann ann Identifier
+  | UseAfterBorrow ann ann Identifier
   deriving stock (Eq, Ord, Show, Functor)
 
 prettyPrint :: PP.Doc doc -> T.Text
@@ -85,6 +87,64 @@ linearityErrorDiagnostic input e =
                         )
                 )
                 [ann1, ann2]
+            )
+            []
+        (UseAfterBorrow borrowAnn useAnn ident) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint $ "Identifier " <> PP.pretty ident <> " used after borrow."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      borrowAnn
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "This was borrowed earlier"
+                          )
+                      ),
+                  (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      useAnn
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "Then it was used"
+                          )
+                      )
+                ]
+            )
+            []
+        (BorrowAfterUse useAnn borrowAnn ident) ->
+          Diag.Err
+            Nothing
+            ( prettyPrint $ "Identifier " <> PP.pretty ident <> " borrowed after use."
+            )
+            ( catMaybes
+                [ (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      useAnn
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "This was used earlier"
+                          )
+                      ),
+                  (,)
+                    <$> positionFromAnnotation
+                      filename
+                      input
+                      borrowAnn
+                    <*> pure
+                      ( Diag.This
+                          ( prettyPrint "Then it was borrowed"
+                          )
+                      )
+                ]
             )
             []
    in Diag.addReport diag report

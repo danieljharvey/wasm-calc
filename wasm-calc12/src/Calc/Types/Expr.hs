@@ -32,6 +32,7 @@ data Expr ann
   | ESet ann Identifier (Expr ann)
   | EBlock ann (Expr ann)
   | ELambda ann [(Identifier, Type ann)] (Type ann) (Expr ann)
+  | EReference ann Identifier
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | this instance defines how to nicely print `Expr`
@@ -40,6 +41,8 @@ instance PP.Pretty (Expr ann) where
     PP.pretty prim
   pretty (EAnn _ ty expr) =
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
+  pretty (EReference _ expr) =
+    "&" <> PP.pretty expr
   pretty (ELambda _ fnArgs fnReturnType fnBody) =
     "\\"
       <> PP.group

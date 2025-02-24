@@ -1,24 +1,17 @@
 function big(
-  a: Int32, 
-  b: Int32, 
-  c: Int32, 
-  d: Int32, 
-  e: Int32, 
-  f: Int32, 
-  g: Int32, 
-  h: Int32
+  a: Int32, b: Int32, c: Int32, d: Int32, e: Int32
 ) -> Int32 { 
   if True then
     2
   else
     {
-      let a: Int8 = 100; 
+      let a: Int32 = 100; 
       if False then
-        4
+        a
       else
         if True then
-          6
+          b
         else
-          if True then 8 else if False then 10 else 11
+          if True then c else if False then d else e
     }
 }

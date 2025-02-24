@@ -66,8 +66,7 @@ validate (LinearState {lsVars, lsUses}) =
                   _ -> Right ()
               LTBoxed ->
                 case fst <$> linearState of
-                  Just (Fresh _) -> Left (NotUsed ann ident)
-                  Just (Used _) -> Right ()
+                  Just _ -> Right ()
                   Nothing -> Left (NotUsed ann ident)
    in traverse_ validateFunctionItem (M.toList lsVars)
 

@@ -6,6 +6,7 @@ function useDataTypeInLambda() -> Boolean {
   let fn = \(b:YesOrNo) -> YesOrNo { 
     case b { Yes -> No, No -> Yes }
   }; 
+  fn(No); 
   True
 }
 

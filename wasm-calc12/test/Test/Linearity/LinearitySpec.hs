@@ -14,6 +14,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import qualified Data.Text as T
+import Test.Helpers
 import Test.Hspec
 
 runTC :: TypecheckM ann a -> Either (TypeError ann) a
@@ -40,8 +41,6 @@ spec = do
             (a : b : rest) -> ETuple Nothing a (b NE.:| rest)
             _ -> error "not enough items for tuple"
           tyTuple as = TContainer mempty (NE.fromList as)
-          tyInt32 = TPrim mempty TInt32
-          tyInt64 = TPrim mempty TInt64
           letAEqualsTuple =
             ELet
               Nothing
@@ -240,8 +239,6 @@ spec = do
         strings
 
     describe "getFunctionUses" $ do
-      let tyInt64 = TPrim mempty TInt64
-
       let strings =
             [ ( "function sum (a: Int64, b: Int64) -> Int64 { a + b }",
                 Right $
@@ -326,7 +323,20 @@ spec = do
                 "function fst<a,b>(pair: (a,b)) -> Box(a) { let (a,_) = pair; Box(a) }",
                 "function main() -> Int64 { let _ = (1: Int64); 2 }",
                 "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then pair else pair }",
-                "function bothSidesOfMatch() -> (Boolean,Boolean) { let pair = (True,False); case True { True -> pair, False -> pair } }"
+                "function bothSidesOfMatch() -> (Boolean,Boolean) { let pair = (True,False); case True { True -> pair, False -> pair } }",
+                joinLines
+                  [ "function fiveTimes(fn: &Fn(Int32) -> Int32) -> Int32 {",
+                    "fn(fn(fn(fn(fn(1)))))",
+                    "}"
+                  ],
+                joinLines
+                  [ "function borrowInApplyIsFine() -> (Boolean,Boolean) {",
+                    "let doSomethingWith = \\(a: &(Boolean,Boolean)) -> Boolean {let (b,_) = a; b};",
+                    "let pair = (True,False);",
+                    "doSomethingWith(&pair);",
+                    "pair",
+                    "}"
+                  ]
               ]
         traverse_
           ( \str -> it (T.unpack str) $ do
@@ -356,6 +366,12 @@ spec = do
                 ),
                 ( "function bothSidesOfIf() -> (Boolean,Boolean) { let pair = (True,False); if True then { let _ = pair; pair } else pair }",
                   UsedMultipleTimes () () "pair"
+                ),
+                ( "function borrowAfterUse() -> Int32 { let pair = (True,True); let ref = pair; let _ = &pair; 32 }",
+                  BorrowAfterUse () () "pair"
+                ),
+                ( "function useAfterBorrow() -> Int32 { let pair = (True,True); let ref = &pair; let _ = pair; let _ = ref; 32 }",
+                  UseAfterBorrow () () "pair"
                 )
               ]
         traverse_
