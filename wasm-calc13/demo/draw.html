@@ -1,0 +1,42 @@
+<!doctype html>
+
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <title>WASM test</title>
+  </head>
+
+  <body>
+    <script>
+      const drawDot = (x,y,r,g,b) => {
+        const canvas = document.getElementById("canvas");
+        if (canvas.getContext) {
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "rgb(" + r + "," + g + "," + b + ")"
+          ctx.fillRect(x, y, x + 1, y + 1);
+        }
+      }
+
+      const importObject = {
+        imports: {
+          draw: (bigX,bigY,bigR,bigG,bigB) => {
+            drawDot(Number(bigX), Number(bigY),Number(bigR),Number(bigG), Number(bigB))
+          }
+        }
+      };
+
+      fetch("draw.wasm").then(response =>
+        response.arrayBuffer()
+      ).then(bytes =>
+        WebAssembly.instantiate(bytes, importObject)
+      ).then(result => {
+        setInterval(() => {
+          result.instance.exports.test();
+        },1);
+      });
+    </script>
+    <canvas id="canvas" width=600 height=600/>
+  </body>
+
+</html>

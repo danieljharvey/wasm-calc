@@ -1,0 +1,17 @@
+function big(
+  a: Int32, b: Int32, c: Int32, d: Int32, e: Int32
+) -> Int32 { 
+  if True then
+    2
+  else
+    {
+      let a: Int32 = 100; 
+      if False then
+        a
+      else
+        if True then
+          b
+        else
+          if True then c else if False then d else e
+    }
+}

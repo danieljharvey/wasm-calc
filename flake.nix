@@ -68,6 +68,7 @@
           wasm-calc10 = makeCalc "wasm-calc10" ./wasm-calc10;
           wasm-calc11 = makeCalc "wasm-calc11" ./wasm-calc11;
           wasm-calc12 = makeCalc "wasm-calc12" ./wasm-calc12;
+          wasm-calc13 = makeCalc "wasm-calc13" ./wasm-calc13;
 
         in
         {
@@ -76,7 +77,8 @@
               inherit wasm-calc1 wasm-calc2 wasm-calc3
                 wasm-calc4 wasm-calc5 wasm-calc6
                 wasm-calc7 wasm-calc8 wasm-calc9
-                wasm-calc10 wasm-calc11 wasm-calc12;
+                wasm-calc10 wasm-calc11 wasm-calc12
+                wasm-calc13;
             };
 
           # sneaky way to 'build all'
@@ -84,7 +86,8 @@
             inherit wasm-calc1 wasm-calc2 wasm-calc3
               wasm-calc4 wasm-calc5 wasm-calc6
               wasm-calc7 wasm-calc8 wasm-calc9
-              wasm-calc10 wasm-calc11 wasm-calc12;
+              wasm-calc10 wasm-calc11 wasm-calc12
+              wasm-calc13;
           };
 
           defaultPackage = self.packages.${system}.wasm-calc12;

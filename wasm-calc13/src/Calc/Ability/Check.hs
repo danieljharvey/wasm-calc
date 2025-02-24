@@ -1,0 +1,201 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
+module Calc.Ability.Check (
+  AbilityEnv (..),
+  ModuleAbilities,
+  getAbilitiesForModule,
+  abilityCheckModule,
+  module Calc.Ability.Error,
+  module Calc.Types.ModuleAnnotations,
+)
+where
+
+import Calc.Ability.Error
+import Calc.ExprUtils (bindExpr)
+import Calc.Types.Ability (Ability (..))
+import Calc.Types.Expr (
+  Expr (EApply, EBox, EConstructor, ELambda, ESet, ETuple, EVar),
+ )
+import Calc.Types.Function (
+  AbilityConstraint (..),
+  Function (Function, fnAbilityConstraints, fnBody, fnFunctionName),
+  FunctionName (..),
+ )
+import Calc.Types.Identifier (Identifier (Identifier))
+import Calc.Types.Import (Import (Import, impImportName))
+import Calc.Types.Module (
+  Module (Module, mdFunctions, mdImports, mdTests),
+ )
+import Calc.Types.ModuleAnnotations
+import Calc.Types.Test (Test (Test, tesExpr, tesName))
+import Control.Monad (when)
+import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.Reader (
+  MonadReader,
+  ReaderT (runReaderT),
+  asks,
+ )
+import Control.Monad.State (
+  MonadState,
+  StateT (StateT),
+  execStateT,
+  gets,
+  modify,
+ )
+import Control.Monad.Writer (
+  MonadWriter (tell),
+  Writer,
+  WriterT (runWriterT),
+  execWriterT,
+ )
+import Data.Foldable (traverse_)
+import qualified Data.List as List
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
+
+type ModuleAbilities ann = ModuleAnnotations (S.Set (Ability ann))
+
+newtype AbilityEnv = AbilityEnv
+  { aeImportNames :: S.Set FunctionName
+  -- ^ which functions are in fact imports?
+  }
+
+newtype AbilityM ann a = AbilityM (StateT (ModuleAbilities ann) (ReaderT AbilityEnv (Writer (S.Set (Ability ann)))) a)
+  deriving newtype
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadState (ModuleAbilities ann)
+    , MonadReader AbilityEnv
+    , MonadWriter (S.Set (Ability ann))
+    )
+
+abilityCheckModule :: (Ord ann) => Module ann -> Either (AbilityError ann) (ModuleAbilities ann)
+abilityCheckModule theModule = do
+  let moduleAbilities = getAbilitiesForModule theModule
+
+      checkTest (testName, abilities) =
+        case List.find
+          ( \case
+              CallImportedFunction{} -> True
+              _ -> False
+          )
+          (S.toList abilities) of
+          Just violatingAbility -> Left (TestViolatesConstraint violatingAbility testName)
+          Nothing -> Right ()
+
+      checkFunction (functionName, abilities) =
+        let constraints = case List.find (\Function{fnFunctionName} -> fnFunctionName == functionName) (mdFunctions theModule) of
+              Just (Function{fnAbilityConstraints}) -> fnAbilityConstraints
+              Nothing -> mempty
+         in checkFunctionAbilityViolations constraints abilities functionName
+
+  traverse_ checkTest (M.toList $ maTests moduleAbilities)
+  traverse_ checkFunction (M.toList $ maFunctions moduleAbilities)
+  pure moduleAbilities
+
+checkFunctionAbilityViolations :: S.Set AbilityConstraint -> S.Set (Ability ann) -> FunctionName -> Either (AbilityError ann) ()
+checkFunctionAbilityViolations constraints abilities fnName =
+  let checkAbility ability = case ability of
+        CallImportedFunction{} ->
+          when (S.member NoImports constraints) $
+            Left (FunctionViolatesConstraint NoImports ability fnName)
+        AllocateMemory{} ->
+          when (S.member NoAllocate constraints) $
+            Left (FunctionViolatesConstraint NoAllocate ability fnName)
+        MutateGlobal{} ->
+          when (S.member NoGlobalMutate constraints) $
+            Left (FunctionViolatesConstraint NoGlobalMutate ability fnName)
+   in traverse_ checkAbility abilities
+
+getAbilitiesForModule :: (Ord ann) => Module ann -> ModuleAbilities ann
+getAbilitiesForModule (Module{mdImports, mdFunctions, mdTests}) =
+  let importNames = S.fromList $ (\(Import{impImportName}) -> impImportName) <$> mdImports
+
+      abilityEnv = AbilityEnv{aeImportNames = importNames}
+
+      initialState = ModuleAnnotations mempty mempty
+
+      getAbilitiesForFunction (Function{fnFunctionName, fnBody}) = do
+        functionAbilities <- execWriterT (abilityExpr fnBody)
+        modify
+          ( \ma ->
+              ma
+                { maFunctions =
+                    M.insert fnFunctionName functionAbilities (maFunctions ma)
+                }
+          )
+
+      getAbilitiesForTests (Test{tesName, tesExpr}) = do
+        testAbilities <- execWriterT (abilityExpr tesExpr)
+        modify
+          ( \ma ->
+              ma
+                { maTests =
+                    M.insert tesName testAbilities (maTests ma)
+                }
+          )
+
+      action = do
+        traverse_ getAbilitiesForFunction mdFunctions
+        traverse_ getAbilitiesForTests mdTests
+   in runAbilityM initialState abilityEnv action
+
+-- | get the abilities out of our pile o' monads
+runAbilityM :: (Ord ann) => ModuleAbilities ann -> AbilityEnv -> AbilityM ann a -> ModuleAbilities ann
+runAbilityM moduleAbilities abilityEnv (AbilityM action) =
+  fst $ runIdentity $ runWriterT $ runReaderT (execStateT action moduleAbilities) abilityEnv
+
+lookupFunctionAbilities ::
+  (Ord ann) =>
+  (MonadState (ModuleAbilities ann) m) =>
+  FunctionName ->
+  m (S.Set (Ability ann))
+lookupFunctionAbilities fnName = do
+  functionAbilities <- gets (M.lookup fnName . maFunctions)
+  case functionAbilities of
+    Just abilities -> pure abilities
+    Nothing -> pure mempty
+
+abilityExpr ::
+  ( MonadState (ModuleAbilities ann) m
+  , MonadReader AbilityEnv m
+  , MonadWriter (S.Set (Ability ann)) m
+  , Ord ann
+  ) =>
+  Expr ann ->
+  m (Expr ann)
+abilityExpr (ESet ann ident value) = do
+  tell (S.singleton $ MutateGlobal ann ident)
+  ESet ann ident <$> abilityExpr value
+abilityExpr (ETuple ann a b) = do
+  -- we'll need to account for other allocations in future
+  tell (S.singleton $ AllocateMemory ann)
+  ETuple ann <$> abilityExpr a <*> traverse abilityExpr b
+abilityExpr (EBox ann a) = do
+  -- we'll need to account for other allocations in future
+  tell (S.singleton $ AllocateMemory ann)
+  EBox ann <$> abilityExpr a
+abilityExpr (ELambda ann args ident body) = do
+  tell (S.singleton $ AllocateMemory ann)
+  ELambda ann args ident
+    <$> abilityExpr body
+abilityExpr (EConstructor ann constructor as) = do
+  tell (S.singleton $ AllocateMemory ann)
+  EConstructor ann constructor <$> traverse abilityExpr as
+abilityExpr (EApply ann fn@(EVar _ (Identifier fnVar)) args) = do
+  let functionName = FunctionName fnVar
+  isImport <- asks (S.member functionName . aeImportNames)
+  if isImport
+    then tell (S.singleton $ CallImportedFunction ann functionName)
+    else do
+      -- if this name points at a function, whatever abilities
+      -- that function uses, we use
+      functionAbilities <- lookupFunctionAbilities functionName
+      tell functionAbilities
+  EApply ann <$> abilityExpr fn <*> traverse abilityExpr args
+abilityExpr other = bindExpr abilityExpr other

@@ -1,0 +1,303 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
+module Calc.Typecheck.Elaborate
+  ( elaborateFunction,
+    elaborateModule,
+  )
+where
+
+import Calc.ExprUtils
+import Calc.TypeUtils
+import Calc.Typecheck.Error
+import Calc.Typecheck.Helpers
+import Calc.Typecheck.Infer
+import Calc.Typecheck.Substitute
+import Calc.Typecheck.Types
+import Calc.Types.Constructor
+import Calc.Types.Data
+import Calc.Types.Expr
+import Calc.Types.Function
+import Calc.Types.Global
+import Calc.Types.Import
+import Calc.Types.Memory
+import Calc.Types.Module
+import Calc.Types.Test
+import Calc.Types.Type
+import Control.Monad (unless)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
+import Data.Functor
+import qualified Data.Map.Strict as M
+import Data.Monoid
+import qualified Data.Set as S
+
+elaborateModule ::
+  forall ann.
+  Module ann ->
+  Either (TypeError ann) (Module (Type ann))
+elaborateModule
+  ( Module
+      { mdTests,
+        mdImports,
+        mdGlobals,
+        mdMemory,
+        mdFunctions,
+        mdDataTypes
+      }
+    ) = do
+    let typecheckEnv =
+          TypecheckEnv
+            { tceVars = mempty,
+              tceGenerics = mempty,
+              tceMemoryLimit = case mdMemory of
+                Nothing -> 0
+                Just (LocalMemory {lmLimit}) -> lmLimit
+                Just (ImportedMemory {imLimit}) -> imLimit,
+              tceDataTypes = arrangeDataTypes mdDataTypes
+            }
+
+    -- statically provide types of all functions in scope
+    let functionsInScope =
+          foldMap
+            ( \(Function {fnFunctionName, fnAnn, fnArgs, fnReturnType}) ->
+                M.singleton
+                  fnFunctionName
+                  ( TFunction fnAnn (faType <$> fnArgs) fnReturnType
+                  )
+            )
+            mdFunctions
+
+    let importsInScope =
+          foldMap
+            (\(Import {impImportName, impAnn, impArgs, impReturnType}) -> M.singleton impImportName (TFunction impAnn (iaType <$> impArgs) impReturnType))
+            mdImports
+
+    runTypecheckM typecheckEnv $ do
+      globals <-
+        traverse
+          ( \global -> do
+              elabGlobal <- elaborateGlobal global
+              storeGlobal (glbIdentifier elabGlobal) (glbMutability elabGlobal) (glbAnn elabGlobal)
+              pure elabGlobal
+          )
+          mdGlobals
+
+      imports <-
+        traverse
+          ( \imp -> do
+              elabImport <- elaborateImport imp
+              storeFunction (impImportName elabImport) mempty (impAnn elabImport)
+              pure elabImport
+          )
+          mdImports
+
+      functions <-
+        traverse
+          ( \fn -> do
+              elabFn <- elaborateFunction (functionsInScope <> importsInScope) fn
+              storeFunction
+                (fnFunctionName elabFn)
+                (S.fromList $ fnGenerics fn)
+                (fnAnn elabFn)
+              pure elabFn
+          )
+          mdFunctions
+
+      tests <- traverse (elaborateTest functionsInScope) mdTests
+
+      dataTypes <- traverse elaborateDataType mdDataTypes
+
+      pure $
+        Module
+          { mdFunctions = functions,
+            mdImports = imports,
+            mdMemory = elaborateMemory <$> mdMemory,
+            mdGlobals = globals,
+            mdTests = tests,
+            mdDataTypes = dataTypes
+          }
+
+elaborateDataType :: Data ann -> TypecheckM ann (Data (Type ann))
+elaborateDataType (Data dtName vars cons) = do
+  let typecheckItem :: Constructor -> Type ann -> TypecheckM ann (Type (Type ann))
+      typecheckItem constructor ty =
+        if typeIsReference ty
+          then throwError (ReferenceInDataType dtName constructor ty)
+          else pure (ty $> ty)
+
+      typecheckConstructors :: (Constructor, [Type ann]) -> TypecheckM ann (Constructor, [Type (Type ann)])
+      typecheckConstructors (constructor, v) = do
+        existing <- asks (M.lookup constructor . tceDataTypes)
+        case existing of
+          Just (TCDataType {tcdtName}) ->
+            unless (dtName == tcdtName) $ throwError (DuplicateConstructor constructor dtName tcdtName)
+          Nothing -> pure ()
+
+        (,) constructor <$> traverse (typecheckItem constructor) v
+
+  tyCons <- M.fromList <$> traverse typecheckConstructors (M.toList cons)
+
+  pure $ Data dtName vars tyCons
+
+typeIsReference :: Type ann -> Bool
+typeIsReference ty =
+  getAny (go ty)
+  where
+    go (TReference {}) = Any True
+    go other = monoidType go other
+
+-- check a test expression has type `Bool`
+-- later we'll also check it does not use any imports
+elaborateTest :: M.Map FunctionName (Type ann) -> Test ann -> TypecheckM ann (Test (Type ann))
+elaborateTest functionsInScope (Test {tesAnn, tesName, tesExpr}) = do
+  elabExpr <-
+    withFunctionEnv
+      mempty
+      functionsInScope
+      mempty
+      (check (TPrim tesAnn TBool) tesExpr)
+
+  pure $
+    Test
+      { tesAnn = getOuterAnnotation elabExpr,
+        tesName,
+        tesExpr = elabExpr
+      }
+
+-- decorate a memory annotation with an arbitrary Void type
+elaborateMemory :: Memory ann -> Memory (Type ann)
+elaborateMemory = fmap (`TPrim` TVoid)
+
+elaborateGlobal :: Global ann -> TypecheckM ann (Global (Type ann))
+elaborateGlobal (Global {glbMutability, glbIdentifier, glbExpr}) = do
+  elabExpr <- infer glbExpr
+
+  pure $
+    Global
+      { glbAnn = getOuterAnnotation elabExpr,
+        glbMutability,
+        glbIdentifier,
+        glbExpr = elabExpr
+      }
+
+elaborateImport :: Import ann -> TypecheckM ann (Import (Type ann))
+elaborateImport
+  Import
+    { impArgs,
+      impExternalModule,
+      impReturnType,
+      impAnn,
+      impExternalFunction,
+      impImportName
+    } = do
+    let importArguments =
+          ( \ImportArg {iaName, iaType, iaAnn} ->
+              ImportArg
+                { iaName,
+                  iaType = fmap (const iaType) iaType,
+                  iaAnn = fmap (const iaAnn) iaType
+                }
+          )
+            <$> impArgs
+
+    let importType =
+          TFunction
+            impAnn
+            (iaType <$> impArgs)
+            impReturnType
+
+    pure $
+      Import
+        { impImportName,
+          impExternalModule,
+          impExternalFunction,
+          impAnn = importType,
+          impArgs = importArguments,
+          impReturnType = fmap (const impReturnType) impReturnType
+        }
+
+checkAndSubstitute ::
+  Type ann ->
+  Expr ann ->
+  TypecheckM ann (Expr (Type ann))
+checkAndSubstitute ty expr = do
+  exprA <- check ty expr
+  unified <- gets tcsUnified
+  pure $ substitute unified <$> exprA
+
+elaborateFunction ::
+  M.Map FunctionName (Type ann) ->
+  Function ann ->
+  TypecheckM ann (Function (Type ann))
+elaborateFunction
+  functionsInScope
+  ( Function
+      { fnPublic,
+        fnAnn,
+        fnArgs,
+        fnAbilityConstraints,
+        fnGenerics,
+        fnReturnType,
+        fnFunctionName,
+        fnBody
+      }
+    ) = do
+    -- include current function with arguments so we can recursively call ourselves
+    let tyCurrentFunction =
+          TFunction fnAnn (faType <$> fnArgs) fnReturnType
+
+    let functionsWithCurrent =
+          M.insert fnFunctionName tyCurrentFunction functionsInScope
+
+    exprA <-
+      withFunctionEnv
+        fnArgs
+        functionsWithCurrent
+        (S.fromList fnGenerics)
+        (checkAndSubstitute fnReturnType fnBody)
+
+    let argsA =
+          ( \FunctionArg {faName, faType, faAnn} ->
+              FunctionArg
+                { faName,
+                  faType = fmap (const faType) faType,
+                  faAnn = fmap (const faAnn) faType
+                }
+          )
+            <$> fnArgs
+
+    let tyFn =
+          TFunction
+            fnAnn
+            (faType <$> fnArgs)
+            (getOuterAnnotation exprA)
+
+    validateReturnType fnReturnType
+
+    pure
+      ( Function
+          { fnAnn = tyFn,
+            fnGenerics,
+            fnArgs = argsA,
+            fnFunctionName = fnFunctionName,
+            fnBody = exprA,
+            fnPublic = fnPublic,
+            fnReturnType = fnReturnType $> fnReturnType,
+            fnAbilityConstraints = fnAbilityConstraints
+          }
+      )
+
+-- | is there a reference in this type? If so, can't return it from a function
+validateReturnType :: Type ann -> TypecheckM ann ()
+validateReturnType ty =
+  case getFirst (checkRet ty) of
+    (Just err) -> throwError err
+    _ -> pure ()
+  where
+    checkRet a =
+      case a of
+        TReference {} -> First (Just (CantReturnReferenceFromFunction a))
+        other -> monoidType checkRet other

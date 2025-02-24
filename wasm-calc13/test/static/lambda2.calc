@@ -1,0 +1,24 @@
+type YesOrNo
+  = No
+  | Yes
+
+type Maybe<a>
+  = Just(a)
+  | Nothing
+
+function mapMaybe(
+  maybe: Maybe(Boolean), fn: Fn(Boolean) -> Boolean
+) -> Maybe(Boolean) { 
+  case maybe { Just(a) -> Just(fn(a)), Nothing -> Nothing }
+}
+
+function useMapMaybe() -> Boolean { 
+  let fn = \(b:Boolean) -> Boolean { 
+    if b then False else True
+  }; 
+  let result = mapMaybe(Just(False), fn); 
+  case result { Just(True) -> True, _ -> False }
+}
+
+test useMapMaybe = 
+  { useMapMaybe() }
