@@ -1,0 +1,9 @@
+function useFlip() -> Boolean { 
+  let fn = \(b:Boolean) -> Boolean { 
+    if b then False else True
+  }; 
+  fn(False)
+}
+
+test flip = 
+  { useFlip() }
