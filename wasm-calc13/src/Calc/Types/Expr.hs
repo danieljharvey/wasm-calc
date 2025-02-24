@@ -33,6 +33,7 @@ data Expr ann
   | EBlock ann (Expr ann)
   | ELambda ann [(Identifier, Type ann)] (Type ann) (Expr ann)
   | EReference ann Identifier
+  | EArray ann [Expr ann]
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | this instance defines how to nicely print `Expr`
@@ -43,6 +44,11 @@ instance PP.Pretty (Expr ann) where
     PP.parens (PP.pretty expr <> ":" <+> PP.pretty ty)
   pretty (EReference _ expr) =
     "&" <> PP.pretty expr
+  pretty (EArray _ as) =
+    let pArgs = PP.punctuate ", " (PP.pretty <$> as)
+     in "["
+          <> PP.group (PP.line' <> indentMulti 2 (PP.cat pArgs) <> PP.line')
+          <> "]"
   pretty (ELambda _ fnArgs fnReturnType fnBody) =
     "\\"
       <> PP.group
@@ -54,27 +60,27 @@ instance PP.Pretty (Expr ann) where
               )
         )
       <> ")"
-      <+> "->"
-      <+> PP.pretty fnReturnType
-      <+> "{"
-      <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
+        <+> "->"
+        <+> PP.pretty fnReturnType
+        <+> "{"
+        <+> PP.group (newlines $ indentMulti 2 (PP.pretty fnBody))
       <> "}"
-    where
-      prettyArg (ident, ty) = PP.pretty ident <> ":" <> PP.pretty ty
+   where
+    prettyArg (ident, ty) = PP.pretty ident <> ":" <> PP.pretty ty
   pretty (ELet _ (PWildcard _) body rest) =
     PP.pretty body
       <> ";"
-      <+> PP.line
+        <+> PP.line
       <> PP.pretty rest
   pretty (ELet _ ident (EAnn _ ty body) rest) =
     "let"
       <+> PP.pretty ident
       <> ":"
-      <+> PP.pretty ty
-      <+> "="
-      <+> PP.pretty body
+        <+> PP.pretty ty
+        <+> "="
+        <+> PP.pretty body
       <> ";"
-      <+> PP.line
+        <+> PP.line
       <> PP.pretty rest
   pretty (ELet _ ident body rest) =
     "let"
@@ -82,7 +88,7 @@ instance PP.Pretty (Expr ann) where
       <+> "="
       <+> PP.pretty body
       <> ";"
-      <+> PP.line
+        <+> PP.line
       <> PP.pretty rest
   pretty (EMatch _ expr pats) =
     "case"
@@ -95,12 +101,12 @@ instance PP.Pretty (Expr ann) where
               ( PP.cat
                   (PP.punctuate ", " (prettyPat <$> NE.toList pats))
               )
-            <+> PP.line'
+              <+> PP.line'
         )
       <> "}"
-    where
-      prettyPat (pat, patExpr) =
-        PP.pretty pat <+> "->" <+> PP.pretty patExpr
+   where
+    prettyPat (pat, patExpr) =
+      PP.pretty pat <+> "->" <+> PP.pretty patExpr
   pretty (EConstructor _ constructor []) =
     PP.pretty constructor
   pretty (EConstructor _ constructor args) =
@@ -108,9 +114,9 @@ instance PP.Pretty (Expr ann) where
       <> "("
       <> PP.group (PP.line' <> indentMulti 2 (PP.cat pArgs) <> PP.line')
       <> ")"
-    where
-      pArgs =
-        PP.punctuate ", " (PP.pretty <$> args)
+   where
+    pArgs =
+      PP.punctuate ", " (PP.pretty <$> args)
   pretty (EInfix _ op a b) =
     PP.pretty a <+> PP.pretty op <+> PP.pretty b
   pretty (EIf _ predExpr thenExpr elseExpr) =
@@ -131,16 +137,16 @@ instance PP.Pretty (Expr ann) where
       <> "("
       <> PP.group (PP.line' <> indentMulti 2 (PP.cat pArgs) <> PP.line')
       <> ")"
-    where
-      pArgs = PP.punctuate ", " (PP.pretty <$> args)
+   where
+    pArgs = PP.punctuate ", " (PP.pretty <$> args)
   pretty (ETuple _ a as) =
     "(" <> PP.group (PP.line' <> indentMulti 2 (PP.cat prettyItems) <> PP.line') <> ")"
-    where
-      prettyItems =
-        PP.punctuate ", " (PP.pretty <$> tupleItems a as)
+   where
+    prettyItems =
+      PP.punctuate ", " (PP.pretty <$> tupleItems a as)
 
-      tupleItems :: a -> NE.NonEmpty a -> [a]
-      tupleItems b bs = b : NE.toList bs
+    tupleItems :: a -> NE.NonEmpty a -> [a]
+    tupleItems b bs = b : NE.toList bs
   pretty (EBox _ inner) =
     "Box(" <> PP.pretty inner <> ")"
   pretty (ELoad _ index) =

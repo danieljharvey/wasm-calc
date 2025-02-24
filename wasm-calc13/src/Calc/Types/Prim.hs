@@ -1,8 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 
-module Calc.Types.Prim
-  ( Prim (..),
-  )
+module Calc.Types.Prim (
+  Prim (..),
+)
 where
 
 import Data.Word
