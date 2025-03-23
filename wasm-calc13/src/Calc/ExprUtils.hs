@@ -1,21 +1,22 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Calc.ExprUtils
-  ( mapOuterExprAnnotation,
-    getOuterAnnotation,
-    bindExpr,
-    mapExpr,
-    getOuterPatternAnnotation,
-    mapOuterPatternAnnotation,
-    monoidExpr,
-  )
+module Calc.ExprUtils (
+  mapOuterExprAnnotation,
+  getOuterAnnotation,
+  bindExpr,
+  mapExpr,
+  getOuterPatternAnnotation,
+  mapOuterPatternAnnotation,
+  monoidExpr,
+)
 where
 
 import Calc.Types
 import Control.Monad.Identity
 
--- | get the annotation in the first leaf found in an `Expr`.
--- useful for getting the overall type of an expression
+{- | get the annotation in the first leaf found in an `Expr`.
+useful for getting the overall type of an expression
+-}
 getOuterAnnotation :: Expr ann -> ann
 getOuterAnnotation (EAnn ann _ _) = ann
 getOuterAnnotation (EInfix ann _ _ _) = ann
@@ -34,9 +35,11 @@ getOuterAnnotation (ESet ann _ _) = ann
 getOuterAnnotation (EBlock ann _) = ann
 getOuterAnnotation (ELambda ann _ _ _) = ann
 getOuterAnnotation (EReference ann _) = ann
+getOuterAnnotation (EArray ann _) = ann
 
--- | modify the outer annotation of an expression
--- useful for adding line numbers during parsing
+{- | modify the outer annotation of an expression
+useful for adding line numbers during parsing
+-}
 mapOuterExprAnnotation :: (ann -> ann) -> Expr ann -> Expr ann
 mapOuterExprAnnotation f expr' =
   case expr' of
@@ -57,13 +60,15 @@ mapOuterExprAnnotation f expr' =
     EBlock ann a -> EBlock (f ann) a
     ELambda ann a b c -> ELambda (f ann) a b c
     EReference ann a -> EReference (f ann) a
+    EArray ann a -> EArray (f ann) a
 
 mapExpr :: (Expr ann -> Expr ann) -> Expr ann -> Expr ann
 mapExpr f =
   runIdentity . bindExpr (Identity . f)
 
--- | Given a function that changes `Expr` values to `m Expr`, apply it throughout
--- an AST tree
+{- | Given a function that changes `Expr` values to `m Expr`, apply it throughout
+an AST tree
+-}
 bindExpr :: (Applicative m) => (Expr ann -> m (Expr ann)) -> Expr ann -> m (Expr ann)
 bindExpr f (EInfix ann op a b) =
   EInfix ann op <$> f a <*> f b
@@ -91,6 +96,7 @@ bindExpr f (ESet ann a b) = ESet ann a <$> f b
 bindExpr f (EBlock ann a) = EBlock ann <$> f a
 bindExpr f (ELambda ann a b c) = ELambda ann a b <$> f c
 bindExpr _ (EReference ann a) = pure $ EReference ann a
+bindExpr f (EArray ann a) = EArray ann <$> traverse f a
 
 getOuterPatternAnnotation :: Pattern ann -> ann
 getOuterPatternAnnotation (PWildcard ann) = ann
@@ -109,9 +115,9 @@ mapOuterPatternAnnotation f (PBox ann a) = PBox (f ann) a
 mapOuterPatternAnnotation f (PConstructor ann a b) = PConstructor (f ann) a b
 
 monoidExpr :: (Monoid m) => (Expr ann -> m) -> Expr ann -> m
-monoidExpr _ (EVar {}) = mempty
-monoidExpr _ (EReference {}) = mempty
-monoidExpr _ (EPrim {}) = mempty
+monoidExpr _ (EVar{}) = mempty
+monoidExpr _ (EReference{}) = mempty
+monoidExpr _ (EPrim{}) = mempty
 monoidExpr f (ELet _ _ expr body) = f expr <> f body
 monoidExpr f (EMatch _ matchExpr pats) =
   f matchExpr <> foldMap (f . snd) pats
@@ -127,3 +133,4 @@ monoidExpr f (EStore _ _ a) = f a
 monoidExpr f (ESet _ _ a) = f a
 monoidExpr f (EBlock _ a) = f a
 monoidExpr f (ELambda _ _ _ body) = f body
+monoidExpr f (EArray _ as) = foldMap f as

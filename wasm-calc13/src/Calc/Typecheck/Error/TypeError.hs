@@ -49,6 +49,7 @@ data TypeError ann
   | ReferenceForPrimitiveValue (Type ann)
   | ReferenceInDataType DataName Constructor (Type ann)
   | DuplicateConstructor Constructor DataName DataName
+  | EmptyArray ann
   deriving stock (Eq, Ord, Show)
 
 positionFromAnnotation ::
@@ -77,6 +78,27 @@ typeErrorDiagnostic input e =
    in case e of
         (PatternMatchError patternMatchError) ->
           patternMatchErrorDiagnostic input patternMatchError
+        (EmptyArray ann) ->
+          Diag.addReport diag $
+            Diag.Err
+              Nothing
+              ( prettyPrint "Can't infer type of an empty array"
+              )
+              ( catMaybes
+                  [ (,)
+                      <$> positionFromAnnotation
+                        filename
+                        input
+                        ann
+                      <*> pure
+                        ( Diag.This
+                            ( prettyPrint
+                                "Consider providing a type annotation"
+                            )
+                        )
+                  ]
+              )
+              []
         (UnknownLoadType ann) ->
           Diag.addReport diag $
             Diag.Err

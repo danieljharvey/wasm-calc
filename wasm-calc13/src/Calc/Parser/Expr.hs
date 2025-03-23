@@ -42,6 +42,7 @@ exprParserInternal =
         do
           try annotationParser
           <|> referenceParser
+          <|> arrayParser
           <|> try tupleParser
           <|> constructorParser
           <|> boxParser
@@ -272,3 +273,10 @@ patternCaseParser = do
   stringLiteral "->"
   patExpr <- exprParserInternal
   pure (pat, patExpr)
+
+arrayParser :: Parser (Expr Annotation)
+arrayParser = label "array" $ addLocation $ do
+  stringLiteral "["
+  exprs <- sepEndBy exprParserInternal (stringLiteral ",")
+  stringLiteral "]"
+  pure $ EArray mempty exprs

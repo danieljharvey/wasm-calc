@@ -18,6 +18,7 @@ getOuterTypeAnnotation (TVar ann _) = ann
 getOuterTypeAnnotation (TUnificationVar ann _) = ann
 getOuterTypeAnnotation (TConstructor ann _ _) = ann
 getOuterTypeAnnotation (TReference ann _) = ann
+getOuterTypeAnnotation (TArray ann _) = ann
 
 mapOuterTypeAnnotation :: (ann -> ann) -> Type ann -> Type ann
 mapOuterTypeAnnotation f (TPrim ann p) = TPrim (f ann) p
@@ -27,6 +28,7 @@ mapOuterTypeAnnotation f (TVar ann v) = TVar (f ann) v
 mapOuterTypeAnnotation f (TUnificationVar ann v) = TUnificationVar (f ann) v
 mapOuterTypeAnnotation f (TConstructor ann a b) = TConstructor (f ann) a b
 mapOuterTypeAnnotation f (TReference ann ty) = TReference (f ann) ty
+mapOuterTypeAnnotation f (TArray ann ty) = TArray (f ann) ty
 
 mapType :: (Type ann -> Type ann) -> Type ann -> Type ann
 mapType f ty =
@@ -51,6 +53,8 @@ bindType f (TConstructor ann dn args) =
   TConstructor ann dn <$> traverse f args
 bindType f (TReference ann ty) =
   TReference ann <$> f ty
+bindType f (TArray ann ty) =
+  TArray ann <$> f ty
 
 monoidType :: (Monoid m) => (Type ann -> m) -> Type ann -> m
 monoidType _ (TPrim {}) = mempty
@@ -60,3 +64,4 @@ monoidType _ (TVar {}) = mempty
 monoidType _ (TUnificationVar {}) = mempty
 monoidType f (TReference _ ty) = f ty
 monoidType f (TConstructor _ _ args) = foldMap f args
+monoidType f (TArray _ ty) = f ty

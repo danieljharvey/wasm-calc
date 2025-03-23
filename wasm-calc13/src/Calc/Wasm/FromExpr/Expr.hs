@@ -439,6 +439,7 @@ fromExpr ::
   m WasmExpr
 fromExpr (EPrim (ty, _) prim) =
   WPrim <$> fromPrim ty prim
+fromExpr (EArray {}) = error "fromExpr EArray"
 fromExpr (EMatch _ expr pats) =
   fromMatch expr pats
 fromExpr (ELambda _ args returnTy body) = do
