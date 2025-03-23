@@ -24,6 +24,7 @@ typeParser :: Parser ParserType
 typeParser =
   tyPrimitiveParser
     <|> tyTupleParser
+    <|> tyArrayParser
     <|> tyFunctionParser
     <|> tyConstructorParser
     <|> tyBoxParser
@@ -100,3 +101,11 @@ tyConstructorParser =
         dtName <- dataNameParser
         args <- try argsParser <|> pure mempty
         pure $ TConstructor mempty dtName args
+
+tyArrayParser :: Parser ParserType
+tyArrayParser = label "array" $
+  addTypeLocation $ do
+    _ <- stringLiteral "["
+    tyInner <- typeParser
+    _ <- stringLiteral "]"
+    pure (TArray mempty tyInner)

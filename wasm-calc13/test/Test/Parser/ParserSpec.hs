@@ -48,7 +48,8 @@ spec = do
               ),
               ( "&(Boolean,Boolean)",
                 TReference () (tyContainer [tyBool, tyBool])
-              )
+              ),
+              ("[Boolean]", TArray () tyBool)
             ]
       traverse_
         ( \(str, expr) -> it (T.unpack str) $ do
@@ -534,6 +535,11 @@ spec = do
                         )
                       ]
                   )
+              ),
+              ( "[True,False]",
+                EArray
+                  ()
+                  [bool True, bool False]
               )
             ]
       traverse_

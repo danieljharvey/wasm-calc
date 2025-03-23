@@ -114,6 +114,7 @@ decorate ::
 decorate (EVar ty@(TReference {}) ident) = do
   recordReference ident ty
   pure (EVar (ty, Nothing) ident)
+decorate (EArray _ty _as) = error "sdfsdf"
 decorate (EVar ty ident) = do
   recordUse ident ty
   pure (EVar (ty, Nothing) ident)

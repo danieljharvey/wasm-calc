@@ -518,6 +518,13 @@ infer :: Expr ann -> TypecheckM ann (Expr (Type ann))
 infer (EAnn ann ty expr) = do
   typedExpr <- check ty expr
   pure $ EAnn (getOuterAnnotation typedExpr $> ann) (ty $> ty) typedExpr
+infer (EArray ann exprs) = do
+  typedExprs <- traverse infer exprs
+  neTypedExprs <- case NE.nonEmpty typedExprs of
+    Nothing -> throwError (EmptyArray ann)
+    Just as -> pure as
+  ty <- TArray ann <$> combineMany (getOuterAnnotation <$> neTypedExprs)
+  pure $ EArray ty typedExprs
 infer (EPrim ann prim) =
   case prim of
     PBool _ -> pure (EPrim (TPrim ann TBool) prim)

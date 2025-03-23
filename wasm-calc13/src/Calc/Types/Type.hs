@@ -41,6 +41,7 @@ data Type ann
   | TVar ann TypeVar
   | TUnificationVar ann Natural
   | TReference ann (Type ann)
+  | TArray ann (Type ann)
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance PP.Pretty (Type ann) where
@@ -59,6 +60,7 @@ instance PP.Pretty (Type ann) where
     "(" <> PP.cat (PP.punctuate "," (PP.pretty <$> NE.toList as)) <> ")"
   pretty (TConstructor _ dataName []) =
     PP.pretty dataName
+  pretty (TArray _ ty) = "[" <> PP.pretty ty <> "]"
   pretty (TConstructor _ dataName args) =
     PP.pretty dataName
       <> "("

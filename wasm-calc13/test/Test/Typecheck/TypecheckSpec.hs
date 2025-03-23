@@ -330,7 +330,10 @@ spec = do
               ("let f = \\(a: Int32) -> Int32 { a }; f(100)", "Int32"),
               ("let prim: Int32 = 100; let f = \\(a: Int32) -> Int32 { a + prim }; f(100)", "Int32"),
               ("let pair = (True,False); let borrow = &pair; let (fst,_) = borrow; fst", "Boolean"),
-              ("let inner = (True,False); let pair = (inner,False); let borrow = &pair; let (fst,_) = borrow; fst", "&(Boolean,Boolean)")
+              ("let inner = (True,False); let pair = (inner,False); let borrow = &pair; let (fst,_) = borrow; fst", "&(Boolean,Boolean)"),
+              ( "[True,False]",
+                "[Boolean]"
+              )
             ]
 
       describe "Successfully typechecking expressions" $ do

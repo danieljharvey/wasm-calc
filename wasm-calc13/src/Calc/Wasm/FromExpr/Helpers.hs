@@ -245,6 +245,7 @@ scalarFromType (TPrim _ TFloat64) = pure F64
 scalarFromType (TReference {}) = pure Pointer
 scalarFromType (TFunction {}) = pure Pointer
 scalarFromType (TContainer {}) = pure Pointer
+scalarFromType (TArray {}) = error "TArray"
 scalarFromType (TVar _ _) =
   pure Pointer -- all polymorphic variables are Pointer
 scalarFromType (TUnificationVar {}) =
@@ -392,6 +393,8 @@ offsetForType (TFunction {}) =
   memorySize Pointer
 offsetForType (TVar _ _) =
   memorySize Pointer
+offsetForType (TArray {}) =
+  error "offsetForType TArray"
 offsetForType (TUnificationVar _ _) =
   error "offsetForType TUnificationVar"
 
@@ -413,6 +416,7 @@ memorySizeForType (TPrim _ TBool) =
   pure $ memorySize I8
 memorySizeForType (TPrim _ TVoid) =
   error "memorySizeForType TVoid"
+memorySizeForType (TArray {}) = error "memorySizeForType TArray"
 memorySizeForType (TConstructor _ dataTypeName tyArgs) = do
   (Data _ vars constructors) <- lookupDataType dataTypeName
   let discriminator =
